@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LV People</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#17212f;--muted:#64748b;--line:#e2e8f0;--brand:#1f3a5f;--brand2:#2f6fed;--ok:#168a4a;--warn:#b7791f;--bad:#c0392b;--side:#14233a;--sideink:#c9d6ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1623;--card:#16223a;--ink:#e6edf7;--muted:#93a4bd;--line:#26344e;--brand:#7fa8ff;--brand2:#4f86f7;--side:#0a1220;--sideink:#b6c4dc}}
+:root[data-theme=dark]{--bg:#0e1623;--card:#16223a;--ink:#e6edf7;--muted:#93a4bd;--line:#26344e;--brand:#7fa8ff;--brand2:#4f86f7;--side:#0a1220;--sideink:#b6c4dc}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit;color:inherit}
+.inp{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.inp:focus{outline:2px solid var(--brand2);outline-offset:0}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn-p{background:var(--brand2);border-color:var(--brand2);color:#fff}.btn-s{padding:4px 10px;font-size:12px}.btn-d{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+.login{min-height:100vh;display:grid;place-items:center;padding:16px}
+.lbox{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+.lbox h1{margin:0 0 4px;font-size:24px;color:var(--brand)}.lbox p{margin:0 0 14px;color:var(--muted)}
+.seg{display:flex;gap:6px;margin:12px 0}.seg button{flex:1}.seg .on{background:var(--brand2);color:#fff;border-color:var(--brand2)}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:8px}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.side{background:var(--side);color:var(--sideink);padding:18px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.side .logo{font-weight:700;font-size:18px;color:#fff;padding:4px 10px 14px}.side small{display:block;font-weight:400;color:var(--sideink);font-size:11px}
+.side a{display:block;padding:9px 12px;border-radius:8px;color:var(--sideink);text-decoration:none;margin:2px 0;cursor:pointer}
+.side a.on,.side a:hover{background:rgba(255,255,255,.12);color:#fff}
+.main{padding:20px 24px;min-width:0}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}.top h1{margin:0;font-size:22px;flex:1}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:var(--line)}.p-ok{background:#dcfce7;color:#166534}.p-warn{background:#fef3c7;color:#92400e}.p-bad{background:#fee2e2;color:#991b1b}.p-teal{background:#ccfbf1;color:#115e59}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.tw{overflow:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:12px;color:var(--muted);font-weight:600;background:var(--bg)}tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
+.tools{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}.tools .inp{max-width:210px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}.cards .card{padding:14px}.cards .n{font-size:26px;font-weight:700}
+.modal-bg{position:fixed;inset:0;background:rgba(10,18,32,.55);display:grid;place-items:center;padding:14px;z-index:20;overflow:auto}
+.modal{background:var(--card);border-radius:14px;padding:22px;width:100%;max-width:640px;max-height:92vh;overflow:auto}.modal h3{margin:0 0 6px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 14px}
+.acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.sec-t{font-weight:600;margin:16px 0 4px;color:var(--brand)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:40}
+.muted{color:var(--muted)}
+.menu-btn{display:none}
+@media (max-width:820px){.shell{grid-template-columns:1fr}.side{position:fixed;left:-250px;width:230px;z-index:15;transition:left .2s}.side.open{left:0}.menu-btn{display:inline-block}.main{padding:14px 16px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SB_URL='https://okhikmjugdytahgnddjm.supabase.co', SB_KEY='sb_publishable_2rSs43HfAzKoTbqw5_AQkA_7XzAxMv0';
+const sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let LANG=(()=>{try{return localStorage.getItem('lv_lang')||'en'}catch(e){return 'en'}})();
+const L=(en,hi)=>LANG==='hi'&&hi?hi:en;
+const S={user:null,profile:null,client:null,platform:false,page:'home',nav:false,data:{},q:'',fb:'',fs:'',side:false,loading:false};
+const isHR=()=>S.platform||['admin','hr'].includes(S.profile&&S.profile.role);
+const fmtD=d=>{if(!d)return '—';const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})};
+const inr=n=>'₹'+Number(n||0).toLocaleString('en-IN');
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function modal(html,onSubmit,wide){const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<form class="modal" ${wide?'style="max-width:820px"':''}>${html}</form>`;document.body.appendChild(bg);
+  const close=()=>bg.remove();bg.addEventListener('mousedown',e=>{if(e.target===bg)close()});$$('[data-close]',bg).forEach(b=>b.onclick=close);
+  const f=$('form',bg);f.onsubmit=async e=>{e.preventDefault();const btn=$('button.btn-p',f);if(btn)btn.disabled=true;try{await onSubmit(f,close,bg)}catch(x){const m=$('#me',bg);if(m)m.textContent=x.message||String(x)}finally{if(btn)btn.disabled=false}};return bg}
+async function logAudit(module,action,subject,detail){if(!S.profile)return;await sb.from('audit_log').insert({client_id:S.profile.client_id,user_id:S.user.id,module,action,subject,detail:detail||''})}
+
+/* ---------- start ---------- */
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){S.user=session.user;await loadMe()}
+  render();
+}
+async function loadMe(){
+  const [p,pa]=await Promise.all([sb.from('profiles').select('*, employee:employee_id(name,code), client:client_id(code,name,status,modules)').eq('user_id',S.user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',S.user.id).maybeSingle()]);
+  S.platform=!!(pa.data);S.profile=p.data||null;S.client=p.data?p.data.client:null;
+  if(!S.platform&&!S.profile){await sb.auth.signOut();S.user=null;throw new Error('This login is not active')}
+  S.page=S.platform?'clients':'home';
+}
+
+/* ---------- login ---------- */
+let LMODE='client';
+function loginView(msg){
+  return `<div class="login"><form class="lbox" id="lf"><h1>LV People</h1><p>${L('Sign in to your company account','अपने कंपनी अकाउंट में साइन इन करें')}</p>
+  <div class="seg"><button type="button" class="btn ${LMODE==='client'?'on':''}" data-m="client">${L('Company login','कंपनी लॉगिन')}</button><button type="button" class="btn ${LMODE==='platform'?'on':''}" data-m="platform">${L('Platform admin','प्लेटफ़ॉर्म एडमिन')}</button></div>
+  ${LMODE==='client'?`<label>${L('Company code','कंपनी कोड')}</label><input class="inp" name="client" autocomplete="organization" placeholder="demo" required><label>${L('Employee code','कर्मचारी कोड')}</label><input class="inp" name="code" autocomplete="username" placeholder="E001" required>`:`<label>Email</label><input class="inp" name="email" type="email" autocomplete="username" required>`}
+  <label>${L('Password','पासवर्ड')}</label><input class="inp" name="pw" type="password" autocomplete="current-password" required>
+  <div class="err" id="le">${esc(msg||'')}</div><button class="btn btn-p" style="width:100%;margin-top:10px">${L('Sign in','साइन इन')}</button>
+  <p class="muted" style="margin-top:14px;font-size:12px;text-align:center"><a href="#" id="lg">${LANG==='hi'?'English':'हिंदी'}</a></p></form></div>`;
+}
+function bindLogin(){
+  $$('[data-m]').forEach(b=>b.onclick=()=>{LMODE=b.dataset.m;render()});
+  $('#lg').onclick=e=>{e.preventDefault();LANG=LANG==='hi'?'en':'hi';try{localStorage.setItem('lv_lang',LANG)}catch(x){}render()};
+  $('#lf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target), le=$('#le');le.textContent='';const btn=$('button.btn-p',e.target);btn.disabled=true;
+    try{const email=LMODE==='client'?`${f.get('code').trim().toLowerCase()}.${f.get('client').trim().toLowerCase()}@login.example.com`:f.get('email').trim();
+      const {data,error}=await sb.auth.signInWithPassword({email,password:f.get('pw')});
+      if(error)throw new Error(L('Wrong code or password','कोड या पासवर्ड ग़लत है'));
+      S.user=data.user;await loadMe();
+      if(LMODE==='client'&&!S.profile)throw new Error(L('This login is not active','यह लॉगिन चालू नहीं है'));
+      render()}catch(x){await sb.auth.signOut();S.user=null;S.profile=null;S.platform=false;render(x.message)}finally{btn&&(btn.disabled=false)}}
+}
+async function logout(){await sb.auth.signOut();S.user=null;S.profile=null;S.platform=false;S.data={};render()}
+
+/* ---------- change password ---------- */
+function pwView(msg){return `<div class="login"><form class="lbox" id="pf"><h1>${L('Set your password','अपना पासवर्ड बनाएँ')}</h1><p>${L('This is your first sign-in. Choose a new password (at least 8 characters).','यह आपका पहला साइन-इन है। नया पासवर्ड चुनें (कम से कम 8 अक्षर)।')}</p>
+ <label>${L('New password','नया पासवर्ड')}</label><input class="inp" type="password" name="a" autocomplete="new-password" required minlength="8"><label>${L('Repeat the password','पासवर्ड दोबारा')}</label><input class="inp" type="password" name="b" autocomplete="new-password" required minlength="8">
+ <div class="err" id="pe">${esc(msg||'')}</div><button class="btn btn-p" style="width:100%;margin-top:10px">${L('Save and continue','सेव करें और आगे बढ़ें')}</button></form></div>`}
+function bindPw(){$('#pf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target), pe=$('#pe');
+  if(f.get('a')!==f.get('b'))return pe.textContent=L('The two passwords are not the same','दोनों पासवर्ड एक जैसे नहीं हैं');
+  const {error}=await sb.auth.updateUser({password:f.get('a')});if(error)return pe.textContent=error.message;
+  await sb.from('profiles').update({must_change_password:false}).eq('user_id',S.user.id);S.profile.must_change_password=false;toast(L('Password saved','पासवर्ड सेव हुआ'));render()}}
+
+/* ---------- shell ---------- */
+const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
+function shell(body){
+  const who=S.platform?'LV People · Platform':(S.profile.employee?S.profile.employee.name:S.profile.login_code);
+  return `<div class="shell"><aside class="side ${S.side?'open':''}"><div class="logo">LV People<small>${esc(S.platform?L('All clients','सभी क्लाइंट'):S.client.name)}</small></div>
+  ${NAV().map(([k,n])=>`<a data-nav="${k}" class="${S.page===k?'on':''}">${n}</a>`).join('')}
+  <div style="margin-top:26px;border-top:1px solid rgba(255,255,255,.14);padding-top:12px;font-size:12px"><div style="padding:0 12px;color:#fff">${esc(who)}</div><div style="padding:0 12px 8px">${S.platform?'Platform admin':esc(S.profile.role)}</div><a id="lgo">${L('Sign out','साइन आउट')}</a><a id="lang">${LANG==='hi'?'English':'हिंदी'}</a></div></aside>
+  <main class="main"><div class="top"><button class="btn btn-s menu-btn" id="mb">☰</button>${body.head}</div>${body.html}</main></div>`;
+}
+function bindShell(){
+  $$('[data-nav]').forEach(a=>a.onclick=()=>{S.page=a.dataset.nav;S.side=false;S.q='';S.fb='';S.fs='';render()});
+  $('#lgo').onclick=logout;$('#lang').onclick=()=>{LANG=LANG==='hi'?'en':'hi';try{localStorage.setItem('lv_lang',LANG)}catch(x){}render()};
+  const mb=$('#mb');if(mb)mb.onclick=()=>{S.side=!S.side;$('.side').classList.toggle('open',S.side)};
+}
+
+/* ---------- data helpers ---------- */
+async function loadOrg(){
+  const [b,d,dp,f,g]=await Promise.all(['branches','divisions','departments','job_functions','designations'].map(t=>sb.from(t).select('*').order('name')));
+  S.data.branches=b.data||[];S.data.divisions=d.data||[];S.data.departments=dp.data||[];S.data.functions=f.data||[];S.data.designations=g.data||[];
+}
+async function loadEmps(){
+  const {data,error}=await sb.from('employees').select('*').order('code').limit(2000);if(error)throw error;S.data.emps=data||[];
+  const {data:pf}=await sb.from('profiles').select('user_id,employee_id,login_code,role,active,must_change_password');S.data.logins=pf||[];
+}
+const nmOf=(list,id)=>{const x=(S.data[list]||[]).find(r=>r.id===id);return x?x.name:'—'};
+const empName=id=>{const e=(S.data.emps||[]).find(r=>r.id===id);return e?e.name:'—'};
+const opts=(list,sel,blank)=>`<option value="">${blank||'—'}</option>`+(S.data[list]||[]).filter(x=>x.active!==false||x.id===sel).map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)}</option>`).join('');
+
+/* ---------- pages ---------- */
+async function pageHome(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const E=S.data.emps, w=E.filter(e=>e.active), me=S.profile.employee_id?E.find(e=>e.id===S.profile.employee_id):null;
+  const byB=S.data.branches.map(b=>[b.name,w.filter(e=>e.branch_id===b.id).length]);
+  return {head:`<h1>${L('Home','होम')}</h1>`,html:`<div class="cards"><div class="card"><div class="muted">${L('Working employees','कार्यरत कर्मचारी')}</div><div class="n">${w.length}</div></div><div class="card"><div class="muted">${L('Branches','शाखाएँ')}</div><div class="n">${S.data.branches.length}</div></div><div class="card"><div class="muted">${L('Left or relieved','छोड़ चुके')}</div><div class="n">${E.length-w.length}</div></div></div>
+  ${me?`<div class="card" style="padding:16px;margin-bottom:16px"><b>${L('Welcome','स्वागत है')}, ${esc(me.name)}</b><div class="muted">${esc(me.code)} · ${esc(nmOf('designations',me.designation_id))} · ${esc(nmOf('branches',me.branch_id))}</div></div>`:''}
+  <div class="card tw"><table><thead><tr><th>${L('Branch','शाखा')}</th><th>${L('Working employees','कार्यरत')}</th></tr></thead><tbody>${byB.map(([n,c])=>`<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</tbody></table></div>`};
+}
+async function pageEmployees(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const q=S.q.toLowerCase(), rows=S.data.emps.filter(e=>(!S.fb||e.branch_id===S.fb)&&(!S.fs||(S.fs==='W'?e.active:!e.active))&&(!q||[e.name,e.code,e.mobile].join(' ').toLowerCase().includes(q)));
+  const lg=id=>S.data.logins.find(l=>l.employee_id===id);
+  return {head:`<h1>${L('Employees','कर्मचारी')} <span class="muted" style="font-size:14px">${rows.length}</span></h1>${isHR()?`<button class="btn btn-p" id="addE">+ ${L('Add employee','कर्मचारी जोड़ें')}</button>`:''}`,
+  html:`<div class="tools"><input class="inp" id="q" placeholder="${L('Search name, code, mobile','नाम, कोड, मोबाइल खोजें')}" value="${esc(S.q)}"><select class="inp" id="fb"><option value="">${L('All branches','सभी शाखाएँ')}</option>${S.data.branches.map(b=>`<option value="${b.id}" ${S.fb===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select><select class="inp" id="fs"><option value="">${L('All','सभी')}</option><option value="W" ${S.fs==='W'?'selected':''}>${L('Working','कार्यरत')}</option><option value="L" ${S.fs==='L'?'selected':''}>${L('Left','छोड़ चुके')}</option></select></div>
+  <div class="card tw"><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Designation','पद')}</th><th>${L('Branch','शाखा')}</th><th>${L('Reports to','रिपोर्टिंग')}</th><th>${L('Status','स्थिति')}</th><th>${L('Login','लॉगिन')}</th></tr></thead><tbody>${rows.map(e=>{const l=lg(e.id);return `<tr class="click" data-e="${e.id}"><td>${esc(e.code)}</td><td><b>${esc(e.name)}</b></td><td>${esc(nmOf('designations',e.designation_id))}</td><td>${esc(nmOf('branches',e.branch_id))}</td><td>${esc(empName(e.manager_id))}</td><td><span class="pill ${e.active?'p-ok':'p-warn'}">${esc(e.status)}</span></td><td>${l?`<span class="pill ${l.active?'p-teal':'p-bad'}">${esc(l.role)}</span>`:'—'}</td></tr>`}).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">${L('No employee found','कोई कर्मचारी नहीं मिला')}</td></tr>`}</tbody></table></div>`};
+}
+function bindEmployees(){
+  $('#q').oninput=e=>{S.q=e.target.value;clearTimeout(bindEmployees.t);bindEmployees.t=setTimeout(()=>render(true),250)};
+  $('#fb').onchange=e=>{S.fb=e.target.value;render()};$('#fs').onchange=e=>{S.fs=e.target.value;render()};
+  $$('tr[data-e]').forEach(r=>r.onclick=()=>empModal(r.dataset.e));
+  const a=$('#addE');if(a)a.onclick=()=>empForm(null);
+}
+async function empModal(id){
+  const e=S.data.emps.find(x=>x.id===id), canSee=isHR()||S.profile.employee_id===id;
+  let pr=null;if(canSee){const r=await sb.from('employee_private').select('*').eq('employee_id',id).maybeSingle();pr=r.data}
+  const row=(a,b)=>`<tr><td class="muted" style="width:42%">${a}</td><td style="white-space:normal">${b==null||b===''?'—':esc(b)}</td></tr>`;
+  const em=(e.emergency||[]).map(x=>`${x.name} · ${x.relation} · ${x.mobile}`).join('; ');
+  const bg=modal(`<h3>${esc(e.name)} <span class="muted" style="font-size:13px">${esc(e.code)}</span></h3>
+  <div class="sec-t">${L('Work','काम')}</div><table>${row(L('Designation','पद'),nmOf('designations',e.designation_id))}${row(L('Division','डिवीज़न'),nmOf('divisions',e.division_id))}${row(L('Department','विभाग'),nmOf('departments',e.department_id))}${row(L('Branch','शाखा'),nmOf('branches',e.branch_id))}${row(L('Reports to','रिपोर्टिंग'),empName(e.manager_id))}${row(L('Date of joining','जॉइनिंग'),fmtD(e.doj))}${row(L('Status','स्थिति'),e.status+(e.lwd?' · '+fmtD(e.lwd):''))}</table>
+  <div class="sec-t">${L('Personal','निजी')}</div><table>${row(L('Mobile','मोबाइल'),e.mobile)}${row('Email',e.email)}${row(L('Date of birth','जन्मतिथि'),fmtD(e.dob))}${row(L('Gender','लिंग'),e.gender)}${row(L('Marital status','वैवाहिक स्थिति'),e.marital_status)}${row(L('Emergency contact','आपातकालीन संपर्क'),em)}</table>
+  ${pr?`<div class="sec-t">${L('Pay and ID','वेतन और पहचान')}</div><table>${row('CTC',inr(pr.ctc))}${row('PAN',pr.pan)}${row('Aadhaar',pr.aadhaar&&('XXXX XXXX '+pr.aadhaar.slice(-4)))}${row('UAN',pr.uan)}${row('ESIC',pr.esi)}${row(L('Bank','बैंक'),[pr.bank_name,pr.ifsc,pr.account_no].filter(Boolean).join(' · '))}</table>`:''}
+  <div class="acts"><button type="button" class="btn" data-close>${L('Close','बंद')}</button>${isHR()?`<button type="button" class="btn btn-p" id="ed">${L('Edit','बदलें')}</button>`:''}</div>`,()=>{});
+  const ed=$('#ed',bg);if(ed)ed.onclick=()=>{bg.remove();empForm(id)};
+}
+async function empForm(id){
+  const e=id?S.data.emps.find(x=>x.id===id):{status:'Working',active:true,emergency:[]};
+  let pr={};if(id){const r=await sb.from('employee_private').select('*').eq('employee_id',id).maybeSingle();pr=r.data||{}}
+  let code=e.code;if(!id){const r=await sb.rpc('next_emp_code');if(r.error)return toast(r.error.message);code=r.data}
+  const em0=(e.emergency&&e.emergency[0])||{}, v=x=>esc(x==null?'':x);
+  const bg=modal(`<h3>${id?L('Edit employee','कर्मचारी बदलें'):L('New employee','नया कर्मचारी')} · ${esc(code)}</h3>
+  <div class="sec-t">${L('Work','काम')}</div><div class="fgrid">
+  <div><label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${v(e.name)}" required></div>
+  <div><label>${L('Date of joining','जॉइनिंग')} *</label><input class="inp" type="date" name="doj" value="${v(e.doj)}" required></div>
+  <div><label>${L('Branch','शाखा')} *</label><select class="inp" name="branch_id" required>${opts('branches',e.branch_id,L('Choose','चुनें'))}</select></div>
+  <div><label>${L('Division','डिवीज़न')}</label><select class="inp" name="division_id">${opts('divisions',e.division_id)}</select></div>
+  <div><label>${L('Department','विभाग')}</label><select class="inp" name="department_id">${opts('departments',e.department_id)}</select></div>
+  <div><label>${L('Designation','पद')} *</label><select class="inp" name="designation_id" required>${opts('designations',e.designation_id,L('Choose','चुनें'))}</select></div>
+  <div><label>${L('Reports to','रिपोर्टिंग')}</label><select class="inp" name="manager_id"><option value="">—</option>${S.data.emps.filter(x=>x.active&&x.id!==id).map(x=>`<option value="${x.id}" ${x.id===e.manager_id?'selected':''}>${esc(x.code+' '+x.name)}</option>`).join('')}</select></div>
+  <div><label>${L('Status','स्थिति')}</label><select class="inp" name="status">${['Working','Notice','Relieved','Absconding'].map(s=>`<option ${s===e.status?'selected':''}>${s}</option>`).join('')}</select></div>
+  <div><label>${L('Last working day','अंतिम कार्यदिवस')}</label><input class="inp" type="date" name="lwd" value="${v(e.lwd)}"></div></div>
+  <div class="sec-t">${L('Personal','निजी')}</div><div class="fgrid">
+  <div><label>${L('Mobile','मोबाइल')} *</label><input class="inp" name="mobile" value="${v(e.mobile)}" inputmode="numeric" maxlength="10" required></div>
+  <div><label>Email</label><input class="inp" type="email" name="email" value="${v(e.email)}"></div>
+  <div><label>${L('Date of birth','जन्मतिथि')}</label><input class="inp" type="date" name="dob" value="${v(e.dob)}"></div>
+  <div><label>${L('Gender','लिंग')}</label><select class="inp" name="gender"><option value="">—</option>${[['M',L('Male','पुरुष')],['F',L('Female','महिला')],['O',L('Other','अन्य')]].map(([k,n])=>`<option value="${k}" ${e.gender===k?'selected':''}>${n}</option>`).join('')}</select></div>
+  <div><label>${L('Marital status','वैवाहिक स्थिति')}</label><select class="inp" name="marital_status"><option value="">—</option>${['Single','Married','Divorced','Widowed'].map(s=>`<option ${e.marital_status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+  <div><label>${L('Emergency contact name','आपातकालीन संपर्क')}</label><input class="inp" name="em_name" value="${v(em0.name)}"></div>
+  <div><label>${L('Relation','संबंध')}</label><input class="inp" name="em_rel" value="${v(em0.relation)}"></div>
+  <div><label>${L('Emergency mobile','आपातकालीन मोबाइल')}</label><input class="inp" name="em_mob" value="${v(em0.mobile)}" maxlength="10"></div></div>
+  <div class="sec-t">${L('Pay and ID','वेतन और पहचान')}</div><div class="fgrid">
+  <div><label>CTC (${L('per year','सालाना')})</label><input class="inp" type="number" min="0" step="1" name="ctc" value="${v(pr.ctc||0)}"></div>
+  <div><label>PAN</label><input class="inp" name="pan" value="${v(pr.pan)}" maxlength="10" style="text-transform:uppercase"></div>
+  <div><label>Aadhaar</label><input class="inp" name="aadhaar" value="${v(pr.aadhaar)}" inputmode="numeric" maxlength="12"></div>
+  <div><label>UAN</label><input class="inp" name="uan" value="${v(pr.uan)}" inputmode="numeric" maxlength="12"></div>
+  <div><label>ESIC</label><input class="inp" name="esi" value="${v(pr.esi)}" maxlength="17"></div>
+  <div><label>${L('Bank name','बैंक')}</label><input class="inp" name="bank_name" value="${v(pr.bank_name)}"></div>
+  <div><label>IFSC</label><input class="inp" name="ifsc" value="${v(pr.ifsc)}" maxlength="11" style="text-transform:uppercase"></div>
+  <div><label>${L('Account number','खाता नंबर')}</label><input class="inp" name="account_no" value="${v(pr.account_no)}" inputmode="numeric" maxlength="20"></div></div>
+  <div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));
+    const bad=m=>{throw new Error(m)};
+    if(!d.name.trim())bad(L('Write the name','नाम लिखें'));
+    if(!/^[6-9]\d{9}$/.test(d.mobile))bad(L('Mobile must be 10 digits','मोबाइल 10 अंक का हो'));
+    if(d.em_mob&&!/^\d{10}$/.test(d.em_mob))bad(L('Emergency mobile must be 10 digits','आपातकालीन मोबाइल 10 अंक का हो'));
+    d.pan=d.pan.toUpperCase().trim();d.ifsc=d.ifsc.toUpperCase().trim();
+    if(d.pan&&!/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan))bad(L('PAN looks wrong (like ABCDE1234F)','PAN सही नहीं (जैसे ABCDE1234F)'));
+    if(d.aadhaar&&!/^\d{12}$/.test(d.aadhaar))bad(L('Aadhaar must be 12 digits','आधार 12 अंक का हो'));
+    if(d.uan&&!/^\d{12}$/.test(d.uan))bad(L('UAN must be 12 digits','UAN 12 अंक का हो'));
+    if(d.ifsc&&!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(d.ifsc))bad(L('IFSC looks wrong','IFSC सही नहीं'));
+    if(d.dob&&d.doj&&d.dob>=d.doj)bad(L('Date of birth must be before joining','जन्मतिथि जॉइनिंग से पहले हो'));
+    const status=d.status, active=!['Relieved','Absconding'].includes(status);
+    const emp={client_id:S.profile.client_id,code,name:d.name.trim(),mobile:d.mobile,email:d.email||null,dob:d.dob||null,gender:d.gender||null,doj:d.doj,branch_id:d.branch_id||null,division_id:d.division_id||null,department_id:d.department_id||null,designation_id:d.designation_id||null,manager_id:d.manager_id||null,status,lwd:d.lwd||null,active,marital_status:d.marital_status||null,
+      emergency:d.em_name?[{name:d.em_name,relation:d.em_rel,mobile:d.em_mob}]:[]};
+    let eid=id;
+    if(id){const r=await sb.from('employees').update(emp).eq('id',id);if(r.error)throw r.error}
+    else{const r=await sb.from('employees').insert(emp).select('id').single();if(r.error)throw r.error;eid=r.data.id}
+    const p={employee_id:eid,client_id:S.profile.client_id,ctc:+d.ctc||0,pan:d.pan||null,aadhaar:d.aadhaar||null,uan:d.uan||null,esi:d.esi||null,bank_name:d.bank_name||null,ifsc:d.ifsc||null,account_no:d.account_no||null};
+    const r2=await sb.from('employee_private').upsert(p);if(r2.error)throw r2.error;
+    await logAudit('Employee',id?'Edited':'Added',code,emp.name);close();toast(L('Saved','सेव हुआ'));render()},true);
+}
+async function pageOrg(){
+  await loadOrg();const D=S.data;
+  const box=(t,key,title,cols)=>`<div class="card tw" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${title}</h3>${isHR()?`<button class="btn btn-p btn-s" data-oadd="${t}">+ ${L('Add','जोड़ें')}</button>`:''}</div><table><thead><tr><th>${L('Name','नाम')}</th>${cols.map(c=>`<th>${c[0]}</th>`).join('')}<th></th></tr></thead><tbody>${D[key].map(x=>`<tr style="${x.active===false?'opacity:.5':''}"><td><b>${esc(x.name)}</b></td>${cols.map(c=>`<td>${esc(c[1](x))}</td>`).join('')}<td style="text-align:right">${isHR()?`<button class="btn btn-s" data-oed="${t}|${x.id}">${L('Edit','बदलें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="${cols.length+2}" class="muted">—</td></tr>`}</tbody></table></div>`;
+  return {head:`<h1>${L('Organisation','संगठन')}</h1>`,html:
+   box('branches','branches',L('Branches','शाखाएँ'),[[L('City','शहर'),x=>x.city||''],[L('State','राज्य'),x=>x.state||'']])+
+   box('divisions','divisions',L('Divisions','डिवीज़न'),[])+
+   box('departments','departments',L('Departments','विभाग'),[[L('Division','डिवीज़न'),x=>nmOf('divisions',x.division_id)]])+
+   box('designations','designations',L('Designations','पद'),[[L('Level','स्तर'),x=>x.level||'']])};
+}
+const ORG_T={branches:{table:'branches',extra:[['city','City'],['state','State']]},divisions:{table:'divisions',extra:[]},departments:{table:'departments',extra:[],fk:['division_id','divisions']},designations:{table:'designations',extra:[['level','Level (L1, L2...)']]}};
+function orgForm(t,id){
+  const m=ORG_T[t], x=id?S.data[t].find(r=>r.id===id):{active:true};
+  modal(`<h3>${id?L('Edit','बदलें'):L('Add','जोड़ें')}</h3><label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${esc(x.name||'')}" required>${m.extra.map(([k,n])=>`<label>${n}</label><input class="inp" name="${k}" value="${esc(x[k]||'')}">`).join('')}${m.fk?`<label>${L('Division','डिवीज़न')}</label><select class="inp" name="${m.fk[0]}">${opts(m.fk[1],x[m.fk[0]])}</select>`:''}
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="active" ${x.active!==false?'checked':''}> ${L('Active','चालू')}</label><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));if(!d.name.trim())throw new Error(L('Write the name','नाम लिखें'));
+    if((S.data[t]||[]).some(r=>r.id!==id&&r.name.toLowerCase()===d.name.trim().toLowerCase()))throw new Error(L('This name already exists','यह नाम पहले से है'));
+    const row={name:d.name.trim(),active:!!d.active};m.extra.forEach(([k])=>row[k]=d[k]||null);if(m.fk)row[m.fk[0]]=d[m.fk[0]]||null;
+    const r=id?await sb.from(m.table).update(row).eq('id',id):await sb.from(m.table).insert({...row,client_id:S.profile.client_id});if(r.error)throw r.error;
+    await logAudit('Organisation',id?'Edited':'Added',t,row.name);close();toast(L('Saved','सेव हुआ'));render()});
+}
+function bindOrg(){$$('[data-oadd]').forEach(b=>b.onclick=()=>orgForm(b.dataset.oadd,null));$$('[data-oed]').forEach(b=>b.onclick=()=>{const [t,id]=b.dataset.oed.split('|');orgForm(t,id)})}
+async function pageLogins(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const E=S.data.emps, rows=S.data.logins.map(l=>({l,e:E.find(x=>x.id===l.employee_id)})).sort((a,b)=>(a.l.login_code>b.l.login_code?1:-1)), without=E.filter(e=>e.active&&!S.data.logins.some(l=>l.employee_id===e.id));
+  return {head:`<h1>${L('Logins','लॉगिन')}</h1>${without.length?`<button class="btn btn-p" id="addL">+ ${L('Give a login','लॉगिन दें')}</button>`:''}`,html:`<p class="muted">${L('Employees sign in with the company code, their employee code and a password. You give a first password; the employee must change it at the first sign-in.','कर्मचारी कंपनी कोड, अपने कोड और पासवर्ड से साइन इन करते हैं। आप पहला पासवर्ड देते हैं; कर्मचारी को पहले साइन-इन पर उसे बदलना होता है।')}</p>
+  <div class="card tw"><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Role','भूमिका')}</th><th>${L('State','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(({l,e})=>`<tr><td>${esc(l.login_code)}</td><td><b>${esc(e?e.name:'—')}</b></td><td>${esc(l.role)}</td><td><span class="pill ${l.active?'p-ok':'p-bad'}">${l.active?L('Active','चालू'):L('Off','बंद')}</span>${l.must_change_password?` <span class="pill p-warn">${L('first sign-in pending','पहला साइन-इन बाकी')}</span>`:''}</td><td style="text-align:right"><button class="btn btn-s" data-le="${l.user_id}">${L('Change','बदलें')}</button> <button class="btn btn-s" data-lr="${l.user_id}">${L('Reset password','पासवर्ड रीसेट')}</button></td></tr>`).join('')}</tbody></table></div>`,without};
+}
+const tmpPw=()=>{const a=new Uint8Array(6);crypto.getRandomValues(a);return 'Lv'+[...a].map(x=>'abcdefghjkmnpqrstuvwxyz23456789'[x%31]).join('')+'7'};
+function loginForm(){
+  const without=S.data.emps.filter(e=>e.active&&!S.data.logins.some(l=>l.employee_id===e.id)), pw=tmpPw();
+  modal(`<h3>${L('Give a login','लॉगिन दें')}</h3><label>${L('Employee','कर्मचारी')}</label><select class="inp" name="emp" required>${without.map(e=>`<option value="${e.id}">${esc(e.code+' '+e.name)}</option>`).join('')}</select>
+  <label>${L('Role','भूमिका')}</label><select class="inp" name="role">${['employee','manager','hr','admin'].map(r=>`<option>${r}</option>`).join('')}</select><label>${L('First password','पहला पासवर्ड')}</label><input class="inp" name="pw" value="${pw}" required minlength="8">
+  <p class="muted">${L('Tell this password to the employee. It is shown only now.','यह पासवर्ड कर्मचारी को बताएँ। यह अभी ही दिखता है।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Create','बनाएँ')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('create_login',{p_employee:d.emp,p_role:d.role,p_password:d.pw});if(r.error)throw r.error;close();toast(L('Login created','लॉगिन बन गया'));render()});
+}
+function loginEdit(uid){
+  const l=S.data.logins.find(x=>x.user_id===uid), e=S.data.emps.find(x=>x.id===l.employee_id);
+  modal(`<h3>${esc(e?e.name:l.login_code)}</h3><label>${L('Role','भूमिका')}</label><select class="inp" name="role">${['employee','manager','hr','admin'].map(r=>`<option ${l.role===r?'selected':''}>${r}</option>`).join('')}</select>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="active" ${l.active?'checked':''}> ${L('Login is active','लॉगिन चालू है')}</label><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('update_login',{p_user:uid,p_role:d.role,p_active:!!d.active});if(r.error)throw r.error;close();toast(L('Saved','सेव हुआ'));render()});
+}
+function loginReset(uid){
+  const pw=tmpPw();modal(`<h3>${L('Reset password','पासवर्ड रीसेट')}</h3><label>${L('New first password','नया पहला पासवर्ड')}</label><input class="inp" name="pw" value="${pw}" required minlength="8"><p class="muted">${L('The employee must change it at the next sign-in.','कर्मचारी को अगले साइन-इन पर इसे बदलना होगा।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reset','रीसेट')}</button></div>`,
+  async(f,close)=>{const r=await sb.rpc('reset_login_password',{p_user:uid,p_password:new FormData(f).get('pw')});if(r.error)throw r.error;close();toast(L('Password reset','पासवर्ड रीसेट हुआ'))});
+}
+function bindLogins(){const a=$('#addL');if(a)a.onclick=loginForm;$$('[data-le]').forEach(b=>b.onclick=()=>loginEdit(b.dataset.le));$$('[data-lr]').forEach(b=>b.onclick=()=>loginReset(b.dataset.lr))}
+async function pageMe(){
+  await Promise.all([loadOrg(),loadEmps()]);const id=S.profile.employee_id, e=S.data.emps.find(x=>x.id===id);
+  if(!e)return {head:`<h1>${L('My profile','मेरी प्रोफ़ाइल')}</h1>`,html:`<p class="muted">${L('No employee record is linked to this login.','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा।')}</p>`};
+  return {head:`<h1>${L('My profile','मेरी प्रोफ़ाइल')}</h1><button class="btn" id="chpw">${L('Change password','पासवर्ड बदलें')}</button>`,html:`<div class="card" style="padding:16px"><b>${esc(e.name)}</b> <span class="muted">${esc(e.code)}</span><div class="muted">${esc(nmOf('designations',e.designation_id))} · ${esc(nmOf('branches',e.branch_id))} · ${L('Reports to','रिपोर्टिंग')} ${esc(empName(e.manager_id))}</div><div style="margin-top:10px"><button class="btn btn-p" id="mypf">${L('See all my details','मेरी पूरी जानकारी')}</button></div></div>`};
+}
+function bindMe(){const b=$('#mypf');if(b)b.onclick=()=>empModal(S.profile.employee_id);
+  const c=$('#chpw');if(c)c.onclick=()=>modal(`<h3>${L('Change password','पासवर्ड बदलें')}</h3><label>${L('New password','नया पासवर्ड')}</label><input class="inp" type="password" name="a" required minlength="8" autocomplete="new-password"><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,async(f,close)=>{const r=await sb.auth.updateUser({password:new FormData(f).get('a')});if(r.error)throw r.error;close();toast(L('Password saved','पासवर्ड सेव हुआ'))})}
+async function pageClients(){
+  const [c,e]=await Promise.all([sb.from('clients').select('*').order('created_at'),sb.from('employees').select('client_id,active')]);
+  const cnt=id=>(e.data||[]).filter(x=>x.client_id===id&&x.active).length;
+  return {head:`<h1>${L('Clients','क्लाइंट')}</h1>`,html:`<div class="card tw"><table><thead><tr><th>${L('Company code','कंपनी कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Status','स्थिति')}</th><th>${L('Employees','कर्मचारी')}</th><th>${L('Limit','सीमा')}</th><th>${L('Modules','मॉड्यूल')}</th></tr></thead><tbody>${(c.data||[]).map(x=>`<tr><td><b>${esc(x.code)}</b></td><td>${esc(x.name)}</td><td><span class="pill ${x.status==='active'?'p-ok':'p-warn'}">${esc(x.status)}</span></td><td>${cnt(x.id)}</td><td>${x.employee_limit}</td><td style="white-space:normal">${esc((x.modules||[]).join(', '))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin-top:12px">${L('Creating a new client and its KPI pack comes in the next steps.','नया क्लाइंट और उसका KPI पैक अगले चरणों में आएगा।')}</p>`};
+}
+
+/* ---------- render ---------- */
+const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
+let RTOKEN=0;
+async function render(keepFocus,msg){
+  const app=$('#app'), tok=++RTOKEN;
+  if(typeof keepFocus==='string'){msg=keepFocus;keepFocus=false}
+  if(!S.user){app.innerHTML=loginView(msg);bindLogin();return}
+  if(S.profile&&S.profile.must_change_password&&!S.platform){app.innerHTML=pwView();bindPw();return}
+  try{const [fn,bind]=PAGES[S.page]||PAGES.home, body=await fn();if(tok!==RTOKEN)return;
+    const ae=document.activeElement, id=ae&&ae.id, pos=ae&&ae.selectionStart;
+    app.innerHTML=shell(body);bindShell();bind(body);
+    if(keepFocus&&id){const n=$('#'+id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(x){}}}
+  }catch(x){app.innerHTML=shell({head:'<h1>Error</h1>',html:`<div class="card" style="padding:16px;color:var(--bad)">${esc(x.message||x)}</div>`});bindShell()}
+}
+boot().catch(x=>{S.user=null;render(x.message)});
+</script>
+</body>
+</html>
