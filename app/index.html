@@ -41,6 +41,7 @@ label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:40}
 .muted{color:var(--muted)}
 .menu-btn{display:none}
+@media print{body *{visibility:hidden}.modal-bg{position:static;background:none;padding:0}.modal,.modal *{visibility:visible}.modal{position:absolute;left:0;top:0;max-height:none;max-width:none;border:0}.noprint{display:none!important}}
 @media (max-width:820px){.shell{grid-template-columns:1fr}.side{position:fixed;left:-250px;width:230px;z-index:15;transition:left .2s}.side.open{left:0}.menu-btn{display:inline-block}.main{padding:14px 16px}}
 </style>
 </head>
@@ -121,7 +122,7 @@ function bindPw(){$('#pf').onsubmit=async e=>{e.preventDefault();const f=new For
   await sb.from('profiles').update({must_change_password:false}).eq('user_id',S.user.id);S.profile.must_change_password=false;toast(L('Password saved','पासवर्ड सेव हुआ'));render()}}
 
 /* ---------- shell ---------- */
-const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['att',L('Attendance','हाज़िरी')],['leave',L('Leave','छुट्टी')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
+const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['att',L('Attendance','हाज़िरी')],['leave',L('Leave','छुट्टी')],['pay',L('Payroll','पेरोल')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
 function shell(body){
   const who=S.platform?'LV People · Platform':(S.profile.employee?S.profile.employee.name:S.profile.login_code);
   return `<div class="shell"><aside class="side ${S.side?'open':''}"><div class="logo">LV People<small>${esc(S.platform?L('All clients','सभी क्लाइंट'):S.client.name)}</small></div>
@@ -423,8 +424,68 @@ function bindAtt(){
     await logAudit('Attendance','Rules saved','',`${d.start}-${d.end} grace ${d.grace}, lates ${d.lph}`);toast(L('Saved','सेव हुआ'));render()};
 }
 
+/* ---------- payroll ---------- */
+const lastMonth=()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+S.ptab=null;S.pmonth=lastMonth();
+const monName=m=>new Date(m+'T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+function words(n){n=Math.round(n);const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  const two=x=>x<20?a[x]:b[Math.floor(x/10)]+(x%10?' '+a[x%10]:''), three=x=>(x>99?a[Math.floor(x/100)]+' Hundred'+(x%100?' ':''):'')+(x%100?two(x%100):'');
+  if(n===0)return 'Zero';const out=[];for(const [v,l] of [[10000000,'Crore'],[100000,'Lakh'],[1000,'Thousand'],[1,'']]){const q=Math.floor(n/v);if(q){out.push((v===1?three(q):two(q))+(l?' '+l:''));n%=v}}return out.join(' ')}
+async function pagePay(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const hr=isHR(), me=S.profile.employee_id, tabs=[...(hr?[['run',L('Payroll run','पेरोल रन')]]:[]),...(me?[['mine',L('My payslips','मेरी सैलरी स्लिप')]]:[]),...(hr?[['stat',L('Statutory','वैधानिक')]]:[])];
+  if(!tabs.some(t=>t[0]===S.ptab))S.ptab=tabs[0]&&tabs[0][0];
+  let body='', head=`<h1>${L('Payroll','पेरोल')}</h1>`;
+  if(S.ptab==='run'){
+    const m=S.pmonth+'-01', run=(await sb.from('payroll_runs').select('*').eq('month',m).maybeSingle()).data;
+    const slips=run?((await sb.from('payslips').select('*').eq('run_id',run.id)).data||[]):[];S.data.slips=slips;S.data.run=run;
+    slips.sort((x,y)=>{const a=S.data.emps.find(e=>e.id===x.employee_id)||{}, b=S.data.emps.find(e=>e.id===y.employee_id)||{};return (a.code||'')>(b.code||'')?1:-1});
+    const tot=k=>slips.reduce((s,x)=>s+Number(x[k]),0), isAdmin=S.profile.role==='admin';
+    head+=`<input class="inp" type="month" id="pm" value="${S.pmonth}" max="${lastMonth()}" style="max-width:170px">${(!run||run.status==='draft')?`<button class="btn" id="pcomp">${run?L('Compute again','फिर से निकालें'):L('Compute payroll','पेरोल निकालें')}</button>`:''}${run&&run.status==='draft'&&isAdmin?`<button class="btn btn-p" id="pappr">${L('Approve','मंज़ूर करें')}</button>`:''}${slips.length?`<button class="btn" id="pcsv">${L('Download register','रजिस्टर डाउनलोड')}</button>`:''}`;
+    body=`<p class="muted">${monName(m)} · ${run?`<span class="pill ${run.status==='approved'?'p-ok':'p-warn'}">${run.status==='approved'?L('Approved','मंज़ूर'):L('Draft','ड्राफ़्ट')}</span>`:L('Not computed yet','अभी नहीं निकाला')} ${run&&run.status==='draft'?L('· HR computes, then an Admin (not the same person) approves. After approval employees see their payslip and nothing can change.','· HR निकालता है, फिर कोई Admin (दूसरा व्यक्ति) मंज़ूर करता है। मंज़ूरी के बाद कर्मचारी स्लिप देखते हैं और कुछ नहीं बदलता।'):''}</p>
+    ${slips.length?`<div class="cards"><div class="card"><div class="muted">${L('Employees','कर्मचारी')}</div><div class="n">${slips.length}</div></div><div class="card"><div class="muted">${L('Gross','ग्रॉस')}</div><div class="n">${inr(tot('gross'))}</div></div><div class="card"><div class="muted">${L('Net pay','नेट वेतन')}</div><div class="n">${inr(tot('net'))}</div></div><div class="card"><div class="muted">${L('Company cost','कंपनी लागत')}</div><div class="n">${inr(tot('gross')+tot('employer_pf')+tot('employer_esi'))}</div></div></div>
+    <div class="card tw"><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>${L('Paid days','भुगतान दिन')}</th><th>${L('Late cut','देरी कटौती')}</th><th>${L('Gross','ग्रॉस')}</th><th>PF</th><th>ESIC</th><th>PT</th><th>TDS</th><th>${L('Net pay','नेट वेतन')}</th></tr></thead><tbody>${slips.map(x=>`<tr class="click" data-slip="${x.id}"><td><b>${esc(empName(x.employee_id))}</b></td><td>${x.paid_days} / ${x.days}</td><td>${x.late_cut}</td><td>${inr(x.gross)}</td><td>${inr(x.pf)}</td><td>${inr(x.esi)}</td><td>${inr(x.pt)}</td><td>${inr(x.tds)}</td><td><b>${inr(x.net)}</b></td></tr>`).join('')}<tr><td><b>${L('Total','कुल')}</b></td><td></td><td></td><td><b>${inr(tot('gross'))}</b></td><td><b>${inr(tot('pf'))}</b></td><td><b>${inr(tot('esi'))}</b></td><td><b>${inr(tot('pt'))}</b></td><td><b>${inr(tot('tds'))}</b></td><td><b>${inr(tot('net'))}</b></td></tr></tbody></table></div>`:''}
+    <p class="muted" style="font-size:12px;margin-top:10px">${L('Salary is worked out from the yearly CTC: Basic 40% of the monthly CTC, HRA 50% of Basic, the rest Special. Paid days come from Attendance (late cut included). Not yet in the real app: KPI pay, incentives, advances, extra heads and overtime.','सैलरी सालाना CTC से निकलती है: बेसिक मासिक CTC का 40%, HRA बेसिक का 50%, बाकी स्पेशल। भुगतान दिन हाज़िरी से (देरी कटौती सहित)। अभी असली ऐप में नहीं: KPI पे, इंसेंटिव, एडवांस, अतिरिक्त हेड और ओवरटाइम।')}</p>`;
+  }else if(S.ptab==='mine'){
+    const r=await sb.from('payslips').select('*, run:run_id(month,status)').eq('employee_id',me);const list=(r.data||[]).filter(x=>x.run&&x.run.status==='approved').sort((a,b)=>a.run.month<b.run.month?1:-1);S.data.slips=list;
+    body=`<div class="card tw"><table><thead><tr><th>${L('Month','महीना')}</th><th>${L('Paid days','भुगतान दिन')}</th><th>${L('Gross','ग्रॉस')}</th><th>${L('Deductions','कटौती')}</th><th>${L('Net pay','नेट वेतन')}</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td><b>${monName(x.run.month)}</b></td><td>${x.paid_days} / ${x.days}</td><td>${inr(x.gross)}</td><td>${inr(x.deductions)}</td><td><b>${inr(x.net)}</b></td><td style="text-align:right"><button class="btn btn-s" data-slip="${x.id}">${L('View / download','देखें / डाउनलोड')}</button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">${L('No approved payslip yet','अभी कोई मंज़ूर स्लिप नहीं')}</td></tr>`}</tbody></table></div>`;
+  }else if(S.ptab==='stat'){
+    const [st,es]=await Promise.all([sb.from('statutory_settings').select('*').maybeSingle(),sb.from('employee_statutory').select('*')]);const s=st.data||{};S.data.estat=es.data||[];
+    const f=(k,n,step)=>`<div><label>${n}</label><input class="inp" type="number" step="${step||'0.01'}" name="${k}" value="${s[k]??''}"></div>`;
+    body=`<form class="card" id="stf" style="padding:16px;margin-bottom:16px"><h3 style="margin:0">${L('Rates','दरें')}</h3><p class="muted" style="font-size:12px">${L('Check these with your CA before the first real payroll.','पहले असली पेरोल से पहले अपने CA से जाँच लें।')}</p><div class="fgrid">${f('pf_rate','PF %')}${f('pf_cap',L('PF wage limit','PF वेतन सीमा'),'1')}${f('esi_ee','ESIC '+L('employee','कर्मचारी')+' %')}${f('esi_er','ESIC '+L('employer','नियोक्ता')+' %')}${f('esi_limit','ESIC '+L('gross limit','ग्रॉस सीमा'),'1')}${f('std_ded',L('Standard deduction','मानक कटौती'),'1')}${f('rebate_limit',L('Tax rebate up to','टैक्स छूट सीमा'),'1')}${f('cess',L('Cess','सेस')+' %')}</div><label>${L('Professional tax slabs (state: monthly gross from → tax)','प्रोफ़ेशनल टैक्स स्लैब')}</label><textarea class="inp" name="pt" rows="4" style="font-family:monospace;font-size:12px">${esc(JSON.stringify(s.pt||{},null,1))}</textarea><div class="err" id="me"></div><div class="acts"><button class="btn btn-p">${L('Save','सेव')}</button></div></form>
+    <div class="card tw"><div style="padding:14px 16px 0"><h3 style="margin:0">${L('Who has what','किस पर क्या लागू')}</h3></div><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>PF</th><th>${L('PF on full Basic','पूरे बेसिक पर PF')}</th><th>ESIC</th><th>PT</th><th>TDS</th></tr></thead><tbody>${S.data.emps.filter(e=>e.active).map(e=>{const x=S.data.estat.find(z=>z.employee_id===e.id)||{pf:true,esic:true,pt:true,tds:true};return `<tr><td><b>${esc(e.code+' '+e.name)}</b></td>${['pf','pf_full_basic','esic','pt','tds'].map(k=>`<td><input type="checkbox" data-es="${e.id}|${k}" ${x[k]?'checked':''}></td>`).join('')}</tr>`}).join('')}</tbody></table></div>`;
+  }
+  return {head,html:`<div class="tools">${tabs.map(([k,n])=>`<button class="btn ${S.ptab===k?'btn-p':''}" data-pt="${k}">${n}</button>`).join('')}</div>${body}`};
+}
+function slipModal(id){
+  const x=S.data.slips.find(z=>z.id===id), e=S.data.emps.find(z=>z.id===x.employee_id)||{}, m=x.run?x.run.month:S.data.run.month;
+  const row=(a,b)=>`<tr><td>${a}</td><td style="text-align:right">${inr(b)}</td></tr>`;
+  const bg=modal(`<div class="slip"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(S.client.name)}</h3><div class="muted">${L('Salary slip','सैलरी स्लिप')} · ${monName(m)}</div></div><div style="text-align:right"><b>${esc(e.name||'')}</b><div class="muted">${esc(e.code||'')} · ${esc(nmOf('designations',e.designation_id))}</div><div class="muted">${esc(nmOf('branches',e.branch_id))}</div></div></div>
+  <p class="muted" style="margin:10px 0">${L('Days in month','महीने के दिन')} ${x.days} · ${L('Paid days','भुगतान दिन')} ${x.paid_days}${Number(x.late_cut)?` · ${L('late cut','देरी कटौती')} ${x.late_cut}`:''}</p>
+  <div class="fgrid"><div><div class="sec-t">${L('Earnings','आय')}</div><table>${row('Basic',x.basic)}${row('HRA',x.hra)}${row(L('Special allowance','स्पेशल अलाउंस'),x.special)}<tr><td><b>${L('Gross','ग्रॉस')}</b></td><td style="text-align:right"><b>${inr(x.gross)}</b></td></tr></table></div>
+  <div><div class="sec-t">${L('Deductions','कटौती')}</div><table>${row('PF',x.pf)}${row('ESIC',x.esi)}${row(L('Professional tax','प्रोफ़ेशनल टैक्स'),x.pt)}${row('TDS',x.tds)}<tr><td><b>${L('Total','कुल')}</b></td><td style="text-align:right"><b>${inr(x.deductions)}</b></td></tr></table></div></div>
+  <div class="card" style="padding:12px;margin-top:14px"><div class="muted">${L('Net pay','नेट वेतन')}</div><div class="n" style="font-size:24px;font-weight:700">${inr(x.net)}</div><div class="muted">${L('Rupees','रुपये')} ${words(Number(x.net))} ${L('only','मात्र')}</div></div>
+  <p class="muted" style="font-size:11px;margin-top:10px">${L('This is a computer generated slip and does not need a signature.','यह कंप्यूटर से बनी स्लिप है, इस पर हस्ताक्षर की ज़रूरत नहीं।')}</p></div>
+  <div class="acts noprint"><button type="button" class="btn" data-close>${L('Close','बंद')}</button><button type="button" class="btn btn-p" id="prn">${L('Print / Save as PDF','प्रिंट / PDF सेव')}</button></div>`,()=>{},true);
+  $('#prn',bg).onclick=()=>window.print();
+}
+function bindPay(){
+  $$('[data-pt]').forEach(b=>b.onclick=()=>{S.ptab=b.dataset.pt;render()});
+  const pm=$('#pm');if(pm)pm.onchange=e=>{if(e.target.value){S.pmonth=e.target.value;render()}};
+  const pc=$('#pcomp');if(pc)pc.onclick=async()=>{if(!confirm(L('Compute the payroll of','पेरोल निकालें:')+' '+monName(S.pmonth+'-01')+'?'))return;pc.disabled=true;const r=await sb.rpc('payroll_compute',{p_month:S.pmonth+'-01'});if(r.error){toast(r.error.message);pc.disabled=false;return}toast(`${r.data} ${L('payslips made','स्लिप बनीं')}`);render()};
+  const pa=$('#pappr');if(pa)pa.onclick=async()=>{if(!confirm(L('Approve this payroll? It cannot be changed after this.','यह पेरोल मंज़ूर करें? इसके बाद बदलाव नहीं होगा।')))return;const r=await sb.rpc('payroll_approve',{p_run:S.data.run.id});if(r.error)return toast(r.error.message);toast(L('Approved','मंज़ूर'));render()};
+  $$('[data-slip]').forEach(b=>b.onclick=()=>slipModal(b.dataset.slip));
+  const pv=$('#pcsv');if(pv)pv.onclick=()=>{const H=['Code','Name','Paid days','Days','Late cut','Basic','HRA','Special','Gross','PF','ESIC','PT','TDS','Deductions','Net','Employer PF','Employer ESIC'];
+    const rows=S.data.slips.map(x=>{const e=S.data.emps.find(z=>z.id===x.employee_id)||{};return [e.code,e.name,x.paid_days,x.days,x.late_cut,x.basic,x.hra,x.special,x.gross,x.pf,x.esi,x.pt,x.tds,x.deductions,x.net,x.employer_pf,x.employer_esi]});
+    const csv=[H,...rows].map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n'), a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download=`Salary-register-${S.pmonth}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+  const sf=$('#stf');if(sf)sf.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(sf)), me_=$('#me',sf);let pt;try{pt=JSON.parse(d.pt||'{}')}catch(x){me_.textContent=L('Professional tax slabs are not in the right format','प्रोफ़ेशनल टैक्स स्लैब सही फ़ॉर्मेट में नहीं');return}
+    const row={client_id:S.profile.client_id,pt};['pf_rate','pf_cap','esi_ee','esi_er','esi_limit','std_ded','rebate_limit','cess'].forEach(k=>row[k]=+d[k]);if(Object.values(row).some(v=>typeof v==='number'&&(isNaN(v)||v<0))){me_.textContent=L('Check the numbers','संख्या जाँचें');return}
+    const r=await sb.from('statutory_settings').upsert(row);if(r.error){me_.textContent=r.error.message;return}await logAudit('Payroll','Statutory rates saved','','');toast(L('Saved','सेव हुआ'))};
+  $$('[data-es]').forEach(c=>c.onchange=async()=>{const [eid,k]=c.dataset.es.split('|');const cur=S.data.estat.find(z=>z.employee_id===eid)||{employee_id:eid,client_id:S.profile.client_id,pf:true,pf_full_basic:false,esic:true,pt:true,tds:true};cur[k]=c.checked;const r=await sb.from('employee_statutory').upsert({employee_id:eid,client_id:S.profile.client_id,pf:cur.pf,pf_full_basic:cur.pf_full_basic,esic:cur.esic,pt:cur.pt,tds:cur.tds});if(r.error){c.checked=!c.checked;return toast(r.error.message)}if(!S.data.estat.includes(cur))S.data.estat.push(cur);toast(L('Saved','सेव हुआ'))});
+}
+
 /* ---------- render ---------- */
-const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],leave:[pageLeave,bindLeave],att:[pageAtt,bindAtt],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
+const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],leave:[pageLeave,bindLeave],att:[pageAtt,bindAtt],pay:[pagePay,bindPay],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
 let RTOKEN=0;
 async function render(keepFocus,msg){
   const app=$('#app'), tok=++RTOKEN;
