@@ -71,7 +71,7 @@ async function boot(){
   render();
 }
 async function loadMe(){
-  const [p,pa]=await Promise.all([sb.from('profiles').select('*, employee:employee_id(name,code), client:client_id(code,name,status,modules)').eq('user_id',S.user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',S.user.id).maybeSingle()]);
+  const [p,pa]=await Promise.all([sb.from('profiles').select('*, employee:employee_id(name,code), client:client_id(code,name,status,modules,leave_year_start)').eq('user_id',S.user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',S.user.id).maybeSingle()]);
   S.platform=!!(pa.data);S.profile=p.data||null;S.client=p.data?p.data.client:null;
   if(!S.platform&&!S.profile){await sb.auth.signOut();S.user=null;throw new Error('This login is not active')}
   S.page=S.platform?'clients':'home';
@@ -110,7 +110,7 @@ function bindPw(){$('#pf').onsubmit=async e=>{e.preventDefault();const f=new For
   await sb.from('profiles').update({must_change_password:false}).eq('user_id',S.user.id);S.profile.must_change_password=false;toast(L('Password saved','पासवर्ड सेव हुआ'));render()}}
 
 /* ---------- shell ---------- */
-const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
+const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['leave',L('Leave','छुट्टी')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
 function shell(body){
   const who=S.platform?'LV People · Platform':(S.profile.employee?S.profile.employee.name:S.profile.login_code);
   return `<div class="shell"><aside class="side ${S.side?'open':''}"><div class="logo">LV People<small>${esc(S.platform?L('All clients','सभी क्लाइंट'):S.client.name)}</small></div>
@@ -287,8 +287,70 @@ async function pageClients(){
   return {head:`<h1>${L('Clients','क्लाइंट')}</h1>`,html:`<div class="card tw"><table><thead><tr><th>${L('Company code','कंपनी कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Status','स्थिति')}</th><th>${L('Employees','कर्मचारी')}</th><th>${L('Limit','सीमा')}</th><th>${L('Modules','मॉड्यूल')}</th></tr></thead><tbody>${(c.data||[]).map(x=>`<tr><td><b>${esc(x.code)}</b></td><td>${esc(x.name)}</td><td><span class="pill ${x.status==='active'?'p-ok':'p-warn'}">${esc(x.status)}</span></td><td>${cnt(x.id)}</td><td>${x.employee_limit}</td><td style="white-space:normal">${esc((x.modules||[]).join(', '))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin-top:12px">${L('Creating a new client and its KPI pack comes in the next steps.','नया क्लाइंट और उसका KPI पैक अगले चरणों में आएगा।')}</p>`};
 }
 
+/* ---------- leave ---------- */
+S.ltab='mine';S.lf='';
+const ltName=t=>LANG==='hi'&&t.name_hi?t.name_hi:t.name;
+const stPill=s=>`<span class="pill ${s==='approved'?'p-ok':s==='rejected'||s==='cancelled'?'p-bad':'p-warn'}">${({approved:L('Approved','मंज़ूर'),rejected:L('Rejected','अस्वीकार'),cancelled:L('Cancelled','रद्द'),pending:L('Pending','लंबित')})[s]||s}</span>`;
+const dRange=r=>fmtD(r.from_date)+(r.to_date!==r.from_date?' – '+fmtD(r.to_date):'');
+async function loadLeave(){
+  const [t,h,r]=await Promise.all([sb.from('leave_types').select('*').order('code'),sb.from('holidays').select('*').order('hdate'),sb.from('leave_requests').select('*').order('from_date',{ascending:false}).limit(1000)]);
+  if(r.error)throw r.error;S.data.ltypes=t.data||[];S.data.holidays=h.data||[];S.data.lreq=r.data||[];
+}
+const canDecide=r=>r.status==='pending'&&r.employee_id!==S.profile.employee_id&&(isHR()||(S.data.emps||[]).some(e=>e.id===r.employee_id&&e.manager_id===S.profile.employee_id));
+async function pageLeave(){
+  await Promise.all([loadOrg(),loadEmps(),loadLeave()]);
+  const me=S.profile.employee_id, D=S.data, tn=id=>{const t=D.ltypes.find(x=>x.id===id);return t?ltName(t):'—'};
+  const mineR=D.lreq.filter(r=>r.employee_id===me), wait=D.lreq.filter(canDecide), hrView=isHR(), isMgr=D.emps.some(e=>e.manager_id===me);
+  const tabs=[['mine',L('My leave','मेरी छुट्टी')],...((hrView||isMgr)?[['approve',L('Approvals','मंज़ूरी')+(wait.length?` (${wait.length})`:'')]]:[]),...(hrView?[['all',L('All requests','सभी माँगें')],['setup',L('Setup','सेटअप')]]:[])];
+  if(!tabs.some(t=>t[0]===S.ltab))S.ltab='mine';
+  let body='';
+  const table=(rows,opt)=>`<div class="card tw"><table><thead><tr>${opt.emp?`<th>${L('Employee','कर्मचारी')}</th>`:''}<th>${L('Type','प्रकार')}</th><th>${L('Dates','तारीख़')}</th><th>${L('Days','दिन')}</th><th>${L('Reason','कारण')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr>${opt.emp?`<td><b>${esc(empName(r.employee_id))}</b></td>`:''}<td>${esc(tn(r.type_id))}</td><td>${dRange(r)}</td><td>${r.days}${r.half?' ('+L('half','आधा')+')':''}</td><td style="white-space:normal;max-width:240px">${esc(r.reason||'')}${r.comment?`<small class="muted" style="display:block">${esc(r.comment)}</small>`:''}</td><td>${stPill(r.status)}</td><td style="text-align:right;white-space:nowrap">${opt.dec&&canDecide(r)?`<button class="btn btn-p btn-s" data-lok="${r.id}">${L('Approve','मंज़ूर')}</button> <button class="btn btn-s btn-d" data-lno="${r.id}">${L('Reject','अस्वीकार')}</button>`:''}${opt.cancel&&(r.employee_id===me||hrView)&&(r.status==='pending'||(r.status==='approved'&&r.from_date>todayS()))?` <button class="btn btn-s" data-lcan="${r.id}">${L('Cancel','रद्द करें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">${L('Nothing here','यहाँ कुछ नहीं')}</td></tr>`}</tbody></table></div>`;
+  if(S.ltab==='mine'){
+    let bal=[];if(me){const b=await sb.rpc('leave_balance',{p_employee:me});if(b.error)throw b.error;bal=b.data||[]}
+    body=me?`<div class="cards">${bal.map(b=>`<div class="card"><div class="muted">${esc(LANG==='hi'&&b.name_hi?b.name_hi:b.name)}</div><div class="n">${b.quota>0?b.available:'—'}</div><div class="muted" style="font-size:12px">${b.quota>0?`${L('of','में से')} ${b.quota} · ${L('used','लिए')} ${b.used} · ${L('pending','लंबित')} ${b.pending}`:`${L('used','लिए')} ${b.used} · ${L('no limit','सीमा नहीं')}`}</div></div>`).join('')}</div>${table(mineR,{cancel:true})}`:`<p class="muted">${L('No employee record is linked to this login.','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा।')}</p>`;
+  }else if(S.ltab==='approve'){body=table(wait,{emp:true,dec:true})}
+  else if(S.ltab==='all'){const q=S.q.toLowerCase();const rows=D.lreq.filter(r=>(!S.lf||r.status===S.lf)&&(!q||empName(r.employee_id).toLowerCase().includes(q)));
+    body=`<div class="tools"><input class="inp" id="q" placeholder="${L('Search employee','कर्मचारी खोजें')}" value="${esc(S.q)}"><select class="inp" id="lfs"><option value="">${L('All','सभी')}</option>${['pending','approved','rejected','cancelled'].map(s=>`<option value="${s}" ${S.lf===s?'selected':''}>${s}</option>`).join('')}</select></div>${table(rows,{emp:true,dec:true,cancel:true})}`}
+  else{
+    body=`<div class="card tw" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${L('Leave types','छुट्टी के प्रकार')}</h3><button class="btn btn-p btn-s" id="ltnew">+ ${L('Add','जोड़ें')}</button></div><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Per year','सालाना')}</th><th>${L('Paid','वेतन सहित')}</th><th>${L('Half day','आधा दिन')}</th><th></th></tr></thead><tbody>${D.ltypes.map(t=>`<tr style="${t.active?'':'opacity:.5'}"><td><b>${esc(t.code)}</b></td><td>${esc(t.name)}</td><td>${t.yearly_quota>0?t.yearly_quota:L('no limit','सीमा नहीं')}</td><td>${t.paid?'✓':'—'}</td><td>${t.allow_half?'✓':'—'}</td><td style="text-align:right"><button class="btn btn-s" data-lted="${t.id}">${L('Edit','बदलें')}</button></td></tr>`).join('')}</tbody></table><p class="muted" style="padding:0 16px 12px;font-size:12px">${L('The leave year starts in month','छुट्टी का साल शुरू होता है महीना')} ${S.client.leave_year_start||4}. ${L('Leave days do not count company holidays and the weekly off of the employee.','छुट्टी के दिनों में कंपनी की छुट्टियाँ और कर्मचारी का साप्ताहिक ऑफ नहीं गिना जाता।')}</p></div>
+    <div class="card tw"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${L('Company holidays','कंपनी की छुट्टियाँ')}</h3><button class="btn btn-p btn-s" id="hnew">+ ${L('Add','जोड़ें')}</button></div><table><thead><tr><th>${L('Date','तारीख़')}</th><th>${L('Holiday','छुट्टी')}</th><th></th></tr></thead><tbody>${D.holidays.map(h=>`<tr><td>${fmtD(h.hdate)}</td><td><b>${esc(h.name)}</b></td><td style="text-align:right"><button class="btn btn-s btn-d" data-hdel="${h.id}">${L('Delete','हटाएँ')}</button></td></tr>`).join('')}</tbody></table></div>`;
+  }
+  return {head:`<h1>${L('Leave','छुट्टी')}</h1>${S.ltab==='mine'&&me?`<button class="btn btn-p" id="lapply">+ ${L('Apply for leave','छुट्टी माँगें')}</button>`:''}`,html:`<div class="tools">${tabs.map(([k,n])=>`<button class="btn ${S.ltab===k?'btn-p':''}" data-lt="${k}">${n}</button>`).join('')}</div>${body}`};
+}
+const todayS=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+function leaveDays(emp,from,to,half){const wo=(emp&&emp.weekly_off)||'0', hs=new Set((S.data.holidays||[]).map(h=>h.hdate));let n=0;for(let d=new Date(from+'T00:00:00Z'),e=new Date(to+'T00:00:00Z');d<=e;d.setUTCDate(d.getUTCDate()+1)){const s=d.toISOString().slice(0,10);if(String(d.getUTCDay())!==wo&&!hs.has(s))n++}return half&&n>0?0.5:n}
+function applyForm(){
+  const today=todayS(), me=S.data.emps.find(e=>e.id===S.profile.employee_id);
+  const bg=modal(`<h3>${L('Apply for leave','छुट्टी माँगें')}</h3><label>${L('Leave type','प्रकार')}</label><select class="inp" name="type">${S.data.ltypes.filter(t=>t.active).map(t=>`<option value="${t.id}">${esc(ltName(t))}</option>`).join('')}</select>
+  <div class="fgrid"><div><label>${L('From','से')}</label><input class="inp" type="date" name="from" value="${today}" required></div><div><label>${L('To','तक')}</label><input class="inp" type="date" name="to" value="${today}" required></div></div>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="half"> ${L('Half day (one date only)','आधा दिन (सिर्फ़ एक तारीख़)')}</label><label>${L('Reason','कारण')}</label><input class="inp" name="reason">
+  <p id="pv" class="muted" style="margin-top:10px"></p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Send','भेजें')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('apply_leave',{p_type:d.type,p_from:d.from,p_to:d.to,p_half:!!d.half,p_reason:d.reason||null});if(r.error)throw r.error;close();toast(L('Sent for approval','मंज़ूरी के लिए गया'));render()});
+  const f=$('form',bg), pv=()=>{const d=Object.fromEntries(new FormData(f));if(!d.from||!d.to||d.to<d.from){$('#pv',bg).textContent=L('Check the dates','तारीख़ जाँचें');return}$('#pv',bg).textContent=`${L('Days counted','गिने गए दिन')}: ${leaveDays(me,d.from,d.to,!!d.half)}`};
+  f.oninput=pv;f.onchange=pv;pv();
+}
+function rejectForm(id){modal(`<h3>${L('Reject','अस्वीकार')}</h3><label>${L('Reason (the employee will see it)','कारण (कर्मचारी को दिखेगा)')} *</label><textarea class="inp" name="c" rows="3"></textarea><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reject','अस्वीकार')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_leave',{p_request:id,p_approve:false,p_comment:new FormData(f).get('c')});if(r.error)throw r.error;close();toast(L('Rejected','अस्वीकार'));render()})}
+function ltForm(id){const t=id?S.data.ltypes.find(x=>x.id===id):{active:true,paid:true,allow_half:true,yearly_quota:0};
+  modal(`<h3>${id?L('Edit leave type','प्रकार बदलें'):L('New leave type','नया प्रकार')}</h3><div class="fgrid"><div><label>${L('Code','कोड')} *</label><input class="inp" name="code" value="${esc(t.code||'')}" maxlength="6" required ${id?'readonly':''} style="text-transform:uppercase"></div><div><label>${L('Per year (0 = no limit)','सालाना (0 = सीमा नहीं)')}</label><input class="inp" type="number" name="q" min="0" max="365" step="0.5" value="${t.yearly_quota}"></div></div>
+  <label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${esc(t.name||'')}" required><label>${L('Name in Hindi','हिंदी में नाम')}</label><input class="inp" name="hi" value="${esc(t.name_hi||'')}">
+  ${[['paid',L('Paid leave','वेतन सहित')],['allow_half',L('Half day allowed','आधा दिन मान्य')],['active',L('Active','चालू')]].map(([k,n])=>`<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="${k}" ${t[k]?'checked':''}> ${n}</label>`).join('')}<div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const row={code:d.code.trim().toUpperCase(),name:d.name.trim(),name_hi:d.hi.trim()||null,yearly_quota:+d.q||0,paid:!!d.paid,allow_half:!!d.allow_half,active:!!d.active};if(!row.code||!row.name)throw new Error(L('Write the code and name','कोड और नाम लिखें'));
+    const r=id?await sb.from('leave_types').update(row).eq('id',id):await sb.from('leave_types').insert({...row,client_id:S.profile.client_id});if(r.error)throw new Error(r.error.code==='23505'?L('This code already exists','यह कोड पहले से है'):r.error.message);await logAudit('Leave','Type saved',row.code,'');close();toast(L('Saved','सेव हुआ'));render()})}
+function holidayForm(){modal(`<h3>${L('Add a holiday','छुट्टी जोड़ें')}</h3><label>${L('Date','तारीख़')}</label><input class="inp" type="date" name="d" required><label>${L('Holiday','छुट्टी')}</label><input class="inp" name="n" required><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.from('holidays').insert({client_id:S.profile.client_id,hdate:d.d,name:d.n.trim()});if(r.error)throw new Error(r.error.code==='23505'?L('This date already has a holiday','इस तारीख़ की छुट्टी पहले से है'):r.error.message);await logAudit('Leave','Holiday added',d.d,d.n);close();toast(L('Saved','सेव हुआ'));render()})}
+function bindLeave(){
+  $$('[data-lt]').forEach(b=>b.onclick=()=>{S.ltab=b.dataset.lt;S.q='';render()});
+  const a=$('#lapply');if(a)a.onclick=applyForm;
+  $$('[data-lok]').forEach(b=>b.onclick=async()=>{b.disabled=true;const r=await sb.rpc('decide_leave',{p_request:b.dataset.lok,p_approve:true,p_comment:null});if(r.error){toast(r.error.message);b.disabled=false;return}toast(L('Approved','मंज़ूर'));render()});
+  $$('[data-lno]').forEach(b=>b.onclick=()=>rejectForm(b.dataset.lno));
+  $$('[data-lcan]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Cancel this leave?','यह छुट्टी रद्द करें?')))return;const r=await sb.rpc('cancel_leave',{p_request:b.dataset.lcan});if(r.error)return toast(r.error.message);toast(L('Cancelled','रद्द हुआ'));render()});
+  const q=$('#q');if(q)q.oninput=e=>{S.q=e.target.value;clearTimeout(bindLeave.t);bindLeave.t=setTimeout(()=>render(true),250)};const fs=$('#lfs');if(fs)fs.onchange=e=>{S.lf=e.target.value;render()};
+  const n=$('#ltnew');if(n)n.onclick=()=>ltForm(null);$$('[data-lted]').forEach(b=>b.onclick=()=>ltForm(b.dataset.lted));const h=$('#hnew');if(h)h.onclick=holidayForm;
+  $$('[data-hdel]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Delete this holiday?','यह छुट्टी हटाएँ?')))return;const r=await sb.from('holidays').delete().eq('id',b.dataset.hdel);if(r.error)return toast(r.error.message);toast(L('Deleted','हटाया'));render()});
+}
+
 /* ---------- render ---------- */
-const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
+const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],leave:[pageLeave,bindLeave],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
 let RTOKEN=0;
 async function render(keepFocus,msg){
   const app=$('#app'), tok=++RTOKEN;
