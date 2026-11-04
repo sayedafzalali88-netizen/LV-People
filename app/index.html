@@ -66,8 +66,19 @@ async function logAudit(module,action,subject,detail){if(!S.profile)return;await
 
 /* ---------- start ---------- */
 async function boot(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(session){S.user=session.user;await loadMe()}
+  $('#app').innerHTML='<div class="login"><div class="muted">LV People…</div></div>';
+  try{
+    const res=await Promise.race([sb.auth.getSession(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),6000))]);
+    const session=res&&res.data&&res.data.session;
+    if(session){S.user=session.user;await loadMe()}
+  }catch(x){
+    /* a stale or broken saved session: forget it and start clean (once) */
+    try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(y){}
+    let again=false;try{again=sessionStorage.getItem('lv_reset')==='1';sessionStorage.setItem('lv_reset','1')}catch(y){}
+    if(!again){location.reload();return}
+    S.user=null;S.profile=null;S.platform=false;
+  }
+  try{sessionStorage.removeItem('lv_reset')}catch(y){}
   render();
 }
 async function loadMe(){
@@ -110,7 +121,7 @@ function bindPw(){$('#pf').onsubmit=async e=>{e.preventDefault();const f=new For
   await sb.from('profiles').update({must_change_password:false}).eq('user_id',S.user.id);S.profile.must_change_password=false;toast(L('Password saved','पासवर्ड सेव हुआ'));render()}}
 
 /* ---------- shell ---------- */
-const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['leave',L('Leave','छुट्टी')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
+const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['att',L('Attendance','हाज़िरी')],['leave',L('Leave','छुट्टी')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
 function shell(body){
   const who=S.platform?'LV People · Platform':(S.profile.employee?S.profile.employee.name:S.profile.login_code);
   return `<div class="shell"><aside class="side ${S.side?'open':''}"><div class="logo">LV People<small>${esc(S.platform?L('All clients','सभी क्लाइंट'):S.client.name)}</small></div>
@@ -349,8 +360,71 @@ function bindLeave(){
   $$('[data-hdel]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Delete this holiday?','यह छुट्टी हटाएँ?')))return;const r=await sb.from('holidays').delete().eq('id',b.dataset.hdel);if(r.error)return toast(r.error.message);toast(L('Deleted','हटाया'));render()});
 }
 
+/* ---------- attendance ---------- */
+S.atab='mine';S.amonth=todayS().slice(0,7);S.aemp=null;
+const AST={P:['p-ok',L('Present','उपस्थित')],L:['p-warn',L('Late','देर से')],HD:['p-warn',L('Half day','आधा दिन')],A:['p-bad',L('Absent','अनुपस्थित')],MP:['p-bad',L('Missed punch','पंच छूटा')],LV:['p-teal',L('Leave','छुट्टी')],H:['p-teal',L('Holiday','छुट्टी (कंपनी)')],W:['',L('Weekly off','साप्ताहिक ऑफ')],IN:['p-ok',L('In now','अभी अंदर')]};
+const tm=t=>t?new Date(t).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'—';
+const hm=m=>m==null?'—':`${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}m`;
+async function loadAttSetup(){const [s,p]=await Promise.all([sb.from('shifts').select('*').order('name'),sb.from('attendance_policy').select('*').maybeSingle()]);S.data.shifts=s.data||[];S.data.apol=p.data||{lates_per_half_day:4,punch_window_days:3}}
+function attSum(rows){const c={};rows.forEach(r=>{c[r.status]=(c[r.status]||0)+1});c.late=rows.filter(r=>r.late).length;return c}
+function paidDays(s,lph,unpaid){const ded=lph>0?Math.floor((s.late_count||0)/lph)*0.5:0;const pd=(s.present||0)+(s.late||0)+(s.on_leave||0)+(s.holidays||0)+(s.weekly_off||0)+0.5*(s.half_day||0)-ded;return {ded,pd:Math.max(0,pd)}}
+function calendar(rows){
+  const first=new Date(rows[0].day+'T00:00:00Z'), pad=(first.getUTCDay()+6)%7;
+  return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${[L('Mon','सोम'),L('Tue','मंगल'),L('Wed','बुध'),L('Thu','गुरु'),L('Fri','शुक्र'),L('Sat','शनि'),L('Sun','रवि')].map(d=>`<div class="muted" style="font-size:11px;text-align:center">${d}</div>`).join('')}${'<div></div>'.repeat(pad)}${rows.map(r=>{const s=AST[r.status];return `<div class="card" title="${esc(r.holiday||'')} ${tm(r.in_time)} – ${tm(r.out_time)}" style="padding:6px;min-height:58px;font-size:12px"><b>${+r.day.slice(8)}</b>${s?`<div><span class="pill ${s[0]}" style="font-size:11px">${esc(r.status==='LV'&&r.leave_code?r.leave_code:r.status)}</span></div>`:''}${r.in_time?`<div class="muted" style="font-size:10px">${tm(r.in_time)}${r.out_time?' – '+tm(r.out_time):''}</div>`:''}</div>`}).join('')}</div>`;
+}
+async function pageAtt(){
+  await Promise.all([loadOrg(),loadEmps(),loadAttSetup()]);
+  const me=S.profile.employee_id, hr=isHR(), mgr=S.data.emps.some(e=>e.manager_id===me), m=S.amonth+'-01';
+  const rq=await sb.from('attendance_requests').select('*').order('created_at',{ascending:false}).limit(500);S.data.areq=rq.data||[];
+  const canDec=r=>r.status==='pending'&&r.employee_id!==me&&(hr||S.data.emps.some(e=>e.id===r.employee_id&&e.manager_id===me));
+  const wait=S.data.areq.filter(canDec);
+  const tabs=[['mine',L('My attendance','मेरी हाज़िरी')],...((hr||mgr)?[['team',L('Team','टीम')],['req',L('Corrections','सुधार')+(wait.length?` (${wait.length})`:'')]]:[]),...(hr?[['setup',L('Setup','सेटअप')]]:[])];
+  if(!tabs.some(t=>t[0]===S.atab))S.atab='mine';
+  const monthSel=`<input class="inp" type="month" id="am" value="${S.amonth}" max="${todayS().slice(0,7)}" style="max-width:170px">`;
+  const lph=S.data.apol.lates_per_half_day;
+  let body='';
+  if(S.atab==='mine'||(S.atab==='team'&&S.aemp)){
+    const eid=S.atab==='mine'?me:S.aemp, e=S.data.emps.find(x=>x.id===eid);
+    if(!eid){body=`<p class="muted">${L('No employee record is linked to this login.','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा।')}</p>`}
+    else{const r=await sb.rpc('attendance_month',{p_employee:eid,p_month:m});if(r.error)throw r.error;const rows=r.data||[];
+      const c=attSum(rows), s={present:c.P||0,late:c.L||0,half_day:c.HD||0,on_leave:(c.LV||0),holidays:c.H||0,weekly_off:c.W||0,late_count:c.late}, p=paidDays(s,lph);
+      const today=rows.find(x=>x.day===todayS());
+      body=`${S.atab==='team'?`<button class="btn btn-s" id="aback">← ${L('Back to team','टीम पर वापस')}</button> <b style="margin-left:8px">${esc(e?e.code+' '+e.name:'')}</b><div style="height:10px"></div>`:''}
+      ${S.atab==='mine'&&S.amonth===todayS().slice(0,7)?`<div class="card" style="padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1"><div class="muted">${L('Today','आज')} · ${fmtD(todayS())}</div><div style="font-size:18px;font-weight:600">${today&&today.in_time?`${L('In','अंदर')} ${tm(today.in_time)}${today.out_time?` · ${L('Out','बाहर')} ${tm(today.out_time)}`:''}`:L('Not punched in yet','अभी पंच-इन नहीं')}</div></div>${today&&today.out_time?`<span class="pill p-ok">${L('Day done','दिन पूरा')}</span>`:`<button class="btn btn-p" id="punch">${today&&today.in_time?L('Punch out','पंच-आउट'):L('Punch in','पंच-इन')}</button>`}</div>`:''}
+      <div class="cards">${[['P',c.P],['L',c.L],['HD',c.HD],['A',(c.A||0)+(c.MP||0)],['LV',c.LV],['H',(c.H||0)+(c.W||0)]].map(([k,n])=>`<div class="card"><div class="muted">${k==='H'?L('Holidays and offs','छुट्टी और ऑफ'):k==='A'?L('Absent or missed punch','अनुपस्थित/पंच छूटा'):AST[k][1]}</div><div class="n">${n||0}</div></div>`).join('')}<div class="card"><div class="muted">${L('Paid days so far','अब तक भुगतान दिन')}</div><div class="n">${p.pd}</div><div class="muted" style="font-size:12px">${L('Lates','देरी')} ${c.late||0}${lph>0?` · ${L('cut','कटौती')} ${p.ded} ${L('day','दिन')} (${L('every','हर')} ${lph} ${L('lates = half day','देरी = आधा दिन')})`:''}</div></div></div>
+      ${calendar(rows)}`;
+      if(S.atab==='mine'){const mine=S.data.areq.filter(x=>x.employee_id===me);body+=`<div class="sec-t" style="margin-top:18px">${L('My correction requests','मेरे सुधार अनुरोध')}</div>${areqTable(mine,{cancel:true})}`}
+    }
+  }else if(S.atab==='team'){
+    const r=await sb.rpc('attendance_summary',{p_month:m});if(r.error)throw r.error;
+    const rows=(r.data||[]).filter(x=>x.employee_id!==me||hr);
+    body=`<div class="card tw"><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>P</th><th>${L('Late','देर')}</th><th>HD</th><th>A</th><th>${L('Missed','छूटा')}</th><th>${L('Leave','छुट्टी')}</th><th>LWP</th><th>H+W</th><th>${L('Late cut','देरी कटौती')}</th><th>${L('Paid days so far','अब तक भुगतान दिन')}</th></tr></thead><tbody>${rows.map(x=>{const p=paidDays(x,lph);return `<tr class="click" data-ae="${x.employee_id}"><td><b>${esc(empName(x.employee_id))}</b></td><td>${x.present}</td><td>${x.late}</td><td>${x.half_day}</td><td>${x.absent}</td><td>${x.missed_punch}</td><td>${x.on_leave}</td><td>${x.unpaid_leave}</td><td>${x.holidays+x.weekly_off}</td><td>${p.ded}</td><td><b>${p.pd}</b></td></tr>`}).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin-top:8px">${L('Click a name to see the day-by-day calendar. Missed punch counts as absent until it is corrected.','नाम पर क्लिक करें, रोज़ का कैलेंडर दिखेगा। पंच छूटा हो तो सुधार होने तक अनुपस्थित गिना जाता है।')}</p>`;
+  }else if(S.atab==='req'){body=areqTable(S.data.areq.filter(x=>hr||canDec(x)||x.employee_id!==me),{emp:true,dec:true,canDec})}
+  else{const sh=S.data.shifts[0]||{};
+    body=`<form class="card" id="asf" style="padding:16px;max-width:560px"><h3 style="margin:0">${L('Shift and rules','शिफ़्ट और नियम')}</h3><div class="fgrid"><div><label>${L('Shift name','शिफ़्ट नाम')}</label><input class="inp" name="name" value="${esc(sh.name||'General')}"></div><div><label>${L('Start','शुरू')}</label><input class="inp" type="time" name="start" value="${(sh.start_time||'10:00').slice(0,5)}"></div><div><label>${L('End','ख़त्म')}</label><input class="inp" type="time" name="end" value="${(sh.end_time||'19:00').slice(0,5)}"></div><div><label>${L('Grace minutes','छूट मिनट')}</label><input class="inp" type="number" min="0" max="120" name="grace" value="${sh.grace_min??10}"></div><div><label>${L('Hours for a full day','पूरे दिन के घंटे')}</label><input class="inp" type="number" step="0.5" min="1" max="16" name="full" value="${sh.full_day_hours??8}"></div><div><label>${L('Hours for a half day','आधे दिन के घंटे')}</label><input class="inp" type="number" step="0.5" min="1" max="12" name="half" value="${sh.half_day_hours??4}"></div><div><label>${L('Lates that make a half day cut','कितनी देरी पर आधा दिन कटे')}</label><input class="inp" type="number" min="0" max="31" name="lph" value="${S.data.apol.lates_per_half_day}"></div><div><label>${L('Days back a correction can be asked','कितने पुराने दिन का सुधार माँग सकते')}</label><input class="inp" type="number" min="0" max="31" name="win" value="${S.data.apol.punch_window_days}"></div></div><div class="err" id="me"></div><div class="acts"><button class="btn btn-p">${L('Save','सेव')}</button></div></form><p class="muted" style="font-size:12px">${L('Late = punch-in after start + grace. Worked hours below the half-day hours count as absent. 0 lates = no cut.','देर = शुरू + छूट के बाद पंच-इन। आधे दिन के घंटों से कम काम अनुपस्थित गिना जाता है। 0 = कोई कटौती नहीं।')}</p>`}
+  return {head:`<h1>${L('Attendance','हाज़िरी')}</h1>${monthSel}${S.atab==='mine'&&me?`<button class="btn" id="areqb">${L('Ask a correction','सुधार माँगें')}</button>`:''}`,html:`<div class="tools">${tabs.map(([k,n])=>`<button class="btn ${S.atab===k?'btn-p':''}" data-at="${k}">${n}</button>`).join('')}</div>${body}`};
+}
+function areqTable(rows,opt){return `<div class="card tw"><table><thead><tr>${opt.emp?`<th>${L('Employee','कर्मचारी')}</th>`:''}<th>${L('Date','तारीख़')}</th><th>${L('In','अंदर')}</th><th>${L('Out','बाहर')}</th><th>${L('Reason','कारण')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr>${opt.emp?`<td><b>${esc(empName(r.employee_id))}</b></td>`:''}<td>${fmtD(r.work_date)}</td><td>${r.in_time?r.in_time.slice(0,5):'—'}</td><td>${r.out_time?r.out_time.slice(0,5):'—'}</td><td style="white-space:normal;max-width:240px">${esc(r.reason)}${r.comment?`<small class="muted" style="display:block">${esc(r.comment)}</small>`:''}</td><td>${stPill(r.status)}</td><td style="text-align:right;white-space:nowrap">${opt.dec&&opt.canDec(r)?`<button class="btn btn-p btn-s" data-aok="${r.id}">${L('Approve','मंज़ूर')}</button> <button class="btn btn-s btn-d" data-ano="${r.id}">${L('Reject','अस्वीकार')}</button>`:''}${opt.cancel&&r.status==='pending'?`<button class="btn btn-s" data-acan="${r.id}">${L('Cancel','रद्द करें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">${L('Nothing here','यहाँ कुछ नहीं')}</td></tr>`}</tbody></table></div>`}
+function bindAtt(){
+  $$('[data-at]').forEach(b=>b.onclick=()=>{S.atab=b.dataset.at;S.aemp=null;render()});
+  const am=$('#am');if(am)am.onchange=e=>{if(e.target.value){S.amonth=e.target.value;render()}};
+  const p=$('#punch');if(p)p.onclick=async()=>{p.disabled=true;const r=await sb.rpc('punch');if(r.error){toast(r.error.message);p.disabled=false;return}toast(r.data==='in'?L('Punched in','पंच-इन हुआ'):L('Punched out','पंच-आउट हुआ'));render()};
+  $$('[data-ae]').forEach(r=>r.onclick=()=>{S.aemp=r.dataset.ae;render()});const bk=$('#aback');if(bk)bk.onclick=()=>{S.aemp=null;render()};
+  const rb=$('#areqb');if(rb)rb.onclick=()=>modal(`<h3>${L('Ask a correction','सुधार माँगें')}</h3><label>${L('Date','तारीख़')}</label><input class="inp" type="date" name="d" max="${todayS()}" value="${todayS()}" required><div class="fgrid"><div><label>${L('In time','अंदर का समय')}</label><input class="inp" type="time" name="i"></div><div><label>${L('Out time','बाहर का समय')}</label><input class="inp" type="time" name="o"></div></div><label>${L('Reason','कारण')} *</label><input class="inp" name="r" required><p class="muted">${L('Fill only what is missing or wrong. Your manager or HR approves it.','सिर्फ़ जो छूटा या ग़लत है वही भरें। आपका मैनेजर या HR मंज़ूर करेगा।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Send','भेजें')}</button></div>`,
+    async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('request_attendance',{p_date:d.d,p_in:d.i||null,p_out:d.o||null,p_reason:d.r});if(r.error)throw r.error;close();toast(L('Sent for approval','मंज़ूरी के लिए गया'));render()});
+  $$('[data-aok]').forEach(b=>b.onclick=async()=>{b.disabled=true;const r=await sb.rpc('decide_attendance',{p_request:b.dataset.aok,p_approve:true,p_comment:null});if(r.error){toast(r.error.message);b.disabled=false;return}toast(L('Approved','मंज़ूर'));render()});
+  $$('[data-ano]').forEach(b=>b.onclick=()=>modal(`<h3>${L('Reject','अस्वीकार')}</h3><label>${L('Reason','कारण')} *</label><textarea class="inp" name="c" rows="3"></textarea><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reject','अस्वीकार')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_attendance',{p_request:b.dataset.ano,p_approve:false,p_comment:new FormData(f).get('c')});if(r.error)throw r.error;close();toast(L('Rejected','अस्वीकार'));render()}));
+  $$('[data-acan]').forEach(b=>b.onclick=async()=>{const r=await sb.rpc('cancel_attendance_request',{p_request:b.dataset.acan});if(r.error)return toast(r.error.message);toast(L('Cancelled','रद्द हुआ'));render()});
+  const sf=$('#asf');if(sf)sf.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(sf)), me_=$('#me',sf);me_.textContent='';
+    if(d.end<=d.start){me_.textContent=L('End must be after start','ख़त्म शुरू के बाद हो');return}if(+d.half>=+d.full){me_.textContent=L('Half-day hours must be less than full-day hours','आधे दिन के घंटे पूरे दिन से कम हों');return}
+    const row={name:d.name.trim()||'General',start_time:d.start,end_time:d.end,grace_min:+d.grace,full_day_hours:+d.full,half_day_hours:+d.half}, sh=S.data.shifts[0];
+    let r=sh?await sb.from('shifts').update(row).eq('id',sh.id):await sb.from('shifts').insert({...row,client_id:S.profile.client_id});if(r.error){me_.textContent=r.error.message;return}
+    r=await sb.from('attendance_policy').upsert({client_id:S.profile.client_id,lates_per_half_day:+d.lph,punch_window_days:+d.win});if(r.error){me_.textContent=r.error.message;return}
+    await logAudit('Attendance','Rules saved','',`${d.start}-${d.end} grace ${d.grace}, lates ${d.lph}`);toast(L('Saved','सेव हुआ'));render()};
+}
+
 /* ---------- render ---------- */
-const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],leave:[pageLeave,bindLeave],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
+const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],leave:[pageLeave,bindLeave],att:[pageAtt,bindAtt],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
 let RTOKEN=0;
 async function render(keepFocus,msg){
   const app=$('#app'), tok=++RTOKEN;
