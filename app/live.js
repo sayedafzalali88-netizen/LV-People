@@ -87,8 +87,8 @@ async function syncAttendance(){
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
-const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','SSTR','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','KRULES','CHK','WFD','TAR','CCT','RFR','SLA','AST','CHKLINK','FBQ','ALTJT','ALTP','QB','TGR','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT'];
-const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','LVR','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','SRC'];
+const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','SRC','KRULES','SSTR','TGR','AST'];
 const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','FBT','CFB','ASG','TODO','DAILYT','SLP','SLASG','SLLOG','SLT','SLCERT','CREQ','XADV','XREP','XRES','XTRIP','UREQ','WISH','CHE','POLL','RECOG'];
 const involved=(x,me,team,store,key)=>{if(store==='MRATE'||store==='CT')return team.has(+String(key).slice(2).split('|')[0]);if(store==='KYC')return +String(key).slice(2).split('|')[0]===me;if(!x||typeof x!=='object')return false;
   if(['emp','by','mgr','owner','assignee','auditor','chair','reviewer'].some(f=>+x[f]===me))return true;if(['to','att','invited','emps','done'].some(f=>Array.isArray(x[f])&&x[f].includes(me)))return true;
@@ -101,7 +101,8 @@ async function loadStores(){
   let rows=[], page=0;while(true){const r=await sb.from('app_store').select('store,key,data').range(page*1000,page*1000+999);if(r.error)throw r.error;rows=rows.concat(r.data||[]);if(!r.data||r.data.length<1000)break;page++}
   const demo=LIVE.client&&LIVE.client.code==='demo';
   for(const n of [...CONFIG,...DATASTORES]){const v=ref(n);if(v==null||!itemsOf(n))continue;const mine=rows.filter(r=>r.store===n);
-    if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>delete v[k])}
+    if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>{if(Array.isArray(v[k]))v[k]=[];else delete v[k]})}
+      if(!demo&&n==='PAYRUN')Object.keys(v).forEach(k=>v[k]='draft');
       LIVE.stSnap[n]={}; continue }
     if(Array.isArray(v)){v.length=0;mine.sort((a,b)=>{const x=a.key.split(':'), y=b.key.split(':');return (+x[1]||0)-(+y[1]||0)}).forEach(r=>v.push(r.data))}
     else{Object.keys(v).forEach(k=>delete v[k]);mine.forEach(r=>{v[r.key.slice(2)]=r.data})}
@@ -133,18 +134,25 @@ async function loadKpis(){
   LIVE.lib={};lib.forEach(r=>LIVE.lib[r.id]=r);LIVE.pack={};pack.forEach(r=>LIVE.pack[r.kpi_id]=r);
   const mods=(LIVE.client&&LIVE.client.modules)||[];
   KPI.length=0;
-  pack.forEach(p=>{const l=LIVE.lib[p.kpi_id];if(!l)return;if(l.module&&!mods.includes(l.module))return; /* module not given: KPI blocked */
-    const k={...l.data,id:l.id,max:p.max!=null?+p.max:+l.data.max,active:p.enabled,module:l.module};if(p.weight!=null)k.weight=+p.weight;KPI.push(k)});
+  /* every library KPI stays known to the screens; only the client's pack is visible and usable */
+  lib.forEach(l=>{const p=LIVE.pack[l.id], ok=p&&(!l.module||mods.includes(l.module));
+    const k={...l.data,id:l.id,max:p&&p.max!=null?+p.max:+l.data.max,active:ok?p.enabled:false,module:l.module};if(!ok)k._hidden=true;if(p&&p.weight!=null)k.weight=+p.weight;KPI.push(k)});
   KPI.sort((a,b)=>a.id<b.id?-1:1);
   LIVE.kpiSnap={};KPI.forEach(k=>LIVE.kpiSnap[k.id]=kpiKey(k));
 }
 async function syncKpis(){
   if(!isHRrole())return;
-  for(let i=KPI.length-1;i>=0;i--){const k=KPI[i];
+  for(let i=KPI.length-1;i>=0;i--){const k=KPI[i];if(k._hidden){if(k.active){k.active=false;try{toast(L('This KPI is not in your pack. Ask LV People to add it.','यह KPI आपके पैक में नहीं है। LV People से जोड़ने को कहें।'))}catch(e){}}continue}
     if(!LIVE.pack[k.id]){KPI.splice(i,1);try{toast(L('New KPIs are added by LV People to your pack. Please send the request to LV People.','नई KPI LV People आपके पैक में जोड़ता है। अनुरोध LV People को भेजें।'))}catch(e){}continue}
     const s=kpiKey(k);if(LIVE.kpiSnap[k.id]===s)continue;
     const r=await sb.from('client_kpi_pack').update({enabled:k.active!==false,max:+k.max||0}).eq('client_id',LIVE.profile.client_id).eq('kpi_id',k.id);if(r.error)throw r.error;LIVE.kpiSnap[k.id]=s}
 }
+try{const _kt=kpiTable;kpiTable=function(rows){return _kt.call(this,(rows||[]).filter(k=>!k._hidden))}}catch(e){}
+/* the PMS screens show only the client's pack */
+const withPack=fn=>function(){const all=KPI.slice();if(!all.some(k=>k._hidden))return fn.apply(this,arguments);const vis=all.filter(k=>!k._hidden), ids=new Set(vis.map(k=>k.id)), ai=[...AUTO_IMPL];
+  KPI.length=0;vis.forEach(k=>KPI.push(k));AUTO_IMPL.clear();ai.filter(i=>ids.has(i)).forEach(i=>AUTO_IMPL.add(i));
+  try{return fn.apply(this,arguments)}finally{KPI.length=0;all.forEach(k=>KPI.push(k));AUTO_IMPL.clear();ai.forEach(i=>AUTO_IMPL.add(i))}};
+try{pmsPage=withPack(pmsPage)}catch(e){}
 /* the platform admin builds the pack of each client, one KPI at a time */
 try{
   PAGES.push('kpipack');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].kpipack=r==='platform'?['V','E']:[]);
@@ -176,6 +184,32 @@ bindExtra=function(){_bx.apply(this,arguments);if(state.page!=='kpipack')return;
   document.querySelectorAll('[data-kpk]').forEach(c=>c.onchange=async()=>{const id=c.dataset.kpk;c.disabled=true;
     const r=c.checked?await sb.from('client_kpi_pack').insert({client_id:KP.client,kpi_id:id,max:+(LIVE.kp.lib.find(l=>l.id===id).data.max)||10}):await sb.from('client_kpi_pack').delete().eq('client_id',KP.client).eq('kpi_id',id);
     if(r.error){toast(r.error.message);c.checked=!c.checked}else{if(c.checked)LIVE.kp.pack[id]={kpi_id:id};else delete LIVE.kp.pack[id];toast(L('Saved','सेव हुआ'))}c.disabled=false;render()})};
+/* ---------- the client's modules switch the prototype's module licence ---------- */
+function applyModules(){try{const mods=(LIVE.client&&LIVE.client.modules)||[];if(typeof LIC==='object'&&LIC&&LIC.mods){Object.keys(LIC.mods).forEach(k=>LIC.mods[k]=mods.includes(k))}
+  if(typeof LIC==='object'&&LIC&&LIVE.client){LIC.name=LIVE.client.name}}catch(e){}}
+/* ---------- platform: clients (create a client, its modules and status) ---------- */
+const MODLIST=['timeoffice','payroll','pms','recruit','workforce','decision','training','crm','stock','marketing','library','support','cockpit','expense','requests','assets','analytics','engage'];
+try{PAGES.push('lvclients');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].lvclients=r==='platform'?['V','E']:[]);NAV.push({id:'lvclients',ic:'M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1',roles:[],day:'—',built:true});
+  Object.assign(T.en,{lvclients:'Clients (live)'});Object.assign(T.hi,{lvclients:'क्लाइंट (लाइव)'})}catch(e){}
+LIVE.cl={rows:[],loaded:false,counts:{}};
+async function clLoad(){const [c,e]=await Promise.all([q('clients'),q('employees','client_id,active')]);LIVE.cl.rows=c.sort((a,b)=>a.created_at<b.created_at?-1:1);LIVE.cl.counts={};e.forEach(x=>{if(x.active)LIVE.cl.counts[x.client_id]=(LIVE.cl.counts[x.client_id]||0)+1})}
+function clientsPage(){
+  if(!LIVE.cl.loaded){LIVE.cl.loaded=true;clLoad().then(()=>render());return `<div class="page-h"><div><h1>${L('Clients (live)','क्लाइंट (लाइव)')}</h1></div></div><p>…</p>`}
+  return `<div class="page-h"><div><h1>${L('Clients (live)','क्लाइंट (लाइव)')}</h1><p>${L('Every company that uses LV People. A new client starts clean: its own data only, no sample data.','LV People इस्तेमाल करने वाली हर कंपनी। नया क्लाइंट साफ़ शुरू होता है: सिर्फ़ उसका डेटा, नमूना डेटा नहीं।')}</p></div><button class="btn btn-p" id="clNew">+ ${L('New client','नया क्लाइंट')}</button></div>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${L('Company code','कंपनी कोड')}</th><th>${L('Company','कंपनी')}</th><th>${L('Status','स्थिति')}</th><th>${L('Employees','कर्मचारी')}</th><th>${L('Modules','मॉड्यूल')}</th><th></th></tr></thead><tbody>${LIVE.cl.rows.map(c=>`<tr><td><b>${esc(c.code)}</b></td><td>${esc(c.name)}</td><td><span class="pill ${c.status==='active'?'p-ok':c.status==='test'?'p-warn':'p-bad'}">${esc(c.status)}</span></td><td>${LIVE.cl.counts[c.id]||0} / ${c.employee_limit}</td><td style="white-space:normal;max-width:360px;font-size:12px">${esc((c.modules||[]).join(', '))}</td><td style="text-align:right"><button class="btn btn-o btn-s" data-cled="${c.id}">${L('Edit','बदलें')}</button></td></tr>`).join('')}</tbody></table></div>`}
+const modBoxes=sel=>`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 10px;margin-top:6px">${MODLIST.map(m=>`<label style="display:flex;gap:6px;font-weight:400;margin:0"><input type="checkbox" name="mod" value="${m}" ${sel.includes(m)?'checked':''}> ${m}</label>`).join('')}</div>`;
+function clNewModal(){openModal(`<h3>${L('New client','नया क्लाइंट')}</h3><div class="fgrid"><div><label>${L('Company name','कंपनी का नाम')} *</label><input class="inp" name="name"></div><div><label>${L('Company code (for login)','कंपनी कोड (लॉगिन के लिए)')} *</label><input class="inp" name="code" placeholder="darshanam"></div><div><label>${L('Employee limit','कर्मचारी सीमा')}</label><input class="inp" type="number" name="lim" value="25" min="1"></div></div>
+  <label>${L('Modules','मॉड्यूल')}</label>${modBoxes(['timeoffice','payroll','pms','workforce','requests'])}
+  <h4 style="margin:14px 0 4px">${L('First admin of the company','कंपनी का पहला एडमिन')}</h4><div class="fgrid"><div><label>${L('Name','नाम')} *</label><input class="inp" name="an"></div><div><label>${L('Employee code','कर्मचारी कोड')} *</label><input class="inp" name="ac" value="E001"></div><div><label>${L('Mobile','मोबाइल')} *</label><input class="inp" name="am" maxlength="10"></div><div><label>${L('First password','पहला पासवर्ड')} *</label><input class="inp" name="pw"></div></div>
+  <p style="font-size:12px;color:var(--muted)">${L('The admin must change this password at the first sign-in. Tell it only to that person.','एडमिन को पहले साइन-इन पर पासवर्ड बदलना होगा। यह सिर्फ़ उसी व्यक्ति को बताएँ।')}</p><div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Create','बनाएँ')}</button></div>`,
+  async(f,close)=>{const fd=new FormData(f), er=m=>{f.querySelector('#me').textContent=m};
+    const r=await sb.rpc('platform_create_client',{p_code:fd.get('code'),p_name:fd.get('name'),p_limit:+fd.get('lim')||25,p_modules:fd.getAll('mod'),p_admin_name:fd.get('an'),p_admin_code:fd.get('ac'),p_admin_mobile:fd.get('am'),p_password:fd.get('pw')});
+    if(r.error)return er(r.error.message);close();toast(L('Client created. Now make its KPI pack.','क्लाइंट बन गया। अब उसका KPI पैक बनाएँ।'));await clLoad();render()})}
+function clEditModal(id){const c=LIVE.cl.rows.find(x=>x.id===id);openModal(`<h3>${esc(c.name)} (${esc(c.code)})</h3><div class="fgrid"><div><label>${L('Status','स्थिति')}</label><select class="inp" name="st">${['active','test','suspended'].map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div><div><label>${L('Employee limit','कर्मचारी सीमा')}</label><input class="inp" type="number" name="lim" value="${c.employee_limit}" min="1"></div></div><label>${L('Modules','मॉड्यूल')}</label>${modBoxes(c.modules||[])}<p style="font-size:12px;color:var(--muted)">${L('A suspended client cannot open its data. Switching a module off hides it and its KPIs; the data is kept.','सस्पेंड क्लाइंट अपना डेटा नहीं खोल सकता। मॉड्यूल बंद करने पर वह और उसकी KPI छिप जाती हैं; डेटा रहता है।')}</p><div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+  async(f,close)=>{const fd=new FormData(f);const r=await sb.rpc('platform_update_client',{p_id:id,p_status:fd.get('st'),p_limit:+fd.get('lim')||1,p_modules:fd.getAll('mod')});if(r.error)return f.querySelector('#me').textContent=r.error.message;close();toast(t('saved'));await clLoad();render()})}
+try{const _ph2=placeholder;placeholder=function(P){return P==='lvclients'?clientsPage():_ph2.apply(this,arguments)}}catch(e){}
+const _bx2=bindExtra;
+bindExtra=function(){_bx2.apply(this,arguments);if(state.page!=='lvclients')return;const b=document.getElementById('clNew');if(b)b.onclick=clNewModal;document.querySelectorAll('[data-cled]').forEach(x=>x.onclick=()=>clEditModal(x.dataset.cled))};
 /* in the live app a past working day with no punch is absent, never sample data */
 const _dayRec=dayRec;
 dayRec=function(emp,d){const r=_dayRec(emp,d);if(!LIVE.on||LIVE.platform)return r;const s=ds(d), k=emp+'|'+s;
@@ -231,7 +265,7 @@ async function startSession(user){
   LIVE.platform=!!pa.data;LIVE.profile=p.data||null;LIVE.client=p.data?p.data.client:null;
   if(LIVE.platform&&!LIVE.profile){LIVE.on=true;enterApp(null,'platform',false);return}
   if(!LIVE.profile||!LIVE.profile.active)throw new Error(L('This login is not active','यह लॉगिन चालू नहीं है'));
-  await loadLive();LIVE.on=true;
+  await loadLive();applyModules();LIVE.on=true;
   const e=DATA.emps.find(x=>LIVE.map.emps[x.id]===LIVE.profile.employee_id);if(!e)throw new Error(L('No employee record is linked to this login','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा'));
   try{if(typeof CO==='object'&&LIVE.client)CO.name=LIVE.client.name}catch(x){}
   if(LIVE.profile.must_change_password){LV.view='change';LV.pend={first:true,emp:e,role:LIVE.profile.role,live:true};drawLogin();return}
