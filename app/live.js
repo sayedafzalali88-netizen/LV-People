@@ -87,9 +87,12 @@ async function syncAttendance(){
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
-const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','SSTR','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE'];
-const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','LVR','CF','STATV'];
-const EMPSTORES=['LEAVES','AR','REGS','RH','ADV'];
+const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','SSTR','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','KRULES','CHK','WFD','TAR','CCT','RFR','KPI','SLA','AST'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','LVR','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC'];
+const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ'];
+const involved=(x,me,team,store,key)=>{if(store==='MRATE'||store==='CT')return team.has(+String(key).slice(2).split('|')[0]);if(store==='KYC')return +String(key).slice(2).split('|')[0]===me;if(!x||typeof x!=='object')return false;
+  if(['emp','by','mgr','owner','assignee','auditor','chair','reviewer'].some(f=>+x[f]===me))return true;if(['to','att','invited','emps','done'].some(f=>Array.isArray(x[f])&&x[f].includes(me)))return true;
+  if(Array.isArray(x.steps)&&x.steps.some(s=>Array.isArray(s.holders)&&s.holders.includes(me)))return true;return team.has(+x.emp)};
 const ref=n=>{try{return eval(n)}catch(e){return undefined}};
 const hasFn=x=>{try{return /^function|=>/.test('')||Object.values(x||{}).some(y=>typeof y==='function')}catch(e){return true}};
 const itemsOf=n=>{const v=ref(n);if(v==null||typeof v!=='object'||hasFn(v)||(Array.isArray(v)&&v.some(x=>x&&typeof x==='object'&&hasFn(x))))return null;const o={};if(Array.isArray(v))v.forEach((x,i)=>{o[x&&x.id!=null?'id:'+x.id:'i:'+i]=x});else Object.keys(v).forEach(k=>o['k:'+k]=v[k]);return o};
@@ -116,7 +119,7 @@ async function syncStores(){
     if(hr){for(let i=0;i<up.length;i+=200){const r=await sb.from('app_store').upsert(up.slice(i,i+200));if(r.error)throw r.error}}
     else{/* not HR: only own requests and the team's approvals go to the server, one by one; the server checks each */
       const me=LIVE.rev.emps[LIVE.profile.employee_id], team=new Set(DATA.emps.filter(e=>+e.mgr===me).map(e=>e.id));
-      const mine=up.filter(x=>x.data&&(x.data.emp===me||team.has(x.data.emp)));up.filter(x=>!mine.includes(x)).forEach(x=>snap[x.key]=JSON.stringify(x.data));
+      const mine=up.filter(x=>involved(x.data,me,team,n,x.key));up.filter(x=>!mine.includes(x)).forEach(x=>snap[x.key]=JSON.stringify(x.data));
       for(const x of mine){const r=await sb.from('app_store').upsert(x);if(r.error){LIVE.err=r.error.message;try{toast(L('Not saved: ','सेव नहीं हुआ: ')+r.error.message)}catch(e){}}}
       up=mine}
     if(gone.length){const r=await sb.from('app_store').delete().eq('store',n).in('key',gone);if(r.error)throw r.error}
@@ -153,11 +156,11 @@ async function syncNow(){
 let syncT=null;const schedule=()=>{clearTimeout(syncT);syncT=setTimeout(syncNow,600)};
 
 /* ---------- the note at the top of each page ---------- */
-const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team'];
+const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox'];
 function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.platform)return;let n=document.getElementById('liveNote');
   const live=LIVE_PAGES.includes(state.page);
   const txt=live?L('Live: the data on this page is saved in the database.','लाइव: इस पेज का डेटा डेटाबेस में सेव होता है।')
-    :L('This module is not connected to the database yet: it shows sample data and changes are not saved. Live now: employees, organisation, attendance, leave and payroll.','यह मॉड्यूल अभी डेटाबेस से नहीं जुड़ा: इसमें नमूना डेटा है और बदलाव सेव नहीं होते। अभी लाइव: कर्मचारी, संगठन, हाज़िरी, छुट्टी और पेरोल।');
+    :L('This module is not connected to the database yet: it shows sample data and changes are not saved. Live now: employees, organisation, attendance, leave, payroll, PMS, My Assignment, assets, support and inbox.','यह मॉड्यूल अभी डेटाबेस से नहीं जुड़ा: इसमें नमूना डेटा है और बदलाव सेव नहीं होते। अभी लाइव: कर्मचारी, संगठन, हाज़िरी, छुट्टी, पेरोल, PMS, माई असाइनमेंट, एसेट, सपोर्ट और इनबॉक्स।');
   if(!n){n=document.createElement('div');n.id='liveNote';n.style.cssText='margin:0 0 12px;padding:8px 12px;border-radius:10px;font-size:12px'}
   n.style.background=live?'rgba(22,138,74,.12)':'rgba(183,121,31,.14)';n.style.color=live?'#166534':'#92400e';n.textContent=(LIVE.err?'⚠ '+LIVE.err+' · ':'')+txt;
   if(m.firstChild!==n)m.insertBefore(n,m.firstChild)}
