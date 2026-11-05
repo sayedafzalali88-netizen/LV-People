@@ -60,7 +60,7 @@ async function loadLive(){
   KINDS.forEach(k=>DATA[k].forEach(o=>LIVE.snap[k][o.id]=sig(k,o)));
   if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
-  await loadAttendance();await loadStores();
+  await loadAttendance();await loadStores();await loadKpis();
 }
 
 /* ---------- attendance punches: the attendance table <-> ATT ---------- */
@@ -87,9 +87,9 @@ async function syncAttendance(){
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
-const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','SSTR','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','KRULES','CHK','WFD','TAR','CCT','RFR','KPI','SLA','AST'];
-const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','LVR','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC'];
-const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ'];
+const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','SSTR','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','KRULES','CHK','WFD','TAR','CCT','RFR','SLA','AST','CHKLINK','FBQ','ALTJT','ALTP','QB','TGR','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','LVR','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','SRC'];
+const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','FBT','CFB','ASG','TODO','DAILYT','SLP','SLASG','SLLOG','SLT','SLCERT','CREQ','XADV','XREP','XRES','XTRIP','UREQ','WISH','CHE','POLL','RECOG'];
 const involved=(x,me,team,store,key)=>{if(store==='MRATE'||store==='CT')return team.has(+String(key).slice(2).split('|')[0]);if(store==='KYC')return +String(key).slice(2).split('|')[0]===me;if(!x||typeof x!=='object')return false;
   if(['emp','by','mgr','owner','assignee','auditor','chair','reviewer'].some(f=>+x[f]===me))return true;if(['to','att','invited','emps','done'].some(f=>Array.isArray(x[f])&&x[f].includes(me)))return true;
   if(Array.isArray(x.steps)&&x.steps.some(s=>Array.isArray(s.holders)&&s.holders.includes(me)))return true;return team.has(+x.emp)};
@@ -125,6 +125,57 @@ async function syncStores(){
     if(gone.length){const r=await sb.from('app_store').delete().eq('store',n).in('key',gone);if(r.error)throw r.error}
     up.forEach(x=>snap[x.key]=JSON.stringify(x.data));gone.forEach(k=>delete snap[k])}
 }
+/* ---------- KPIs: one library kept by LV People, one pack per client ---------- */
+LIVE.lib={};LIVE.pack={};LIVE.kpiSnap={};
+const kpiKey=k=>JSON.stringify([+k.max,k.active!==false]);
+async function loadKpis(){
+  const [lib,pack]=await Promise.all([q('kpi_library'),q('client_kpi_pack')]);
+  LIVE.lib={};lib.forEach(r=>LIVE.lib[r.id]=r);LIVE.pack={};pack.forEach(r=>LIVE.pack[r.kpi_id]=r);
+  const mods=(LIVE.client&&LIVE.client.modules)||[];
+  KPI.length=0;
+  pack.forEach(p=>{const l=LIVE.lib[p.kpi_id];if(!l)return;if(l.module&&!mods.includes(l.module))return; /* module not given: KPI blocked */
+    const k={...l.data,id:l.id,max:p.max!=null?+p.max:+l.data.max,active:p.enabled,module:l.module};if(p.weight!=null)k.weight=+p.weight;KPI.push(k)});
+  KPI.sort((a,b)=>a.id<b.id?-1:1);
+  LIVE.kpiSnap={};KPI.forEach(k=>LIVE.kpiSnap[k.id]=kpiKey(k));
+}
+async function syncKpis(){
+  if(!isHRrole())return;
+  for(let i=KPI.length-1;i>=0;i--){const k=KPI[i];
+    if(!LIVE.pack[k.id]){KPI.splice(i,1);try{toast(L('New KPIs are added by LV People to your pack. Please send the request to LV People.','नई KPI LV People आपके पैक में जोड़ता है। अनुरोध LV People को भेजें।'))}catch(e){}continue}
+    const s=kpiKey(k);if(LIVE.kpiSnap[k.id]===s)continue;
+    const r=await sb.from('client_kpi_pack').update({enabled:k.active!==false,max:+k.max||0}).eq('client_id',LIVE.profile.client_id).eq('kpi_id',k.id);if(r.error)throw r.error;LIVE.kpiSnap[k.id]=s}
+}
+/* the platform admin builds the pack of each client, one KPI at a time */
+try{
+  PAGES.push('kpipack');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].kpipack=r==='platform'?['V','E']:[]);
+  NAV.push({id:'kpipack',ic:'M4 6h16M4 12h16M4 18h10',roles:[],day:'—',built:true});
+  Object.assign(T.en,{kpipack:'KPI packs'});Object.assign(T.hi,{kpipack:'KPI पैक'});
+}catch(e){}
+const KP={client:'',q:'',mod:'',only:''};LIVE.kp={clients:[],lib:[],pack:{}};
+async function kpLoad(){const [c,l]=await Promise.all([q('clients'),q('kpi_library')]);LIVE.kp.clients=c;LIVE.kp.lib=l.sort((a,b)=>a.id<b.id?-1:1);if(!KP.client&&c[0])KP.client=c[0].id;
+  LIVE.kp.pack={};if(KP.client){const r=await sb.from('client_kpi_pack').select('*').eq('client_id',KP.client);(r.data||[]).forEach(p=>LIVE.kp.pack[p.kpi_id]=p)}}
+function kpiPackPage(){
+  if(!LIVE.kp.loaded){LIVE.kp.loaded=true;kpLoad().then(()=>render());return `<div class="page-h"><div><h1>${L('KPI packs','KPI पैक')}</h1></div></div><p>…</p>`}
+  const cl=LIVE.kp.clients.find(c=>c.id===KP.client)||{}, mods=cl.modules||[], qq=KP.q.toLowerCase();
+  const rows=LIVE.kp.lib.filter(l=>(!KP.mod||l.module===KP.mod)&&(!qq||(l.id+' '+(l.data.name||'')+' '+(l.data.cat||'')).toLowerCase().includes(qq))&&(!KP.only||(KP.only==='in'?LIVE.kp.pack[l.id]:!LIVE.kp.pack[l.id])));
+  const inN=Object.keys(LIVE.kp.pack).length, modsAll=[...new Set(LIVE.kp.lib.map(l=>l.module))].sort();
+  return `<div class="page-h"><div><h1>${L('KPI packs','KPI पैक')}</h1><p>${L('One KPI library for all clients. Choose the KPIs of each client one by one. A KPI whose module is not given to the client cannot be added.','सभी क्लाइंट के लिए एक KPI लाइब्रेरी। हर क्लाइंट की KPI एक-एक करके चुनें। जिस KPI का मॉड्यूल क्लाइंट को नहीं दिया, वह नहीं जुड़ सकती।')}</p></div></div>
+  <div class="tools"><select class="inp" id="kpC" style="max-width:240px">${LIVE.kp.clients.map(c=>`<option value="${c.id}" ${c.id===KP.client?'selected':''}>${esc(c.name)} (${esc(c.code)})</option>`).join('')}</select>
+  <input class="inp" id="kpQ" placeholder="${L('Search KPI','KPI खोजें')}" value="${esc(KP.q)}" style="max-width:220px"><select class="inp" id="kpM" style="max-width:170px"><option value="">${L('All modules','सभी मॉड्यूल')}</option>${modsAll.map(m=>`<option ${m===KP.mod?'selected':''}>${m}</option>`).join('')}</select>
+  <select class="inp" id="kpO" style="max-width:160px"><option value="">${L('All','सभी')}</option><option value="in" ${KP.only==='in'?'selected':''}>${L('In the pack','पैक में')}</option><option value="out" ${KP.only==='out'?'selected':''}>${L('Not in the pack','पैक में नहीं')}</option></select>
+  <span class="pill p-teal">${inN} ${L('KPIs in the pack','KPI पैक में')}</span></div>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${L('In pack','पैक में')}</th><th>KPI</th><th>${L('Name','नाम')}</th><th>${L('Method','तरीका')}</th><th>${L('Module','मॉड्यूल')}</th><th>${L('Client max','क्लाइंट अधिकतम')}</th></tr></thead><tbody>${rows.slice(0,400).map(l=>{const p=LIVE.kp.pack[l.id], ok=mods.includes(l.module);
+    return `<tr style="${ok?'':'opacity:.55'}"><td><input type="checkbox" data-kpk="${l.id}" ${p?'checked':''} ${ok||p?'':'disabled'}></td><td><b>${esc(l.id)}</b></td><td>${esc(l.data.name||'')}<small style="display:block;color:var(--muted)">${esc(l.data.cat||'')}</small></td><td>${esc(l.data.method||'')}</td><td>${ok?esc(l.module):`<span class="pill p-bad">${esc(l.module)}: ${L('module not given','मॉड्यूल नहीं दिया')}</span>`}</td><td>${p?(p.max!=null?p.max:l.data.max):'—'}</td></tr>`}).join('')}</tbody></table></div>`}
+try{PAGEFN.kpipack=()=>kpiPackPage()}catch(e){}
+try{const _ph=placeholder;placeholder=function(P){return P==='kpipack'?kpiPackPage():_ph.apply(this,arguments)}}catch(e){}
+const _bx=bindExtra;
+bindExtra=function(){_bx.apply(this,arguments);if(state.page!=='kpipack')return;const g=id=>document.getElementById(id);
+  if(g('kpC'))g('kpC').onchange=async e=>{KP.client=e.target.value;await kpLoad();render()};
+  if(g('kpQ'))g('kpQ').oninput=e=>{KP.q=e.target.value;clearTimeout(KP.t);KP.t=setTimeout(()=>{render();const x=g('kpQ');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},300)};
+  if(g('kpM'))g('kpM').onchange=e=>{KP.mod=e.target.value;render()};if(g('kpO'))g('kpO').onchange=e=>{KP.only=e.target.value;render()};
+  document.querySelectorAll('[data-kpk]').forEach(c=>c.onchange=async()=>{const id=c.dataset.kpk;c.disabled=true;
+    const r=c.checked?await sb.from('client_kpi_pack').insert({client_id:KP.client,kpi_id:id,max:+(LIVE.kp.lib.find(l=>l.id===id).data.max)||10}):await sb.from('client_kpi_pack').delete().eq('client_id',KP.client).eq('kpi_id',id);
+    if(r.error){toast(r.error.message);c.checked=!c.checked}else{if(c.checked)LIVE.kp.pack[id]={kpi_id:id};else delete LIVE.kp.pack[id];toast(L('Saved','सेव हुआ'))}c.disabled=false;render()})};
 /* in the live app a past working day with no punch is absent, never sample data */
 const _dayRec=dayRec;
 dayRec=function(emp,d){const r=_dayRec(emp,d);if(!LIVE.on||LIVE.platform)return r;const s=ds(d), k=emp+'|'+s;
@@ -138,7 +189,7 @@ async function syncNow(){
   if(LIVE.busy){LIVE.queued=true;return}
   LIVE.busy=true;let n=0;
   try{
-    await syncAttendance();await syncStores();
+    await syncAttendance();await syncStores();await syncKpis();
     if(isHRrole())for(const k of KINDS){const t=TBL[k];
       for(const o of DATA[k]){const s=sig(k,o);if(LIVE.snap[k][o.id]===s)continue;
         const row=toRow(k,o);let uuid=LIVE.map[k][o.id];
@@ -156,7 +207,7 @@ async function syncNow(){
 let syncT=null;const schedule=()=>{clearTimeout(syncT);syncT=setTimeout(syncNow,600)};
 
 /* ---------- the note at the top of each page ---------- */
-const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox'];
+const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox','recruit','expense','exits','training','marketing','crm','library','engage','bizdata','stock','import','analytics','reports','settings'];
 function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.platform)return;let n=document.getElementById('liveNote');
   const live=LIVE_PAGES.includes(state.page);
   const txt=live?L('Live: the data on this page is saved in the database.','लाइव: इस पेज का डेटा डेटाबेस में सेव होता है।')
