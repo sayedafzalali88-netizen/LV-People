@@ -314,6 +314,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiv
 setInterval(()=>refreshLive(true),5*60000);
 /* every audit line gets a stable id and who did it, so it can be kept */
 try{const _au=audit;audit=function(){_au.apply(this,arguments);try{const a=AUDIT[0];if(a&&a.id==null){a.id=Date.now()*100+Math.floor(Math.random()*100);a.by=LIVE.profile?LIVE.rev.emps[LIVE.profile.employee_id]:null;a.ts=new Date().toISOString()}}catch(e){}}}catch(e){}
+LIVE.invite=async id=>{if(!isHRrole())return toast(L('Only HR or Admin can do this','यह सिर्फ़ HR या एडमिन कर सकता है'));if(LIVE.prof[id]){const p=LIVE.prof[id];return toast(p.active?L('This person already has a login. Use Reset password in Settings > Accounts.','इस व्यक्ति का लॉगिन पहले से है। सेटिंग > अकाउंट्स में पासवर्ड रीसेट करें।'):L('The login is closed. Reopen it in Settings > Accounts.','लॉगिन बंद है। सेटिंग > अकाउंट्स में फिर खोलें।'))}
+  await ensureLogins([id]);render()};
 /* ---------- dashboard numbers from the real data ---------- */
 window.dashN=function(scope,what){
   try{const me=MYEMP[state.role], emps=DATA.emps.filter(e=>e.active&&(scope==='all'||+e.mgr===me));
