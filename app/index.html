@@ -4867,7 +4867,7 @@ bindExtra=function(){
 /* render: the platform owner only sees the console; a suspended or expired company sees a notice */
 const _renderLic=render;
 render=function(){
-  if(state.role==='platform'&&!['licensing','kpipack','lvclients'].includes(state.page))state.page='licensing';
+  if(state.role==='platform'&&!['licensing','kpipack','lvclients','kpilib'].includes(state.page))state.page='licensing';
   _renderLic();
   const st=licState();
   if(state.role!=='platform'&&st!=='Active'){$('#nav').innerHTML='';$('#main').innerHTML=`<div class="card empty"><div class="big">${svg('M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z')}</div><h2>${st==='Suspended'?L('This account is suspended','यह खाता निलंबित है'):L('The licence has expired','लाइसेंस की अवधि समाप्त हो गई')}</h2><p style="color:var(--muted);margin-top:6px">${L('Please contact your provider. Your data is safe.','कृपया अपने प्रदाता से संपर्क करें। आपका डेटा सुरक्षित है।')}</p></div>`}
