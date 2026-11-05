@@ -60,7 +60,7 @@ async function loadLive(){
   KINDS.forEach(k=>DATA[k].forEach(o=>LIVE.snap[k][o.id]=sig(k,o)));
   if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
-  await loadAttendance();await loadStores();await loadKpis();
+  await loadAttendance();await loadStores();await loadKpis();await loadAccounts();
 }
 
 /* ---------- attendance punches: the attendance table <-> ATT ---------- */
@@ -243,6 +243,29 @@ bindExtra=function(){_bx3.apply(this,arguments);if(state.page!=='kpilib')return;
   if(g('klNew'))g('klNew').onclick=()=>klModal(null);document.querySelectorAll('[data-kled]').forEach(b=>b.onclick=()=>klModal(b.dataset.kled));
   if(g('klQ'))g('klQ').oninput=e=>{KL.q=e.target.value;clearTimeout(KL.t);KL.t=setTimeout(()=>{render();const x=g('klQ');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},300)};
   if(g('klS'))g('klS').onchange=e=>{KL.st=e.target.value;render()};if(g('klM'))g('klM').onchange=e=>{KL.mod=e.target.value;render()}};
+/* ---------- accounts (Settings > Accounts): the real logins ---------- */
+LIVE.prof={};
+const tmpPw=()=>{const A='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz',D='23456789',a=new Uint32Array(10);crypto.getRandomValues(a);let p='';for(let i=0;i<8;i++)p+=A[a[i]%A.length];return p+D[a[8]%8]+D[a[9]%8]};
+async function loadAccounts(){if(!isHRrole())return;const r=await sb.from('profiles').select('user_id,employee_id,role,active,must_change_password,created_at');LIVE.prof={};
+  (r.data||[]).forEach(p=>{const n=LIVE.rev.emps[p.employee_id];if(n)LIVE.prof[n]=p});
+  try{DATA.emps.forEach(e=>{const p=LIVE.prof[e.id], a=ACC[e.id]||(ACC[e.id]={uid:e.code,hist:[],fails:0,lockUntil:0,by:'System'});
+    a.uid=e.code;a.status=p?(p.active?'Active':'Closed'):'Closed';a.must=p?p.must_change_password:false;a.tempUntil='';a.created=p?(p.created_at||'').slice(0,10):'';a.roleOver=p&&p.role!==roleOf(e)?p.role:'';a.last=p&&!p.must_change_password?a.last||'yes':'';a.noLogin=!p})}catch(e){}}
+function showPasswords(list){if(!list.length)return;try{openModal(`<h3>${L('Give these first passwords','ये पहले पासवर्ड दें')}</h3><p style="font-size:13px;color:var(--muted)">${L('SMS and email are not connected yet, so give each person the company code, the employee number and this password. They must change it at the first sign-in. This list is shown only now.','SMS और ईमेल अभी नहीं जुड़े, इसलिए हर व्यक्ति को कंपनी कोड, कर्मचारी नंबर और यह पासवर्ड दें। पहले साइन-इन पर बदलना होगा। यह सूची सिर्फ़ अभी दिखती है।')}</p>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${L('Company code','कंपनी कोड')}</th><th>${L('Employee','कर्मचारी')}</th><th>${L('Password','पासवर्ड')}</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(LIVE.client.code)}</td><td><b>${esc(x.code)}</b> ${esc(x.name)}</td><td style="font-family:monospace">${esc(x.pw)}</td></tr>`).join('')}</tbody></table></div><div class="acts"><button type="button" class="btn btn-p" data-close>${L('Done','हो गया')}</button></div>`,(f,close)=>close())}catch(e){}}
+async function ensureLogins(ids){if(!isHRrole())return;const made=[];
+  for(const e of DATA.emps){if(!ids.includes(e.id)||!e.active||LIVE.prof[e.id])continue;const uuid=LIVE.map.emps[e.id];if(!uuid)continue;const pw=tmpPw(), role=['admin','hr','manager','employee'].includes(roleOf(e))?roleOf(e):'employee';
+    const r=await sb.rpc('create_login',{p_employee:uuid,p_role:role==='admin'?'employee':role,p_password:pw});if(r.error)continue;made.push({code:e.code,name:e.name,pw})}
+  if(made.length){await loadAccounts();showPasswords(made)}}
+try{hrReset=async function(eid){const p=LIVE.prof[eid], e=empById(eid);if(!p)return toast(L('This person has no login yet','इस व्यक्ति का लॉगिन अभी नहीं है'));const pw=tmpPw();
+  const r=await sb.rpc('reset_login_password',{p_user:p.user_id,p_password:pw});if(r.error)return toast(r.error.message);await loadAccounts();showPasswords([{code:e.code,name:e.name,pw}]);render()}}catch(e){}
+const _bx4=bindExtra;
+bindExtra=function(){_bx4.apply(this,arguments);if(!LIVE.on||!isHRrole())return;const m=document.getElementById('main');if(!m)return;
+  const upd=async(eid,role,active)=>{const p=LIVE.prof[eid];if(!p)return toast(L('This person has no login yet','इस व्यक्ति का लॉगिन अभी नहीं है'));const r=await sb.rpc('update_login',{p_user:p.user_id,p_role:role||p.role,p_active:active});if(r.error)return toast(r.error.message);await loadAccounts();toast(t('saved'));render()};
+  m.querySelectorAll('[data-acrst]').forEach(b=>b.onclick=()=>hrReset(+b.dataset.acrst));
+  m.querySelectorAll('[data-acunl]').forEach(b=>b.onclick=()=>{toast(L('Unlocked','खुल गया'))});
+  m.querySelectorAll('[data-accls]').forEach(b=>b.onclick=()=>upd(+b.dataset.accls,null,false));
+  m.querySelectorAll('[data-acopen]').forEach(b=>b.onclick=async()=>{const eid=+b.dataset.acopen;if(!LIVE.prof[eid]){await ensureLogins([eid]);render();return}upd(eid,null,true)});
+  m.querySelectorAll('[data-acrole]').forEach(s=>s.onchange=()=>{if(state.role!=='admin')return;upd(+s.dataset.acrole,s.value,true)})};
 /* ---------- dashboard numbers from the real data ---------- */
 window.dashN=function(scope,what){
   try{const me=MYEMP[state.role], emps=DATA.emps.filter(e=>e.active&&(scope==='all'||+e.mgr===me));
@@ -282,11 +305,12 @@ async function syncNow(){
       for(const o of DATA[k]){const s=sig(k,o);if(LIVE.snap[k][o.id]===s)continue;
         const row=toRow(k,o);let uuid=LIVE.map[k][o.id];
         if(uuid){const r=await sb.from(t).update(row).eq('id',uuid);if(r.error)throw r.error}
-        else{const r=await sb.from(t).insert(row).select('id').single();if(r.error)throw r.error;uuid=r.data.id;LIVE.map[k][o.id]=uuid;LIVE.rev[k][uuid]=o.id}
+        else{const r=await sb.from(t).insert(row).select('id').single();if(r.error)throw r.error;uuid=r.data.id;LIVE.map[k][o.id]=uuid;LIVE.rev[k][uuid]=o.id;if(k==='emps')(LIVE.newEmp=LIVE.newEmp||[]).push(o.id)}
         if(k==='emps'){const r=await sb.from('employee_private').upsert({employee_id:uuid,...toPriv(o)});if(r.error)throw r.error}
         LIVE.snap[k][o.id]=sig(k,o);n++}}
     /* a manager set before the manager was saved: fill it now */
     if(isHRrole())for(const o of DATA.emps){if(o.mgr&&LIVE.map.emps[+o.mgr]){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){await sb.from('employees').update({manager_id:LIVE.map.emps[+o.mgr]}).eq('id',LIVE.map.emps[o.id]);LIVE.snap.emps[o.id]=s}}}
+    if(LIVE.newEmp&&LIVE.newEmp.length){const ids=LIVE.newEmp;LIVE.newEmp=[];await ensureLogins(ids)}
     LIVE.err='';
   }catch(e){LIVE.err=(e&&e.message)||String(e);console.error('LIVE sync',e);try{toast('Not saved to the database: '+LIVE.err)}catch(x){}}
   finally{LIVE.busy=false;if(LIVE.queued){LIVE.queued=false;setTimeout(syncNow,50)}}
