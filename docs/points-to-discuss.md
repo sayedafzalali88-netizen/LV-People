@@ -323,3 +323,8 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - KPI-039 Floor Round deleted (and its checklist). KPI-129 Daily Maintenance Log merged into KPI-125 (rule text says so). KPI count is now 396.
 - Excel LV-People-KPI-Library.xlsx regenerated with 396 KPIs.
 - Open: nothing creates the monthly audit tasks automatically; HR assigns the auditor in PMS > Audit.
+
+## Thirty-sixth List (5 Nov 2026) - Labour code check
+- Built: 50% wage rule check (warning only; wages = components marked "counts in PF"), minimum wage master by state / zone / skill (warning only), Bonus Act limits (eligibility 21,000 and calculation ceiling 7,000 or minimum wage, editable; warning only), deductions limit 50% (warning), statutory registers (employees, wages, muster roll, overtime, deductions, leave), leave type option "full quota from day one" or "as per labour law: after 180 days, 1 per 20 days worked", gratuity, Cockpit import for leave balance.
+- Plan agreed, not built: TDS (old/new regime choice, investment declaration and proofs, Form 16, Form 24Q data).
+- Set aside by the user (not needed now): 4 fixed-term employees, 5 final settlement within 2 working days, 6 notice pay, 9 salary payment date alert, 11 overtime quarterly limit, 12 night shift consent for women.
