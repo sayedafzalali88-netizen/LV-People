@@ -267,6 +267,20 @@ bindExtra=function(){_bx4.apply(this,arguments);if(!LIVE.on||!isHRrole())return;
   m.querySelectorAll('[data-accls]').forEach(b=>b.onclick=()=>upd(+b.dataset.accls,null,false));
   m.querySelectorAll('[data-acopen]').forEach(b=>b.onclick=async()=>{const eid=+b.dataset.acopen;if(!LIVE.prof[eid]){await ensureLogins([eid]);render();return}upd(eid,null,true)});
   m.querySelectorAll('[data-acrole]').forEach(s=>s.onchange=()=>{if(state.role!=='admin')return;upd(+s.dataset.acrole,s.value,true)})};
+/* ---------- see other people's changes: refresh when the page comes back and every 5 minutes ---------- */
+LIVE.lastLoad=Date.now();
+async function refreshLive(force){
+  if(!LIVE.on||LIVE.platform||!LIVE.profile||LIVE.refreshing)return;
+  if(!force&&Date.now()-LIVE.lastLoad<3*60000)return;
+  if(document.querySelector('.modal-bg'))return; /* never under an open form */
+  LIVE.refreshing=true;
+  try{await syncNow();while(LIVE.busy)await new Promise(r=>setTimeout(r,200));await loadLive();applyModules();LIVE.lastLoad=Date.now();
+    const ae=document.activeElement;if(!ae||!['INPUT','TEXTAREA','SELECT'].includes(ae.tagName))render()}
+  catch(e){console.warn('refresh',e)}finally{LIVE.refreshing=false}}
+LIVE.refresh=refreshLive;
+window.addEventListener('focus',()=>refreshLive(false));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLive(false)});
+setInterval(()=>refreshLive(true),5*60000);
 /* ---------- dashboard numbers from the real data ---------- */
 window.dashN=function(scope,what){
   try{const me=MYEMP[state.role], emps=DATA.emps.filter(e=>e.active&&(scope==='all'||+e.mgr===me));
