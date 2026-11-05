@@ -16,7 +16,8 @@ const isHRrole=()=>['admin','hr'].includes(LIVE.profile&&LIVE.profile.role);
 
 /* ---------- database row <-> prototype object ---------- */
 const P1=a=>(a&&a.length?a[0]:null);
-function toRow(kind,o){const M=LIVE.map, c=LIVE.profile.client_id;
+function toRow(kind,o){const r=toRow0(kind,o);r.num_id=+o.id||null;return r}
+function toRow0(kind,o){const M=LIVE.map, c=LIVE.profile.client_id;
   if(kind==='branches')return{client_id:c,name:o.name,city:nz(o.city),state:nz(o.state),pin:nz(o.pin),address:nz(o.line),zone:nz(o.zone),active:o.off?false:true};
   if(kind==='divisions')return{client_id:c,name:o.name,active:o.off?false:true};
   if(kind==='depts')return{client_id:c,name:o.name,division_id:M.divisions[P1(o.parents)]||null,active:o.off?false:true};
@@ -34,10 +35,14 @@ async function q(t,sel){const r=await sb.from(t).select(sel||'*');if(r.error)thr
 async function loadLive(){
   const [br,dv,dp,fn,dg,em]=await Promise.all([q('branches'),q('divisions'),q('departments'),q('job_functions'),q('designations'),q('employees')]);
   let pv=[];try{pv=await q('employee_private')}catch(e){pv=[]}
-  const pick=(kind,rows,keyOf,build)=>{const old=DATA[kind].slice(), used=new Set();let next=Math.max(0,...old.map(x=>+x.id||0))+1;const out=[];
-    rows.forEach(r=>{let o=old.find(x=>!used.has(x.id)&&keyOf(x)===keyOf(r));let id;if(o){id=o.id;used.add(id)}else{id=next++;o={id}}
-      LIVE.map[kind][id]=r.id;LIVE.rev[kind][r.id]=id;out.push({o,r,id})});
+  const pick=(kind,rows,keyOf,build)=>{const old=DATA[kind].slice(), used=new Set();let next=Math.max(0,...old.map(x=>+x.id||0),...rows.map(r=>+r.num_id||0))+1;const out=[];
+    rows.sort((a,b)=>(a.num_id||1e9)-(b.num_id||1e9));
+    rows.forEach(r=>{let o, id;
+      if(r.num_id){id=r.num_id;o=old.find(x=>x.id===id&&!used.has(id))||{id}}
+      else{o=old.find(x=>!used.has(x.id)&&keyOf(x)===keyOf(r)&&!rows.some(z=>z.num_id===x.id));if(o)id=o.id;else{id=next++;o={id}}LIVE.needNum.push([TBL[kind],r.id,id])}
+      used.add(id);LIVE.map[kind][id]=r.id;LIVE.rev[kind][r.id]=id;out.push({o,r,id})});
     out.forEach(x=>build(x.o,x.r));DATA[kind].length=0;out.forEach(x=>DATA[kind].push(x.o))};
+  LIVE.needNum=[];
   const nmKey=x=>String(x.name||'').trim().toLowerCase();
   pick('branches',br,nmKey,(o,r)=>Object.assign(o,{name:r.name,city:r.city||'',state:r.state||'',pin:r.pin||'',line:r.address||'',zone:r.zone||'',off:!r.active}));
   pick('divisions',dv,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:o.parents||[1],off:!r.active}));
@@ -53,16 +58,79 @@ async function loadLive(){
       hist:o.hist||[],lvlHist:o.lvlHist||[{from:'0000-00',lvl:r.level||1,desig:LIVE.rev.desigs[r.designation_id]||''}],createdAt:o.createdAt||(r.created_at||'').slice(0,10),fm:o.fm||''})});
   DATA.emps.forEach(o=>{const r=em.find(z=>z.id===LIVE.map.emps[o.id]);o.mgr=r&&r.manager_id&&LIVE.rev.emps[r.manager_id]?String(LIVE.rev.emps[r.manager_id]):''});
   KINDS.forEach(k=>DATA[k].forEach(o=>LIVE.snap[k][o.id]=sig(k,o)));
+  if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
+  await loadAttendance();await loadStores();
 }
+
+/* ---------- attendance punches: the attendance table <-> ATT ---------- */
+const IST=330*60000;
+const t12=ts=>{if(!ts)return '';const d=new Date(new Date(ts).getTime()+IST);let h=d.getUTCHours(), m=d.getUTCMinutes();const ap=h<12?'am':'pm';h=h%12||12;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`};
+const toTs=(date,s)=>{if(!s)return null;const n=toMin(s);if(n==null)return null;return `${date}T${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}:00+05:30`};
+LIVE.attSnap={};
+async function loadAttendance(){
+  const from=PERIODS.length?payKey(PERIODS[0])+'-01':TODAY_S;let rows=[], page=0;
+  while(true){const r=await sb.from('attendance').select('employee_id,work_date,in_time,out_time,source').gte('work_date',from).range(page*1000,page*1000+999);if(r.error)throw r.error;rows=rows.concat(r.data||[]);if(!r.data||r.data.length<1000)break;page++}
+  Object.keys(ATT).forEach(k=>delete ATT[k]);
+  rows.forEach(r=>{const n=LIVE.rev.emps[r.employee_id];if(!n)return;ATT[n+'|'+r.work_date]={in:t12(r.in_time),out:t12(r.out_time),src:r.source==='Web'?'GPS selfie':r.source,bio:true}});
+  LIVE.attSnap={};Object.keys(ATT).forEach(k=>LIVE.attSnap[k]=JSON.stringify(ATT[k]));
+}
+async function syncAttendance(){
+  const me=LIVE.profile&&LIVE.rev.emps[LIVE.profile.employee_id];
+  for(const k of Object.keys(ATT)){const v=ATT[k], s=JSON.stringify(v);if(LIVE.attSnap[k]===s)continue;const [n,date]=k.split('|'), uuid=LIVE.map.emps[+n];if(!uuid){LIVE.attSnap[k]=s;continue}
+    const old=LIVE.attSnap[k]?JSON.parse(LIVE.attSnap[k]):{};
+    if(+n===me&&date===TODAY_S&&((v.in&&!old.in)||(v.out&&!old.out))){const r=await sb.rpc('punch');if(r.error)throw r.error;
+      const a=(await sb.from('attendance').select('in_time,out_time').eq('employee_id',uuid).eq('work_date',date).maybeSingle()).data;if(a){v.in=t12(a.in_time);v.out=t12(a.out_time);v.bio=true}}
+    else if(isHRrole()&&(v.in||v.out||v.status)){const row={client_id:LIVE.profile.client_id,employee_id:uuid,work_date:date,in_time:toTs(date,v.in),out_time:toTs(date,v.out),source:v.src||'Imported',note:v.status||null};
+      const r=await sb.from('attendance').upsert(row,{onConflict:'employee_id,work_date'});if(r.error)throw r.error}
+    LIVE.attSnap[k]=JSON.stringify(v)}
+}
+
+/* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
+const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','PHEADS','STAT','SSTR','PAYRUN'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS'];
+const EMPSTORES=['LEAVES','AR','REGS','RH','ADV'];
+const ref=n=>{try{return eval(n)}catch(e){return undefined}};
+const itemsOf=n=>{const v=ref(n);if(v==null)return null;const o={};if(Array.isArray(v))v.forEach((x,i)=>{o[x&&x.id!=null?'id:'+x.id:'i:'+i]=x});else Object.keys(v).forEach(k=>o['k:'+k]=v[k]);return o};
+LIVE.stSnap={};
+async function loadStores(){
+  let rows=[], page=0;while(true){const r=await sb.from('app_store').select('store,key,data').range(page*1000,page*1000+999);if(r.error)throw r.error;rows=rows.concat(r.data||[]);if(!r.data||r.data.length<1000)break;page++}
+  const demo=LIVE.client&&LIVE.client.code==='demo';
+  for(const n of [...CONFIG,...DATASTORES]){const v=ref(n);if(v==null)continue;const mine=rows.filter(r=>r.store===n);
+    if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>delete v[k])}
+      LIVE.stSnap[n]={}; continue }
+    if(Array.isArray(v)){v.length=0;mine.sort((a,b)=>{const x=a.key.split(':'), y=b.key.split(':');return (+x[1]||0)-(+y[1]||0)}).forEach(r=>v.push(r.data))}
+    else{Object.keys(v).forEach(k=>delete v[k]);mine.forEach(r=>{v[r.key.slice(2)]=r.data})}
+    LIVE.stSnap[n]={};mine.forEach(r=>LIVE.stSnap[n][r.key]=JSON.stringify(r.data))}
+  try{if(typeof syncHoli==='function')syncHoli()}catch(e){}
+  /* new records must not reuse an id that is already stored */
+  let mx=0;rows.forEach(r=>{const id=r.data&&+r.data.id;if(id&&id<1e12&&id>mx)mx=id});
+  try{if(mx>=seq)seq=mx+1}catch(e){}
+}
+async function syncStores(){
+  const hr=isHRrole();
+  for(const n of [...CONFIG,...DATASTORES]){if(!hr&&!EMPSTORES.includes(n))continue;const items=itemsOf(n);if(!items)continue;const snap=LIVE.stSnap[n]||(LIVE.stSnap[n]={});
+    const up=[];Object.keys(items).forEach(k=>{const s=JSON.stringify(items[k]);if(s!==undefined&&snap[k]!==s)up.push({client_id:LIVE.profile.client_id,store:n,key:k,data:items[k]})});
+    const gone=Object.keys(snap).filter(k=>!(k in items));
+    for(let i=0;i<up.length;i+=200){const r=await sb.from('app_store').upsert(up.slice(i,i+200));if(r.error)throw r.error}
+    if(gone.length){const r=await sb.from('app_store').delete().eq('store',n).in('key',gone);if(r.error)throw r.error}
+    up.forEach(x=>snap[x.key]=JSON.stringify(x.data));gone.forEach(k=>delete snap[k])}
+}
+/* in the live app a past working day with no punch is absent, never sample data */
+const _dayRec=dayRec;
+dayRec=function(emp,d){const r=_dayRec(emp,d);if(!LIVE.on||LIVE.platform)return r;const s=ds(d), k=emp+'|'+s;
+  if(d<TODAY_D&&['P','L','A'].includes(r.st)&&!ATT[k]&&!(typeof ACORR==='object'&&ACORR[k])&&!r.od&&r.src!=='Regularized'&&r.src!=='Corrected')return{st:'A'};
+  if(d===TODAY_D&&!ATT[k]&&['P','L'].includes(r.st))return{st:'N'};
+  return r};
 
 /* ---------- save what changed ---------- */
 async function syncNow(){
-  if(!LIVE.on||!isHRrole())return;
+  if(!LIVE.on||LIVE.platform||!LIVE.profile)return;
   if(LIVE.busy){LIVE.queued=true;return}
   LIVE.busy=true;let n=0;
   try{
-    for(const k of KINDS){const t=TBL[k];
+    await syncAttendance();await syncStores();
+    if(isHRrole())for(const k of KINDS){const t=TBL[k];
       for(const o of DATA[k]){const s=sig(k,o);if(LIVE.snap[k][o.id]===s)continue;
         const row=toRow(k,o);let uuid=LIVE.map[k][o.id];
         if(uuid){const r=await sb.from(t).update(row).eq('id',uuid);if(r.error)throw r.error}
@@ -70,7 +138,7 @@ async function syncNow(){
         if(k==='emps'){const r=await sb.from('employee_private').upsert({employee_id:uuid,...toPriv(o)});if(r.error)throw r.error}
         LIVE.snap[k][o.id]=sig(k,o);n++}}
     /* a manager set before the manager was saved: fill it now */
-    for(const o of DATA.emps){if(o.mgr&&LIVE.map.emps[+o.mgr]){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){await sb.from('employees').update({manager_id:LIVE.map.emps[+o.mgr]}).eq('id',LIVE.map.emps[o.id]);LIVE.snap.emps[o.id]=s}}}
+    if(isHRrole())for(const o of DATA.emps){if(o.mgr&&LIVE.map.emps[+o.mgr]){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){await sb.from('employees').update({manager_id:LIVE.map.emps[+o.mgr]}).eq('id',LIVE.map.emps[o.id]);LIVE.snap.emps[o.id]=s}}}
     LIVE.err='';
   }catch(e){LIVE.err=(e&&e.message)||String(e);console.error('LIVE sync',e);try{toast('Not saved to the database: '+LIVE.err)}catch(x){}}
   finally{LIVE.busy=false;if(LIVE.queued){LIVE.queued=false;setTimeout(syncNow,50)}}
@@ -79,11 +147,11 @@ async function syncNow(){
 let syncT=null;const schedule=()=>{clearTimeout(syncT);syncT=setTimeout(syncNow,600)};
 
 /* ---------- the note at the top of each page ---------- */
-const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit'];
+const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team'];
 function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.platform)return;let n=document.getElementById('liveNote');
   const live=LIVE_PAGES.includes(state.page);
-  const txt=live?L('Live: employee and organisation data on this page is saved in the database.','लाइव: इस पेज का कर्मचारी और संगठन डेटा डेटाबेस में सेव होता है।')
-    :L('This module is not connected to the database yet: it shows sample data and changes are not saved. Employees and organisation are live.','यह मॉड्यूल अभी डेटाबेस से नहीं जुड़ा: इसमें नमूना डेटा है और बदलाव सेव नहीं होते। कर्मचारी और संगठन लाइव हैं।');
+  const txt=live?L('Live: the data on this page is saved in the database.','लाइव: इस पेज का डेटा डेटाबेस में सेव होता है।')
+    :L('This module is not connected to the database yet: it shows sample data and changes are not saved. Live now: employees, organisation, attendance, leave and payroll.','यह मॉड्यूल अभी डेटाबेस से नहीं जुड़ा: इसमें नमूना डेटा है और बदलाव सेव नहीं होते। अभी लाइव: कर्मचारी, संगठन, हाज़िरी, छुट्टी और पेरोल।');
   if(!n){n=document.createElement('div');n.id='liveNote';n.style.cssText='margin:0 0 12px;padding:8px 12px;border-radius:10px;font-size:12px'}
   n.style.background=live?'rgba(22,138,74,.12)':'rgba(183,121,31,.14)';n.style.color=live?'#166534':'#92400e';n.textContent=(LIVE.err?'⚠ '+LIVE.err+' · ':'')+txt;
   if(m.firstChild!==n)m.insertBefore(n,m.firstChild)}

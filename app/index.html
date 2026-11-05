@@ -698,7 +698,7 @@ function bindExtra(){
 }
 
 /* ---------- Day 7-9: attendance and leave ---------- */
-const Y=2026, M=9, TODAY_D=27;
+const _NOW=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000), Y=_NOW.getFullYear(), M=_NOW.getMonth(), TODAY_D=_NOW.getDate();
 const pad=n=>String(n).padStart(2,'0');
 const ds=(d,m=M,y=Y)=>`${y}-${pad(m+1)}-${pad(d)}`;
 const TODAY_S=ds(TODAY_D);
@@ -932,8 +932,12 @@ bindExtra=function(){
 };
 
 /* ---------- Day 10-12: payroll ---------- */
-const PAYRUN={'2026-09':'paid','2026-10':'draft'};
-const PMON={'2026-09':{k:'sept',days:30,pay:'30 Sep 2026'},'2026-10':{k:'oct',days:31,pay:'31 Oct 2026'}};
+const _MK=['jan','feb','mar','apr','may','jun','jul','aug','sept','oct','nov','dec'];
+Object.assign(T.en,{jan:'January',feb:'February',mar:'March',apr:'April',may:'May',jun:'June',jul:'July',aug:'August',sept:T.en.sept||'September',oct:T.en.oct||'October',nov:'November',dec:'December'});
+Object.assign(T.hi,{jan:'जनवरी',feb:'फ़रवरी',mar:'मार्च',apr:'अप्रैल',may:'मई',jun:'जून',jul:'जुलाई',aug:'अगस्त',sept:T.hi.sept||'सितंबर',oct:T.hi.oct||'अक्टूबर',nov:'नवंबर',dec:'दिसंबर'});
+const PAYRUN={}, PMON={};
+(()=>{const now=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000);for(let i=12;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1), y=d.getFullYear(), m=d.getMonth(), k=y+'-'+String(m+1).padStart(2,'0'), last=new Date(y,m+1,0).getDate();
+  PMON[k]={k:_MK[m],days:last,pay:last+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]+' '+y};if(i>=2)PAYRUN[k]='paid';else if(i===1)PAYRUN[k]='draft'}})();
 Object.assign(state,{paytab:null,paym:'2026-10',payview:null});
 const r0=Math.round;
 
@@ -1724,8 +1728,8 @@ const KPI=KPIS.map(r=>({id:r[0],name:r[1],cat:r[2],level:r[3],max:r[4],freq:r[5]
 const kpiById=id=>KPI.find(k=>k.id===id);
 const AUTO_IMPL=new Set(['KPI-001','KPI-002','KPI-003','KPI-004','KPI-018','KPI-019','KPI-020']);
 const SLA={ul:3,lunch:30,avail:80,attr:20};
-const MONTHS=['Apr','May','Jun','Jul','Aug','Sep','Oct'], PERIODS=MONTHS.map(m=>m+'-2026'), CUR_P='Oct-2026';
-const payKey=p=>'2026-'+pad(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(p.slice(0,3))+1);
+const _MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], _FY=M>=3?Y:Y-1, PERIODS=(()=>{const o=[];let y=_FY,m=3;while(y<Y||(y===Y&&m<=M)){o.push(_MN[m]+'-'+y);m++;if(m>11){m=0;y++}}return o})(), MONTHS=PERIODS.map(p=>p.slice(0,3)), CUR_P=PERIODS[PERIODS.length-1];
+const payKey=p=>p.slice(4)+'-'+pad(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(p.slice(0,3))+1);
 const SCOPES=['Specific','Designation','Level','Function','Department','Division','Branch','Organization'];
 const SCOPE_SRC={Specific:'emps',Designation:'desigs',Level:'levels',Function:'functions',Department:'depts',Division:'divisions',Branch:'branches'};
 const SCOPE_FIELD={Specific:'id',Designation:'desig',Level:'level',Function:'func',Department:'dept',Division:'division',Branch:'branch'};
