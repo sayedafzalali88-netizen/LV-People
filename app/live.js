@@ -397,6 +397,8 @@ function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.pl
   if(m.firstChild!==n)m.insertBefore(n,m.firstChild);closeBar(m)}
 /* ---------- close last month: HR works on the app as on the last day of last month (attendance, payroll, KPI) ---------- */
 LIVE.asOf=typeof _ASOF!=='undefined'?_ASOF:null;
+/* when closing a month its last day is over: one punch only = missed punch (Absent until corrected) */
+try{const _dst=dayStatus;dayStatus=function(){const r=_dst.apply(this,arguments);return LIVE.asOf&&r&&r.pending?{...r,st:'A',miss:true,pending:false}:r}}catch(e){}
 const setAsOf=v=>{try{if(v)sessionStorage.setItem('lvAsOf',v);else sessionStorage.removeItem('lvAsOf')}catch(e){}location.reload()};
 const lastMonthEnd=()=>{const n=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000);const d=new Date(n.getFullYear(),n.getMonth(),0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 function closeBar(m){let b=document.getElementById('closeBar');if(b)b.remove();if(!isHRrole()){if(LIVE.asOf&&LIVE.profile)setAsOf(null);return}
