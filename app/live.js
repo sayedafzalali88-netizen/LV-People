@@ -109,6 +109,7 @@ async function loadStores(){
     else{Object.keys(v).forEach(k=>delete v[k]);mine.forEach(r=>{v[r.key.slice(2)]=r.data})}
     LIVE.stSnap[n]={};mine.forEach(r=>LIVE.stSnap[n][r.key]=JSON.stringify(r.data))}
   try{if(typeof syncHoli==='function')syncHoli()}catch(e){}
+  if(rows.some(r=>r.data&&hasFileRef(r.data))){try{await showFiles([...CONFIG,...DATASTORES].map(ref).filter(v=>v&&typeof v==='object'))}catch(e){console.warn('files',e)}}
   try{let base=1e12;AUDIT.forEach(a=>{if(a.id==null)a.id=base--});AUDIT.sort((a,b)=>b.id-a.id)}catch(e){}
   /* new records must not reuse an id that is already stored */
   let mx=0;rows.forEach(r=>{const id=r.data&&+r.data.id;if(id&&id<1e12&&id>mx)mx=id});
@@ -117,7 +118,9 @@ async function loadStores(){
 async function syncStores(){
   const hr=isHRrole();
   for(const n of [...CONFIG,...DATASTORES]){if(!hr&&!EMPSTORES.includes(n))continue;const items=itemsOf(n);if(!items)continue;const snap=LIVE.stSnap[n]||(LIVE.stSnap[n]={});
-    let up=[];Object.keys(items).forEach(k=>{const s=JSON.stringify(items[k]);if(s!==undefined&&snap[k]!==s)up.push({client_id:LIVE.profile.client_id,store:n,key:k,data:items[k]})});
+    let up=[];for(const k of Object.keys(items)){const raw=JSON.stringify(items[k]);if(raw===undefined||snap[k]===raw)continue;let d=items[k];
+      if(raw.includes('"data:')||raw.includes('token=')){d=await toStored(items[k],n);if(snap[k]===JSON.stringify(d))continue}
+      up.push({client_id:LIVE.profile.client_id,store:n,key:k,data:d})}
     const gone=hr?Object.keys(snap).filter(k=>!(k in items)):[];
     if(hr){for(let i=0;i<up.length;i+=200){const r=await sb.from('app_store').upsert(up.slice(i,i+200));if(r.error)throw r.error}}
     else{/* not HR: only own requests and the team's approvals go to the server, one by one; the server checks each */
@@ -273,6 +276,28 @@ bindExtra=function(){_bx4.apply(this,arguments);if(!LIVE.on||!isHRrole())return;
   m.querySelectorAll('[data-accls]').forEach(b=>b.onclick=()=>upd(+b.dataset.accls,null,false));
   m.querySelectorAll('[data-acopen]').forEach(b=>b.onclick=async()=>{const eid=+b.dataset.acopen;if(!LIVE.prof[eid]){await ensureLogins([eid]);render();return}upd(eid,null,true)});
   m.querySelectorAll('[data-acrole]').forEach(s=>s.onchange=()=>{if(state.role!=='admin')return;upd(+s.dataset.acrole,s.value,true)})};
+/* ---------- photos and documents go to file storage, not inside the records ---------- */
+LIVE.files={byData:{},byUrl:{},urlOf:{}};
+const fkey=s=>{let h=0;for(let i=0;i<s.length;i+=97)h=(h*31+s.charCodeAt(i))|0;return s.length+':'+h+':'+s.slice(-48)};
+async function toStored(x,store){
+  if(typeof x==='string'){
+    if(x.startsWith('data:')&&x.length>2000){const k=fkey(x);let p=LIVE.files.byData[k];
+      if(!p){const blob=await (await fetch(x)).blob(), ext=(blob.type.split('/')[1]||'bin').replace(/[^a-z0-9]/gi,'').slice(0,5);p=`${LIVE.profile.client_id}/${store}/${crypto.randomUUID()}.${ext}`;
+        const r=await sb.storage.from('files').upload(p,blob,{contentType:blob.type||'application/octet-stream',upsert:false});if(r.error)throw r.error;LIVE.files.byData[k]=p}
+      return 'sbfile:'+p}
+    if(LIVE.files.byUrl[x])return 'sbfile:'+LIVE.files.byUrl[x];
+    return x}
+  if(Array.isArray(x)){const o=[];for(const v of x)o.push(await toStored(v,store));return o}
+  if(x&&typeof x==='object'){const o={};for(const k of Object.keys(x))o[k]=await toStored(x[k],store);return o}
+  return x}
+const hasFileRef=x=>JSON.stringify(x).includes('"sbfile:');
+async function showFiles(roots){
+  const paths=new Set();const walk=x=>{if(typeof x==='string'){if(x.startsWith('sbfile:'))paths.add(x.slice(7))}else if(Array.isArray(x))x.forEach(walk);else if(x&&typeof x==='object')Object.values(x).forEach(walk)};roots.forEach(walk);
+  const need=[...paths].filter(p=>!LIVE.files.urlOf[p]);
+  for(let i=0;i<need.length;i+=100){const r=await sb.storage.from('files').createSignedUrls(need.slice(i,i+100),86400);(r.data||[]).forEach(s=>{if(s.signedUrl){LIVE.files.urlOf[s.path]=s.signedUrl;LIVE.files.byUrl[s.signedUrl]=s.path}})}
+  const fix=x=>{if(Array.isArray(x)){x.forEach((v,i)=>{if(typeof v==='string'&&v.startsWith('sbfile:'))x[i]=LIVE.files.urlOf[v.slice(7)]||v;else fix(v)})}
+    else if(x&&typeof x==='object'){Object.keys(x).forEach(k=>{const v=x[k];if(typeof v==='string'&&v.startsWith('sbfile:'))x[k]=LIVE.files.urlOf[v.slice(7)]||v;else fix(v)})}};
+  roots.forEach(fix)}
 /* ---------- see other people's changes: refresh when the page comes back and every 5 minutes ---------- */
 LIVE.lastLoad=Date.now();
 async function refreshLive(force){
