@@ -60,7 +60,7 @@ async function loadLive(){
   KINDS.forEach(k=>DATA[k].forEach(o=>LIVE.snap[k][o.id]=sig(k,o)));
   if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
-  await loadAttendance();await loadStores();await loadKpis();await loadAccounts();
+  await loadAttendance();await loadStores();try{if(BIOP.length)bioProcess()}catch(e){console.warn('bio',e)}await loadKpis();await loadAccounts();
 }
 
 /* ---------- attendance punches: the attendance table <-> ATT ---------- */
@@ -68,23 +68,27 @@ const IST=330*60000;
 const t12=ts=>{if(!ts)return '';const d=new Date(new Date(ts).getTime()+IST);let h=d.getUTCHours(), m=d.getUTCMinutes();const ap=h<12?'am':'pm';h=h%12||12;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`};
 const toTs=(date,s)=>{if(!s)return null;const n=toMin(s);if(n==null)return null;return `${date}T${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}:00+05:30`};
 LIVE.attSnap={};
+/* only in, out, status and source go to the attendance table; all punches and lunch stay in the punch log (BIOP) */
+const attSig=v=>JSON.stringify({in:v.in||'',out:v.out||'',status:v.status||'',src:v.src||''});
+/* night shift: an out time earlier than the in time is on the next day */
+const outTs=(date,v)=>{if(!v.out)return null;if(v.in&&toMin(v.out)<toMin(v.in))return toTs(addD(date,1),v.out);return toTs(date,v.out)};
 async function loadAttendance(){
   const from=PERIODS.length?payKey(PERIODS[0])+'-01':TODAY_S;let rows=[], page=0;
   while(true){const r=await sb.from('attendance').select('employee_id,work_date,in_time,out_time,source').gte('work_date',from).range(page*1000,page*1000+999);if(r.error)throw r.error;rows=rows.concat(r.data||[]);if(!r.data||r.data.length<1000)break;page++}
   Object.keys(ATT).forEach(k=>delete ATT[k]);
   rows.forEach(r=>{const n=LIVE.rev.emps[r.employee_id];if(!n)return;ATT[n+'|'+r.work_date]={in:t12(r.in_time),out:t12(r.out_time),src:r.source==='Web'?'GPS selfie':r.source,bio:true}});
-  LIVE.attSnap={};Object.keys(ATT).forEach(k=>LIVE.attSnap[k]=JSON.stringify(ATT[k]));
+  LIVE.attSnap={};Object.keys(ATT).forEach(k=>LIVE.attSnap[k]=attSig(ATT[k]));
 }
 async function syncAttendance(){
   const me=LIVE.profile&&LIVE.rev.emps[LIVE.profile.employee_id];
-  for(const k of Object.keys(ATT)){const v=ATT[k], s=JSON.stringify(v);if(LIVE.attSnap[k]===s)continue;const [n,date]=k.split('|'), uuid=LIVE.map.emps[+n];if(!uuid){LIVE.attSnap[k]=s;continue}
+  for(const k of Object.keys(ATT)){const v=ATT[k], s=attSig(v);if(LIVE.attSnap[k]===s)continue;const [n,date]=k.split('|'), uuid=LIVE.map.emps[+n];if(!uuid){LIVE.attSnap[k]=s;continue}
     const old=LIVE.attSnap[k]?JSON.parse(LIVE.attSnap[k]):{};
     if(LIVE.asOf&&+n===me&&date===TODAY_S){LIVE.attSnap[k]=s;continue}
     if(+n===me&&date===TODAY_S&&((v.in&&!old.in)||(v.out&&!old.out))){const r=await sb.rpc('punch');if(r.error)throw r.error;
       const a=(await sb.from('attendance').select('in_time,out_time').eq('employee_id',uuid).eq('work_date',date).maybeSingle()).data;if(a){v.in=t12(a.in_time);v.out=t12(a.out_time);v.bio=true}}
-    else if(isHRrole()&&(v.in||v.out||v.status)){const row={client_id:LIVE.profile.client_id,employee_id:uuid,work_date:date,in_time:toTs(date,v.in),out_time:toTs(date,v.out),source:v.src||'Imported',note:v.status||null};
+    else if(isHRrole()&&(v.in||v.out||v.status)){const row={client_id:LIVE.profile.client_id,employee_id:uuid,work_date:date,in_time:toTs(date,v.in),out_time:outTs(date,v),source:v.src||'Imported',note:v.status||null};
       const r=await sb.from('attendance').upsert(row,{onConflict:'employee_id,work_date'});if(r.error)throw r.error}
-    LIVE.attSnap[k]=JSON.stringify(v)}
+    LIVE.attSnap[k]=attSig(v)}
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
@@ -397,6 +401,9 @@ function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.pl
   if(m.firstChild!==n)m.insertBefore(n,m.firstChild);closeBar(m)}
 /* ---------- close last month: HR works on the app as on the last day of last month (attendance, payroll, KPI) ---------- */
 LIVE.asOf=typeof _ASOF!=='undefined'?_ASOF:null;
+/* a day whose lunch punch is missing shows in Punch exceptions */
+try{EXTYPE.lunch=['Lunch punch missing','लंच पंच छूटा','p-warn'];
+  const _exr=excRows;excRows=function(){const out=_exr();DATA.emps.filter(e=>e.active!==false).forEach(e=>{for(let d=1;d<=TODAY_D;d++){const s=ds(d), a=ATT[e.id+'|'+s];if(!a||!a.lunchMiss||ACORR[e.id+'|'+s]||out.some(x=>x.emp===e.id&&x.s===s&&x.type==='lunch'))continue;out.push({emp:e.id,d,s,type:'lunch',r:dayRec(e.id,d)})}});return out.sort((a,b)=>a.s<b.s?1:a.s>b.s?-1:a.emp-b.emp)}}catch(e){console.warn('lunch exc',e)}
 /* when closing a month its last day is over: one punch only = missed punch (Absent until corrected) */
 try{const _dst=dayStatus;dayStatus=function(){const r=_dst.apply(this,arguments);return LIVE.asOf&&r&&r.pending?{...r,st:'A',miss:true,pending:false}:r}}catch(e){}
 const setAsOf=v=>{try{if(v)sessionStorage.setItem('lvAsOf',v);else sessionStorage.removeItem('lvAsOf')}catch(e){}location.reload()};

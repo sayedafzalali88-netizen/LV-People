@@ -1487,6 +1487,7 @@ function shiftModal(id){
    <label>${t('sh_name')}</label><input class="inp" name="name" value="${esc(r.name||'')}">
    <label>${t('sh_start')}</label><input class="inp" type="time" name="start" value="${hm(r.start)}" required>
    <label>${t('sh_end')}</label><input class="inp" type="time" name="end" value="${hm(r.end)}" required>
+   <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" name="night" ${r.end<=r.start&&id?'checked':''}> ${L('Night shift: it ends the next day (for example 10:00 pm to 06:00 am)','रात की शिफ़्ट: अगले दिन ख़त्म होती है (जैसे रात 10 से सुबह 6)')}</label>
    <label>${t('sh_break')}</label><input class="inp" type="number" min="0" name="brk" value="${r.brk}">
    <label>${t('sh_grace')}</label><input class="inp" type="number" min="0" name="grace" value="${r.grace}">
    <label>${t('branch')}</label><select class="inp" name="branch"><option value="">${t('all_branches')}</option>${DATA.branches.filter(b=>!b.off).map(b=>`<option value="${b.id}" ${r.branch==b.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select>
@@ -1496,7 +1497,8 @@ function shiftModal(id){
     const v=Object.fromEntries(new FormData(f));
     if(!v.name.trim()){bg.querySelector('#me').textContent=t('e_req');return}
     const o={name:v.name.trim(),start:hmIn(v.start),end:hmIn(v.end),brk:+v.brk||0,grace:+v.grace||0,branch:v.branch?+v.branch:''};
-    if(o.end<=o.start){bg.querySelector('#me').textContent=t('e_dates');return}
+    if(v.night&&o.end>=o.start){bg.querySelector('#me').textContent=L('A night shift ends the next day: the end time must be earlier than the start time','रात की शिफ़्ट अगले दिन ख़त्म होती है: ख़त्म का समय शुरू से पहले का हो');return}
+    if(!v.night&&o.end<=o.start){bg.querySelector('#me').textContent=L('The end is before the start. If the shift ends the next day, tick "Night shift".','ख़त्म शुरू से पहले है। अगर शिफ़्ट अगले दिन ख़त्म होती है तो "रात की शिफ़्ट" पर टिक करें।');return}
     if(id){audit('Shift','Edit',r.code,diffTxt(r,o));Object.assign(r,o)}
     else{const code='SH-'+pad(Math.floor(o.start/60))+pad(o.start%60);SHIFTS.push({id:++seq,code:SHIFTS.some(x=>x.code===code)?code+'-'+SHIFTS.length:code,off:false,...o});audit('Shift','Add',o.name,'')}
     close();toast(t('saved'));render()});
@@ -6260,13 +6262,13 @@ NAV.push({id:'locreq',ic:'M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12
 PAGES.push('locreq');['admin','hr','manager','employee'].forEach(r=>RIGHTS[r].locreq=['V']);PAGEMOD.locreq='timeoffice';MODS.find(m=>m.id==='timeoffice').pages.push('locreq');
 /* ---------- A3, A4, A5: overtime and extra pay for work on a holiday or weekly off ---------- */
 WF_ACTIONS.ot={approved:i=>{OTL.filter(x=>x.batch===i.payload.b).forEach(x=>{x.status='Approved'});audit('Overtime','Approved',nm_(i.payload.emp),mkP(i.payload.mk))},rejected:i=>{OTL.filter(x=>x.batch===i.payload.b).forEach(x=>{x.status='Rejected'})}};
-const shiftHrs=(emp,s)=>{const sh=shiftFor(emp,s);return Math.max(1,(sh.end-sh.start-(sh.brk||0))/60)};
+const shiftHrs=(emp,s)=>{const sh=shiftFor(emp,s);return Math.max(1,((sh.end<=sh.start?sh.end+1440:sh.end)-sh.start-(sh.brk||0))/60)};
 const fixedFull=(e,mk)=>{const s=structure(e,mk);return s.basic+s.hra+s.special};
 const offDay=(emp,s)=>isWO(emp,s)||isHoli(s,emp)||isRH(emp,s);
 function otScan(mk){if(mk!==curMk()||PAYRUN[mk]!=='draft')return 0;let n=0;const days=monthDays(mk);
  attEmps(mk).forEach(e=>{const full=fixedFull(e,mk);for(let d=1;d<=Math.min(TODAY_D,days);d++){const s=ds(d);if(e.doj&&s<e.doj)continue;const r=dayRec(e.id,d);if(!['P','L','HD','WOP','HP'].includes(r.st)||!r.in||!r.out)continue;const sh=shiftFor(e.id,s), off=offDay(e.id,s), inM=toMin(r.in), outM=toMin(r.out), hourly=full/(days*shiftHrs(e.id,s));
    const add=(kind,o)=>{const key=`${e.id}|${s}|${kind}`;if(OTL.some(x=>x.key===key))return;OTL.push({id:++seq,key,emp:e.id,date:s,mk,kind,in:r.in,out:r.out,status:'Open',batch:0,...o});n++};
-   if(!off){if(!e.otOk)continue;const extra=outM-sh.end;if(extra>=SLA.otMin){const mins=Math.floor(extra/SLA.otStep)*SLA.otStep;if(mins>0)add('OT',{hours:mins/60,mult:SLA.otMult,rate:Math.round(hourly),amount:Math.round(mins/60*hourly*SLA.otMult)})}}
+   if(!off){if(!e.otOk)continue;const nt=sh.end<=sh.start, extra=(nt&&outM<inM?outM+1440:outM)-(nt?sh.end+1440:sh.end);if(extra>=SLA.otMin){const mins=Math.floor(extra/SLA.otStep)*SLA.otStep;if(mins>0)add('OT',{hours:mins/60,mult:SLA.otMult,rate:Math.round(hourly),amount:Math.round(mins/60*hourly*SLA.otMult)})}}
    else{const hrs=(outM-inM)/60, kind=isHoli(s,e.id)||isRH(e.id,s)?'HOL':'WO';let units=hrs>=SLA.hrsFull?1:hrs>=SLA.hrsHalf?0.5:0;if(units){const pd=units*(kind==='WO'?SLA.extraWO:SLA.extraHol);add(kind,{hours:Math.round(hrs*100)/100,days:pd,rate:Math.round(full/days),amount:Math.round(pd*full/days)})}
     if(e.otOk&&hrs>SLA.hrsFull){const mins=Math.floor((hrs-SLA.hrsFull)*60/SLA.otStep)*SLA.otStep;if(mins>=SLA.otMin)add('OT',{hours:mins/60,mult:SLA.otMultOff,rate:Math.round(hourly),amount:Math.round(mins/60*hourly*SLA.otMultOff),off:true})}}}});return n}
 function otSum(emp,mk){try{return OTL.filter(x=>x.emp===emp&&x.mk===mk&&x.status==='Approved').reduce((s,x)=>s+x.amount,0)}catch(e){return 0}}
@@ -7588,15 +7590,24 @@ ${esc(ex)}</pre>
   <div class="fgrid"><div><label>time</label><input class="inp" type="datetime-local" id="baTime" value="${esc(BAPI.time)}"></div><div><label>direction</label><select class="inp" id="baDir"><option ${BAPI.dir==='IN'?'selected':''}>IN</option><option ${BAPI.dir==='OUT'?'selected':''}>OUT</option></select></div></div>
   <div class="acts" style="margin-top:10px"><button class="btn btn-p" data-baGo>${L('Send','भेजें')}</button></div>
   ${o?`<pre style="font-size:12px;white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:8px;margin-top:10px">${esc(o.req)}\n\n<b style="color:${o.code===200?'var(--ok)':'var(--bad)'}">${o.code}</b> ${esc(JSON.stringify(o.json))}</pre>`:''}</div></div>`}
-function blogTab(){const E=canManage(), r=BIMP.res, l=BIOP.filter(p=>state.blf==='all'||p.st==='No match').slice().sort((a,b)=>a.ts<b.ts?1:-1).slice(0,100), fs=BIOSRC.filter(s=>s.st==='Active');
- return `<div class="card" style="margin-bottom:16px"><h3>${L('Import a punch log','पंच लॉग इम्पोर्ट करें')}</h3><p class="rule" style="font-size:13px">${L('Columns: Emp Code, Date Time, Device, Direction. Date Time as 27/10/2026 09:52:10. Device and Direction can be empty. Export this from the biometric software and upload it here.','कॉलम: Emp Code, Date Time, Device, Direction। Date Time ऐसे: 27/10/2026 09:52:10। Device और Direction खाली हो सकते हैं। बायोमेट्रिक सॉफ़्टवेयर से निकालकर यहाँ डालें।')}</p>
-  <div class="tools" style="margin-top:10px"><select class="inp" id="bimSrc" style="max-width:260px">${fs.map(s=>`<option value="${s.id}" ${BIMP.src===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><button class="btn btn-o btn-s" data-bimtpl>${t('im_tpl')}</button><label class="btn btn-o btn-s" style="margin:0;cursor:pointer">${t('im_pick')}<input type="file" id="bimFile" accept=".csv,.txt" style="display:none"></label><span style="color:var(--muted);font-size:12px">${esc(BIMP.file)}</span></div>
+function blogTab(){bioDef();const E=canManage(), r=BIMP.res, l=BIOP.filter(p=>state.blf==='all'||p.st==='No match').slice().sort((a,b)=>a.ts<b.ts?1:-1).slice(0,100), fs=BIOSRC.filter(s=>s.st==='Active');
+ return `<div class="card" style="margin-bottom:16px"><h3>${L('Import a punch log','पंच लॉग इम्पोर्ट करें')}</h3><p class="rule" style="font-size:13px">${L('Columns: Emp Code, Date Time, Device, Direction. One row for every punch (all punches of the day, lunch out and in too). Date Time as 27/10/2026 09:52:10. Device and Direction can be empty. CSV or Excel (.xlsx / .xls). Download the sample, fill it in the same columns, and upload it.','कॉलम: Emp Code, Date Time, Device, Direction। हर पंच की एक पंक्ति (दिन के सारे पंच, लंच पर जाना और आना भी)। Date Time ऐसे: 27/10/2026 09:52:10। Device और Direction खाली हो सकते हैं। CSV या Excel (.xlsx / .xls)। सैंपल डाउनलोड करें, उन्हीं कॉलम में भरें और अपलोड करें।')}</p>
+  <p class="rule" style="font-size:12px">${L('First punch = in, last punch = out, hours = first to last (lunch included). Punches in between are lunch or short breaks (lunch when the break starts between ','पहला पंच = आना, आख़िरी = जाना, घंटे = पहले से आख़िरी तक (लंच समेत)। बीच के पंच लंच या छोटा ब्रेक हैं (लंच तब जब ब्रेक ')+hm(BIOSET.lunchFrom)+L(' and ',' से ')+hm(BIOSET.lunchTo)+L('). Night shift: a punch up to ',' के बीच शुरू हो)। रात की शिफ़्ट: शिफ़्ट ख़त्म होने के ')+BIOSET.nightAfter+L(' hours after the end of a night shift belongs to that night.',' घंटे बाद तक का पंच उसी रात का गिना जाता है।')}</p>
+  <div class="tools" style="margin-top:10px"><select class="inp" id="bimSrc" style="max-width:260px">${fs.map(s=>`<option value="${s.id}" ${BIMP.src===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><button class="btn btn-o btn-s" data-bimtpl>${L('Sample CSV','सैंपल CSV')}</button><button class="btn btn-o btn-s" data-bimtplx>${L('Sample Excel','सैंपल Excel')}</button><label class="btn btn-o btn-s" style="margin:0;cursor:pointer">${t('im_pick')}<input type="file" id="bimFile" accept=".csv,.txt,.xlsx,.xls" style="display:none"></label><span style="color:var(--muted);font-size:12px">${esc(BIMP.file)}</span></div>
   <textarea class="inp" id="bimText" rows="4" placeholder="${t('im_paste')}" style="font-family:monospace;font-size:12px">${esc(BIMP.text)}</textarea>
   <div class="acts" style="margin-top:10px"><button class="btn btn-o" data-bimchk>${t('im_prev')}</button>${E&&r&&r.ok&&r.ok.length?`<button class="btn btn-p" data-bimok>${t('im_apply')} (${r.ok.length})</button>`:''}</div></div>
  ${r?(r.fatal?`<div class="card" style="color:var(--bad);margin-bottom:16px">${r.fatal}</div>`:`<div class="grid g3" style="margin-bottom:16px">${kpi(L('Rows ready','तैयार पंक्तियाँ'),String(r.ok.length),`${r.known} ${L('known IDs','पहचाने ID')} · ${r.ok.length-r.known} ${L('unknown IDs','अनजाने ID')}`,'ok','M20 6L9 17l-5-5')}${kpi(t('im_err'),String(r.bad.length),'','bad','M18 6L6 18M6 6l12 12')}</div>${r.bad.length?`<div class="card tw" style="margin-bottom:16px"><table class="tbl"><thead><tr><th>${t('im_row')}</th><th>${t('im_msg')}</th></tr></thead><tbody>${r.bad.map(b=>`<tr><td>${b.row}</td><td style="color:var(--bad)">${esc(b.msg)}</td></tr>`).join('')}</tbody></table></div>`:''}`):''}
  <div class="tools"><b>${L('Punch log','पंच लॉग')}</b><div style="flex:1"></div><button class="btn ${state.blf==='all'?'btn-p':'btn-o'} btn-s" data-blf="all">${L('All','सभी')}</button><button class="btn ${state.blf==='nm'?'btn-p':'btn-o'} btn-s" data-blf="nm">${L('Unmatched','बिना मिलान')} (${BIOP.filter(p=>p.st==='No match').length})</button></div>
  <div class="card tw"><table class="tbl"><thead><tr><th>${L('Punch time','पंच का समय')}</th><th>${L('Machine ID','मशीन ID')}</th><th>${t('name')}</th><th>${L('Device','मशीन')}</th><th>${L('Source','सोर्स')}</th><th>${L('Received','मिली')}</th><th>${t('status')}</th></tr></thead><tbody>${l.map(p=>`<tr><td>${tsFmt(p.ts)}</td><td>${esc(p.code)}</td><td>${p.emp?esc(nm_(p.emp)):'—'}</td><td>${esc(p.dev||'—')}</td><td>${esc(bioSrc(p.src).name)}</td><td>${tsFmt(p.at)}</td><td><span class="pill ${p.emp?'p-ok':'p-warn'}">${p.emp?L('Matched','मिलान'):L('Unmatched','बिना मिलान')}</span></td></tr>`).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">${t('none_yet')}</td></tr>`}</tbody></table></div>
  <div class="card tw" style="margin-top:16px"><h3 style="padding:18px 18px 0">${t('im_hist')}</h3><table class="tbl"><thead><tr><th>${t('a_when')}</th><th>${t('im_file')}</th><th>${L('Source','सोर्स')}</th><th>${t('a_user')}</th><th>${t('im_rows')}</th></tr></thead><tbody>${BIOIMP.map(i=>`<tr><td>${i.at}</td><td>${esc(i.file)}</td><td>${esc(i.src)}</td><td>${esc(i.by)}</td><td>${i.ok} / ${i.total}</td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">${t('none_yet')}</td></tr>`}</tbody></table></div>`}
+/* sample punch log: a day with lunch out and in, and a night shift that ends the next morning */
+function punchSample(){const d=addD(TODAY_S,-1), p=addD(TODAY_S,-2), f=s=>s.slice(8)+'/'+s.slice(5,7)+'/'+s.slice(0,4), c=(DATA.emps.find(e=>e.active)||{code:'E001'}).code;
+ return [['Emp Code','Date Time','Device','Direction'],[c,f(d)+' 09:52:10','ESSL-0001','IN'],[c,f(d)+' 13:31:05','ESSL-0001','OUT'],[c,f(d)+' 14:02:40','ESSL-0001','IN'],[c,f(d)+' 18:40:00','ESSL-0001','OUT'],
+  ['E099',f(p)+' 21:55:00','ESSL-0002','IN'],['E099',f(d)+' 06:05:00','ESSL-0002','OUT']]}
+let _xlsLib=null;const xlsxLib=()=>window.XLSX?Promise.resolve():(_xlsLib=_xlsLib||ltLoad('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'));
+function xlsToPunchCsv(buf){const wb=XLSX.read(buf,{type:'array',cellDates:true}), ws=wb.Sheets[wb.SheetNames[0]], rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+ const p2=n=>String(n).padStart(2,'0'), cell=v=>v instanceof Date?`${p2(v.getDate())}/${p2(v.getMonth()+1)}/${v.getFullYear()} ${p2(v.getHours())}:${p2(v.getMinutes())}:${p2(v.getSeconds())}`:String(v).trim();
+ return rows.filter(r=>r.some(x=>String(x).trim())).map(r=>r.slice(0,4).map(cell).join('\t')).join('\n')}
 function parsePunchLog(text){
  const lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());
  if(!lines.length)return{fatal:t('ie_empty')};
@@ -7639,8 +7650,11 @@ bindExtra=function(){_bindExtra46();const m=$('#main'), on=(s,fn)=>m.querySelect
   BAPI.out={code:r.code,json:r.json,req:`POST ${bioHost}/api/v1/attendance/punches\nX-API-Key: ${BAPI.key?BAPI.key.slice(0,8)+'…':'(none)'}\n${JSON.stringify(body)}`};if(r.code===200)audit('Biometric API','Test call',BAPI.code,'');render()};
  const bt=$('#bimText'),bf=$('#bimFile'),bs=$('#bimSrc');
  if(bs)bs.onchange=()=>{BIMP.src=+bs.value};if(bt)bt.oninput=()=>{BIMP.text=bt.value};
- if(bf)bf.onchange=()=>{const f=bf.files[0];if(!f)return;f.text().then(x=>{BIMP.text=x;BIMP.file=f.name;BIMP.res=null;render()})};
- on('[data-bimtpl]',b=>b.onclick=()=>csvDl('punch-log-template.csv',[['Emp Code','Date Time','Device','Direction'],['4','27/10/2026 09:52:10','ESSL-0001','IN'],['4','27/10/2026 18:40:00','ESSL-0001','OUT']]));
+ if(bf)bf.onchange=()=>{const f=bf.files[0];if(!f)return;
+  if(/\.xlsx?$/i.test(f.name))return xlsxLib().then(()=>f.arrayBuffer()).then(buf=>{BIMP.text=xlsToPunchCsv(buf);BIMP.file=f.name;BIMP.res=null;render()}).catch(()=>toast(L('The Excel file could not be read. Save it as CSV and try again.','Excel फ़ाइल पढ़ी नहीं गई। CSV में सेव करके फिर कोशिश करें।')));
+  f.text().then(x=>{BIMP.text=x;BIMP.file=f.name;BIMP.res=null;render()})};
+ on('[data-bimtpl]',b=>b.onclick=()=>csvDl('punch-log-sample.csv',punchSample()));
+ on('[data-bimtplx]',b=>b.onclick=()=>xlsxLib().then(()=>{const ws=XLSX.utils.aoa_to_sheet(punchSample());ws['!cols']=[{wch:10},{wch:20},{wch:12},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Punches');XLSX.writeFile(wb,'punch-log-sample.xlsx')}).catch(()=>toast(L('Excel could not load. Use the sample CSV.','Excel लोड नहीं हुआ। सैंपल CSV लें।'))));
  on('[data-bimchk]',b=>b.onclick=()=>{BIMP.src=+(bs&&bs.value)||BIMP.src;BIMP.res=parsePunchLog(BIMP.text);render()});
  on('[data-bimok]',b=>b.onclick=()=>{const s=BIOSRC.find(x=>x.id===(+(bs&&bs.value)||BIMP.src))||BIOSRC.find(x=>x.con==='file'), r=BIMP.res, a=bioIngest(s,r.ok);
   BIOIMP.unshift({at:new Date().toLocaleString(loc(),{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),file:BIMP.file||'pasted rows',src:s.name,by:USERS[state.role].name,ok:a.added+a.nomatch,total:r.ok.length+r.bad.length});
@@ -7664,9 +7678,11 @@ Object.assign(T.hi,{s_HD:'आधा दिन',s_WOP:'साप्ताहि�
 {const st=document.createElement('style');st.textContent='.cal .d.HD{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn)}.cal .d.WOP{background:var(--ok-l);color:var(--ok);border:1px dashed var(--ok)}.cal .d.HP{background:var(--gold-l);color:var(--ok);border:1px dashed var(--ok)}';document.head.appendChild(st)}
 /* one place that turns a day\'s first and last punch into a status, with the shift of that day and the SLA-043 rules */
 function dayStatus(emp,s,inS,outS,src,force){
- const sh=shiftFor(emp,s), wo=isWO(emp,s), hol=isHoli(s,emp)||isRH(emp,s), inM=toMin(inS), outM=outS?toMin(outS):null;
- const ok=outM!=null&&inM!=null&&outM>inM, hrs=ok?Math.round((outM-inM)/6)/10:0, base={in:inS||'',out:outS||'',src,hrs};
- const late=inM>sh.start+sh.grace, lateMin=inM-sh.start, early=ok?sh.end-outM:0;
+ const sh=shiftFor(emp,s), wo=isWO(emp,s), hol=isHoli(s,emp)||isRH(emp,s), night=sh.end<=sh.start;let inM=toMin(inS), outM=outS?toMin(outS):null;
+ /* night shift (ends the next day): times after midnight count as the next day */
+ if(night&&inM!=null&&inM<sh.end)inM+=1440;if(night&&outM!=null&&inM!=null&&outM<inM)outM+=1440;const shEnd=night?sh.end+1440:sh.end;
+ const ok=outM!=null&&inM!=null&&outM>inM, hrs=ok?Math.round((outM-inM)/6)/10:0, base={in:inS||'',out:outS||'',src,hrs,night};
+ const late=inM>sh.start+sh.grace, lateMin=inM-sh.start, early=ok?shEnd-outM:0;
  if(hol||wo){if(!ok||hrs<SLA.hrsHalf)return{st:hol?'H':'W',src};return{...base,st:hol?'HP':'WOP'}}
  if(onLeave(emp,s))return{...base,st:lvPaidOn(emp,s)?'LV':'LWP',conflict:true};
  if(!ok){if(s===TODAY_S)return{...base,st:late?'L':'P',pending:true};return{...base,st:'A',miss:true}}
@@ -7677,12 +7693,23 @@ function dayStatus(emp,s,inS,outS,src,force){
   if(why.length)return{...base,st:'HD',late,early:eFlag,why}}
  return{...base,st:late?'L':'P',early:eFlag}}
 /* punches of an employee for a day become one attendance record. The status is worked out when it is read, so a change in SLA-043 or in the shift applies at once. */
-bioProcess=function(){
- const by={};BIOP.filter(p=>p.emp).forEach(p=>{const k=p.emp+'|'+p.ts.slice(0,10);(by[k]=by[k]||[]).push(p.ts.slice(11))});
- Object.keys(by).forEach(k=>{const l=by[k].sort(), a=ATT[k]||{}, first=hmIn(l[0]), last=hmIn(l[l.length-1]), two=last-first>=Math.max(1,BIOSET.dup);
+/* Night shift: a punch up to BIOSET.nightAfter hours after the end of the night shift of the day before belongs to that night.
+   All punches of the day are kept: first = in, last = out (hours = first to last, lunch included);
+   the punches in between are pairs (out, in). A pair that starts between BIOSET.lunchFrom and BIOSET.lunchTo is lunch, others are short breaks.
+   An odd number of punches in between = a lunch punch is missing (shown in Punch exceptions). */
+Object.assign(BIOSET,{nightAfter:6,lunchFrom:720,lunchTo:960});
+const bioDef=()=>{if(BIOSET.nightAfter==null)BIOSET.nightAfter=6;if(BIOSET.lunchFrom==null)BIOSET.lunchFrom=720;if(BIOSET.lunchTo==null)BIOSET.lunchTo=960};
+bioProcess=function(){bioDef();
+ const by={};BIOP.filter(p=>p.emp).forEach(p=>{let d=p.ts.slice(0,10), m=hmIn(p.ts.slice(11));
+   const pv=addD(d,-1), sh=shiftFor(p.emp,pv);if(sh&&sh.end<=sh.start&&m<=sh.end+BIOSET.nightAfter*60){d=pv;m+=1440}
+   const k=p.emp+'|'+d;(by[k]=by[k]||[]).push(m)});
+ Object.keys(by).forEach(k=>{const l=[...new Set(by[k])].sort((a,b)=>a-b), a=ATT[k]||{}, first=l[0], last=l[l.length-1], two=last-first>=Math.max(1,BIOSET.dup);
   if(BIOSET.prio==='app'&&a.in&&a.src&&a.src!=='Biometric'&&!a.bio)return;
   if(!two&&a.in&&a.out&&!a.bio)return;
-  const n={...a,bio:true,in:fmtT(first),out:two?fmtT(last):'',src:'Biometric'};delete n.status;ATT[k]=n})};
+  const f=x=>fmtT(x%1440), mid=two?l.slice(1,-1):[], n={...a,bio:true,in:f(first),out:two?f(last):'',src:'Biometric',punches:l.map(f)};delete n.status;
+  delete n.lo;delete n.li;delete n.lunchMiss;n.brk=0;
+  for(let i=0;i+1<mid.length;i+=2){const o=mid[i], b=mid[i+1];n.brk+=b-o;if(!n.lo&&o%1440>=BIOSET.lunchFrom&&o%1440<=BIOSET.lunchTo){n.lo=f(o);n.li=f(b)}}
+  if(mid.length%2)n.lunchMiss=true;ATT[k]=n})};
 const _bi47=bioIngest;
 bioIngest=function(src,rows){const r=_bi47(src,rows), mk=curMk();if(ATTP[mk]&&PAYRUN[mk]==='draft')ATTP[mk].stale=true;return r};
 /* ---------- Process attendance: the new statuses ---------- */
