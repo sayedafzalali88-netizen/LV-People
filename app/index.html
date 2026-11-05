@@ -10208,7 +10208,20 @@ bindExtra=function(){_bindExtra64();$('#main').querySelectorAll('[data-lthead]')
  [['ov','analytics','Analytics overview','एनालिटिक्स ओवरव्यू'],['emp','an_emp','Employee dashboards (gender, shift, weekly off)','कर्मचारी डैशबोर्ड (लिंग, शिफ़्ट, साप्ताहिक छुट्टी)'],['pay','an_pay','Payroll dashboards (salary cost)','पेरोल डैशबोर्ड (सैलरी लागत)'],['rec','an_rec','Recruitment dashboards','भर्ती डैशबोर्ड'],['pms','an_pms','Performance dashboards','परफ़ॉर्मेंस डैशबोर्ड'],['crm','an_crm','Customer feedback dashboards','कस्टमर फ़ीडबैक डैशबोर्ड'],['sup','an_sup','Support ticket dashboards','सपोर्ट टिकट डैशबोर्ड']]
   .forEach(([k,p,en,hi])=>mk('Analytics',p,en,hi,()=>{state.antab=k;goTo('analytics')},'an_'+k,'V'))}
 /* ---------- Imports: employee personal details and asset inventory ---------- */
-const CK2={emp:{text:'',res:null},ast:{text:'',res:null}};
+const CK2={emp:{text:'',res:null},ast:{text:'',res:null},lbal:{text:'',res:null}};
+/* leave balance add or cut for many employees (opening balance at go-live, comp-off, corrections) */
+const CK2_LB=['Employee Code','Leave Type','Days','Reason'];
+function ck2LbParse(text){const {lines,sep}=ck2Split(text);if(!lines.length)return {fatal:t('ie_empty')};
+ if(ck2Head(lines[0].split(sep).map(x=>x.trim()),CK2_LB))return {fatal:L('The first row must be: ','पहली पंक्ति यह हो: ')+CK2_LB.join(', ')};
+ const ok=[],bad=[],run={};
+ lines.slice(1).forEach((l,i)=>{const c=l.split(sep).map(x=>x.trim()),row=i+2,er=m=>bad.push({row,msg:m}),e=DATA.emps.find(x=>x.code.toLowerCase()===(c[0]||'').toLowerCase());
+  if(!e)return er(L('Employee code not found','कर्मचारी कोड नहीं मिला'));const tp=(c[1]||'').toUpperCase(), m=LTM.find(x=>x.code===tp&&x.active&&!x.unlimited);
+  if(!m)return er(L('Leave type must be one of: ','छुट्टी का प्रकार इनमें से हो: ')+LTM.filter(x=>x.active&&!x.unlimited).map(x=>x.code).join(', '));
+  const d=Number(c[2]);if(!d||!isFinite(d)||Math.round(d*2)!==d*2)return er(L('Days must be a number in half steps, for example 2 or -1.5','दिन संख्या हो, आधे में, जैसे 2 या -1.5'));
+  if(!c[3])return er(L('Reason is needed','कारण ज़रूरी है'));
+  const k=e.id+'|'+tp, b=leaveBalance(e.id)[tp];run[k]=(run[k]||0)+d;if(b&&typeof b.avail==='number'&&b.avail+run[k]<0)return er(L('The balance would go below zero','बैलेंस शून्य से नीचे चला जाएगा'));
+  ok.push({e,type:tp,days:d,reason:c[3]})});
+ return {ok,bad}}
 const ck2Split=text=>{const lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());return {lines,sep:lines[0]&&lines[0].includes('\t')?'\t':','}};
 const ck2Date=s=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');if(!m)return '';const i=`${m[3]}-${m[2]}-${m[1]}`;return isNaN(dt(i))?'':i};
 const CK2_EMP=['Employee Code','Category','Marital Status','Weekly Off','Contact 1 Name','Contact 1 Relation','Contact 1 Mobile','Contact 2 Name','Contact 2 Relation','Contact 2 Mobile'];
@@ -10245,15 +10258,18 @@ function ck2Card(k,ic,en,hi,desc,cols,sample,canDo){const s=CK2[k],r=s.res;
 const _ckImports65=ckImports;
 ckImports=function(){const E=can('ck_imp','E');
  return _ckImports65()+ck2Card('emp','🪪','Employee personal details','कर्मचारी की निजी जानकारी',L('Category, marital status, weekly off and two emergency contacts for many employees at once. A blank cell leaves the saved value as it is. The category is kept private and used for analytics only.','एक साथ कई कर्मचारियों की श्रेणी, वैवाहिक स्थिति, साप्ताहिक छुट्टी और दो आपातकालीन संपर्क। ख़ाली सेल होने पर पुरानी वैल्यू वैसी ही रहती है। श्रेणी गोपनीय रहती है और सिर्फ़ एनालिटिक्स में काम आती है।'),CK2_EMP,0,E&&can('employees','E'))
-  +ck2Card('ast','📦','Asset inventory','एसेट इन्वेंटरी',L('Add many assets to the inventory together. Type is Mobile, Electronic or Vehicle and the sub type must belong to it. Dates are DD/MM/YYYY. Every item gets its own tag number.','कई एसेट एक साथ इन्वेंटरी में जोड़ें। टाइप Mobile, Electronic या Vehicle हो और सब टाइप उसी का हो। तारीख़ें DD/MM/YYYY। हर आइटम को अपना टैग नंबर मिलता है।'),CK2_AST,0,E&&can('assets','A'))}
+  +ck2Card('ast','📦','Asset inventory','एसेट इन्वेंटरी',L('Add many assets to the inventory together. Type is Mobile, Electronic or Vehicle and the sub type must belong to it. Dates are DD/MM/YYYY. Every item gets its own tag number.','कई एसेट एक साथ इन्वेंटरी में जोड़ें। टाइप Mobile, Electronic या Vehicle हो और सब टाइप उसी का हो। तारीख़ें DD/MM/YYYY। हर आइटम को अपना टैग नंबर मिलता है।'),CK2_AST,0,E&&can('assets','A'))
+  +ck2Card('lbal','🌴','Leave balance: add or cut','छुट्टी बैलेंस: जोड़ें या घटाएँ',L('Opening balance at the start, comp-off or a correction for many employees at once. Days in half steps; a minus cuts (for example -1.5). Every row needs a reason. The balance can never go below zero.','शुरुआत में ओपनिंग बैलेंस, कंप-ऑफ़ या सुधार, एक साथ कई कर्मचारियों का। दिन आधे में; माइनस से घटता है (जैसे -1.5)। हर पंक्ति में कारण ज़रूरी। बैलेंस कभी शून्य से नीचे नहीं जाता।'),CK2_LB,0,E&&can('leave','E'))}
 const _bindExtra65=bindExtra;
 bindExtra=function(){_bindExtra65();const m=$('#main'),on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
- on('[data-ck2tpl]',b=>b.onclick=()=>{const k=b.dataset.ck2tpl;csvDl(k==='emp'?'employee-personal-details.csv':'asset-inventory.csv',k==='emp'?[CK2_EMP,['E004','OBC','Married','Tue','Rakesh Ali','Father','9876500011','','','']]:[CK2_AST,['Laptop 14','Dell Latitude','Electronic','Laptop','SN12345','15/10/2026','55000','15/10/2029']])});
- on('[data-ck2chk]',b=>b.onclick=()=>{const k=b.dataset.ck2chk,s=CK2[k];s.text=$('#ck2t-'+k).value;s.res=k==='emp'?ck2EmpParse(s.text):ck2AstParse(s.text);render()});
+ on('[data-ck2tpl="lbal"]',b=>b.onclick=()=>csvDl('leave-balance.csv',[CK2_LB,['E004','EL','6','Opening balance at go-live'],['E005','CL','-1','Correction']]));
+ on('[data-ck2tpl]:not([data-ck2tpl="lbal"])',b=>b.onclick=()=>{const k=b.dataset.ck2tpl;csvDl(k==='emp'?'employee-personal-details.csv':'asset-inventory.csv',k==='emp'?[CK2_EMP,['E004','OBC','Married','Tue','Rakesh Ali','Father','9876500011','','','']]:[CK2_AST,['Laptop 14','Dell Latitude','Electronic','Laptop','SN12345','15/10/2026','55000','15/10/2029']])});
+ on('[data-ck2chk]',b=>b.onclick=()=>{const k=b.dataset.ck2chk,s=CK2[k];s.text=$('#ck2t-'+k).value;s.res=k==='emp'?ck2EmpParse(s.text):k==='lbal'?ck2LbParse(s.text):ck2AstParse(s.text);render()});
  on('[data-ck2ok]',b=>b.onclick=()=>{const k=b.dataset.ck2ok,s=CK2[k],r=s.res;if(!r||!r.ok||!r.ok.length)return;
   if(k==='emp')r.ok.forEach(x=>{const e=x.e;if(x.caste)e.caste=x.caste;if(x.marital)e.marital=x.marital;if(x.wo!=='')e.wo=x.wo;[[1,x.c1],[2,x.c2]].forEach(([n,c])=>{if(c[0])e['ec'+n+'_name']=c[0];if(c[1])e['ec'+n+'_rel']=c[1];if(c[2])e['ec'+n+'_mob']=c[2]})});
+  else if(k==='lbal')r.ok.forEach(x=>{LADJ.push({id:++seq,emp:x.e.id,type:x.type,days:x.days,reason:x.reason,by:USERS[state.role].name,date:TODAY_S,imp:true});audit('Leave balance','Change',`${x.e.name} ${x.type}`,`${x.days>0?'+':''}${x.days}: ${x.reason} (import)`)});
   else r.ok.forEach(x=>astAdd({...x,by:nm_(me())}));
-  audit('Cockpit','Import',k==='emp'?'Employee personal details':'Asset inventory',`${r.ok.length}`);toast(`${r.ok.length} ${k==='emp'?L('employees updated','कर्मचारी अपडेट हुए'):L('assets added','एसेट जुड़े')}`);s.text='';s.res=null;render()})};
+  audit('Cockpit','Import',k==='emp'?'Employee personal details':k==='lbal'?'Leave balance':'Asset inventory',`${r.ok.length}`);toast(`${r.ok.length} ${k==='emp'?L('employees updated','कर्मचारी अपडेट हुए'):k==='lbal'?L('leave balance lines saved','छुट्टी बैलेंस पंक्तियाँ सेव'):L('assets added','एसेट जुड़े')}`);s.text='';s.res=null;render()})};
 
 /* ================= Batch 66: Attendance policy (late arrival cut, absence without application, weekly off, sandwich) and the Late arrival reports ================= */
 const ATPOL=[{id:1,name:'Default policy',def:true,active:true,aud:[],eff:'2026-10-01',late:{on:true,every:4,ded:0.5},sandAbs:true,sandwich:LRULE.sandwich,min:{on:LRULE.minOn,days:LRULE.minDays,paidLv:LRULE.paidLv,holToo:LRULE.holToo},back:{leave:3,reg:SLA.regDays,od:7,short:3,woLeave:true}}];
