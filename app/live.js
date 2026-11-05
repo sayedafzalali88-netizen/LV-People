@@ -162,6 +162,19 @@ const withPack=fn=>function(){const all=KPI.slice();if(!all.some(k=>k._hidden))r
   KPI.length=0;vis.forEach(k=>KPI.push(k));AUTO_IMPL.clear();ai.filter(i=>ids.has(i)).forEach(i=>AUTO_IMPL.add(i));
   try{return fn.apply(this,arguments)}finally{KPI.length=0;all.forEach(k=>KPI.push(k));AUTO_IMPL.clear();ai.forEach(i=>AUTO_IMPL.add(i))}};
 try{pmsPage=withPack(pmsPage)}catch(e){}
+/* month-end lock: while the month runs, each KPI result is saved (KSNAP); once the month is over the saved result is used and never worked out again.
+   Only a manager rating that was still pending can be given late, so the month can be closed. */
+window.KSNAP={};DATASTORES.push('KSNAP');LIVE.ksT=0;
+function snapKpis(force){if(!isHRrole()||(!force&&Date.now()-LIVE.ksT<10*60000))return;LIVE.ksT=Date.now();
+  try{DATA.emps.filter(e=>e.active).forEach(e=>assignedKpis(e,CUR_P).forEach(k=>{if(k._hidden)return;const r=_kres(e.id,k,CUR_P);if(!r)return;
+    const v={state:r.state,score:r.score==null?null:r.score,text:r.text||''}, key=e.id+'|'+k.id+'|'+CUR_P;if(JSON.stringify(KSNAP[key])!==JSON.stringify(v))KSNAP[key]=v}))}catch(x){console.warn('ksnap',x)}}
+const _kres=kpiResult;
+kpiResult=function(emp,k,p){if(p===CUR_P||!LIVE.on)return _kres(emp,k,p);
+  const s=KSNAP[emp+'|'+k.id+'|'+p];
+  if(k.method==='Manager Scoring'&&(!s||s.state==='PENDING')){const r=MRATE[emp+'|'+k.id+'|'+p];if(r)return{state:'SCORED',score:r2(r*k.max/10),text:`${t('kr_rated')} ${r}/10`}}
+  if(s)return{state:s.state,score:s.score==null?undefined:s.score,text:s.text+' · '+L('locked at month end','महीने के अंत में लॉक')};
+  return _kres(emp,k,p)};
+LIVE.snapKpis=snapKpis;
 /* the platform admin builds the pack of each client, one KPI at a time */
 try{
   PAGES.push('kpipack');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].kpipack=r==='platform'?['V','E']:[]);
@@ -354,7 +367,7 @@ async function syncNow(){
   if(LIVE.busy){LIVE.queued=true;return}
   LIVE.busy=true;let n=0;
   try{
-    sysToX();await syncAttendance();await syncStores();await syncKpis();
+    sysToX();try{snapKpis()}catch(x){}await syncAttendance();await syncStores();await syncKpis();
     if(isHRrole())for(const k of KINDS){const t=TBL[k];
       for(const o of DATA[k]){const s=sig(k,o);if(LIVE.snap[k][o.id]===s)continue;
         const row=toRow(k,o);let uuid=LIVE.map[k][o.id];
