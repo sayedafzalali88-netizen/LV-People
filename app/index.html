@@ -207,7 +207,7 @@ main{padding:24px;max-width:1200px}
       <h1 data-i="art_h">Sab kuch ek jagah: attendance, leave aur payroll.</h1>
       <p data-i="art_p">Employees, managers aur HR ke liye ek simple, tez aur Hindi-English dono mein chalne wala HR system.</p>
     </div>
-    <small style="opacity:.7">LV People · a product of Welcome Enterprises<br>Prototype V1.0 · sample data</small>
+    <small style="opacity:.7">LV People · a product of Welcome Enterprises<br>Version 1.0</small>
   </div>
   <div class="login-form">
     <div class="lang-top seg" data-lang-seg></div>
@@ -4527,7 +4527,7 @@ function fsTab(){
   const el=fsEligible(), hr=canManage();
   return `${el.length&&can('payroll','A')?`<div class="card" style="margin-bottom:14px"><h3>${L('Ready to prepare','तैयार करने के लिए')}</h3>${el.map(e=>`<div style="display:flex;gap:10px;align-items:center;margin-top:8px"><span style="flex:1"><b>${esc(e.name)}</b> <small style="color:var(--muted)">${e.status} · ${L('last day','आख़िरी दिन')} ${fmtY(e.lwd)}</small></span><button class="btn btn-p btn-s" data-fsnew="${e.id}">${L('Prepare settlement','सेटलमेंट बनाएँ')}</button></div>`).join('')}</div>`:''}
   <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${L('Last day','आख़िरी दिन')}</th><th>${L('Net','शुद्ध')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${FS.map(f=>`<tr><td><b>${nmE(f.emp)}</b></td><td>${fmtY(empById(f.emp).lwd)}</td><td>${inr(fsLines(f))}</td><td><span class="pill ${f.status==='Paid'||f.status==='Settled'?'p-ok':f.status==='Failed'?'p-bad':'p-warn'}">${L(f.status,{Draft:'ड्राफ़्ट','Under Review':'समीक्षा में',Approved:'मंज़ूर','Payment Pending':'भुगतान बाकी','Partially Paid':'आंशिक',Failed:'विफल',Paid:'भुगतान हुआ',Settled:'निपटा (कुछ देय नहीं)'}[f.status]||f.status)}</span></td><td style="text-align:right"><button class="btn btn-o btn-s" data-fsv="${f.id}">${L('Open','खोलें')}</button></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>
-  <p class="rule" style="font-size:12px;margin-top:8px">${L('Notice pay, leave encashment and gratuity are not designed yet. Add them as adjustment lines. Nothing is paid or recovered without review and approval.','नोटिस पे, छुट्टी का नक़दीकरण और ग्रेच्युटी अभी तय नहीं हैं। इन्हें समायोजन पंक्ति में जोड़ें। समीक्षा और मंज़ूरी के बिना कुछ नहीं दिया या काटा जाता।')}</p>`;
+  <p class="rule" style="font-size:12px;margin-top:8px">${L('Leave encashment is added by itself. Notice pay and gratuity are not worked out yet: add them as adjustment lines. Nothing is paid or recovered without review and approval.','छुट्टी का नक़दीकरण अपने आप जुड़ता है। नोटिस पे और ग्रेच्युटी अभी अपने आप नहीं बनते: इन्हें समायोजन पंक्ति में जोड़ें। समीक्षा और मंज़ूरी के बिना कुछ नहीं दिया या काटा जाता।')}</p>`;
 }
 function fsModal(id){
   const f=FS.find(x=>x.id===id), e=empById(f.emp), net=fsLines(f), me_=USERS[state.role].name, canEdit=f.status==='Draft'&&can('payroll','E');
