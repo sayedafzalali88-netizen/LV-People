@@ -210,6 +210,27 @@ function clEditModal(id){const c=LIVE.cl.rows.find(x=>x.id===id);openModal(`<h3>
 try{const _ph2=placeholder;placeholder=function(P){return P==='lvclients'?clientsPage():_ph2.apply(this,arguments)}}catch(e){}
 const _bx2=bindExtra;
 bindExtra=function(){_bx2.apply(this,arguments);if(state.page!=='lvclients')return;const b=document.getElementById('clNew');if(b)b.onclick=clNewModal;document.querySelectorAll('[data-cled]').forEach(x=>x.onclick=()=>clEditModal(x.dataset.cled))};
+/* ---------- dashboard numbers from the real data ---------- */
+window.dashN=function(scope,what){
+  try{const me=MYEMP[state.role], emps=DATA.emps.filter(e=>e.active&&(scope==='all'||+e.mgr===me));
+    if(what==='total')return String(emps.length);
+    if(what==='new'){const n=emps.filter(e=>(e.doj||'').slice(0,7)===TODAY_S.slice(0,7)).length;return n?`+${n} ${t('this_month')}`:''}
+    const st=emps.map(e=>dayRec(e.id,TODAY_D).st), work=st.filter(s=>!['W','H','F'].includes(s)).length;
+    const present=st.filter(s=>['P','L','HD','WOP'].includes(s)).length, leave=st.filter(s=>['LV','LWP'].includes(s)).length, notin=st.filter(s=>s==='N'||s==='A').length;
+    if(what==='present')return String(present);if(what==='pct')return work?(Math.round(present/work*1000)/10)+'%':'';
+    if(what==='leave')return String(leave);if(what==='absent')return String(notin);
+    if(what==='notin')return notin?L('not punched in yet','अभी पंच-इन नहीं'):'';
+  }catch(e){return '—'}return ''};
+/* attendance % of the last days of this month */
+try{chart=function(){const out=[], emps=DATA.emps.filter(e=>e.active);
+  for(let d=Math.max(1,TODAY_D-6);d<=TODAY_D;d++){const st=emps.map(e=>dayRec(e.id,d).st), work=st.filter(s=>!['W','H','F'].includes(s)).length, pr=st.filter(s=>['P','L','HD','WOP'].includes(s)).length;
+    const dd=new Date(Y,M,d);out.push([dd.toLocaleDateString(loc(),{weekday:'short'}),work?Math.round(pr/work*100):0,d])}
+  return `<div class="card"><h3>${t('att7')} <span>%</span></h3><div class="bars">${out.map(([w,p,d])=>`<div><span>${p}</span><i style="height:${p}%"></i><span>${w} ${d}</span></div>`).join('')}</div></div>`}}catch(e){}
+/* coming holidays and notices instead of fixed text */
+try{side=function(){const up=(typeof HOLI!=='undefined'?HOLI:[]).filter(h=>h[0]>=TODAY_S).slice(0,3), days=s=>Math.round((new Date(s+'T00:00:00')-new Date(TODAY_S+'T00:00:00'))/864e5);
+  const nt=(typeof NTC!=='undefined'?NTC:[]).filter(n=>!n.st||n.st==='Published'||n.st==='Active').slice(0,3);
+  return `${bdayCard()}<div class="card"><h3>${t('holidays')}</h3><div class="list">${up.map(h=>`<div><div class="grow"><b>${esc(h[1])}</b><small>${new Date(h[0]+'T00:00:00').toLocaleDateString(loc(),{day:'numeric',month:'short',weekday:'short'})}</small></div><span class="pill p-teal">${days(h[0])}d</span></div>`).join('')||`<div><small style="color:var(--muted)">${L('No holiday coming','कोई आने वाली छुट्टी नहीं')}</small></div>`}</div></div>
+  ${nt.length?`<div class="card"><h3>${t('ann')}</h3><div class="list">${nt.map(n=>`<div><div class="grow"><b>${esc(n.title||n.subject||'')}</b><small>${esc((n.body||n.msg||'').slice(0,90))}</small></div></div>`).join('')}</div></div>`:''}`}}catch(e){}
 /* in the live app a past working day with no punch is absent, never sample data */
 const _dayRec=dayRec;
 dayRec=function(emp,d){const r=_dayRec(emp,d);if(!LIVE.on||LIVE.platform)return r;const s=ds(d), k=emp+'|'+s;
@@ -241,7 +262,7 @@ async function syncNow(){
 let syncT=null;const schedule=()=>{clearTimeout(syncT);syncT=setTimeout(syncNow,600)};
 
 /* ---------- the note at the top of each page ---------- */
-const LIVE_PAGES=['employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox','recruit','expense','exits','training','marketing','crm','library','engage','bizdata','stock','import','analytics','reports','settings'];
+const LIVE_PAGES=['dashboard','employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox','recruit','expense','exits','training','marketing','crm','library','engage','bizdata','stock','import','analytics','reports','settings'];
 function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.platform)return;let n=document.getElementById('liveNote');
   const live=LIVE_PAGES.includes(state.page);
   const txt=live?L('Live: the data on this page is saved in the database.','लाइव: इस पेज का डेटा डेटाबेस में सेव होता है।')

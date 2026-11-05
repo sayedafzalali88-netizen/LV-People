@@ -484,17 +484,17 @@ function dashboard(){
   let h=`<div class="page-h"><div><h1>${t('hello')}, ${u.name.split(' ')[0]} 👋</h1><p>${t('welcome_sub')} · ${new Date().toLocaleDateString(loc(),{weekday:'long',day:'2-digit',month:'short',year:'numeric'})}</p></div></div>`;
   if(r==='admin'||r==='hr'){
     h+=`<div class="grid g4" style="margin-bottom:16px">
-      ${kpi(t('total_emp'),'148','+4 '+t('this_month'),'teal','M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8')}
-      ${kpi(t('present'),'131','88.5%','ok','M20 6L9 17l-5-5')}
-      ${kpi(t('absent'),'9','-2 '+t('vs_yday'),'bad','M18 6L6 18M6 6l12 12')}
-      ${kpi(t('on_leave'),'8','','warn','M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2')}</div>
+      ${kpi(t('total_emp'),dashN('all','total'),dashN('all','new'),'teal','M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8')}
+      ${kpi(t('present'),dashN('all','present'),dashN('all','pct'),'ok','M20 6L9 17l-5-5')}
+      ${kpi(t('absent'),dashN('all','absent'),dashN('all','notin'),'bad','M18 6L6 18M6 6l12 12')}
+      ${kpi(t('on_leave'),dashN('all','leave'),'','warn','M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2')}</div>
     <div class="grid g2"><div class="grid">${approvals()}${chart()}</div><div class="grid" style="align-content:start">${clockCard()}${leaveBal()}${side()}</div></div>`;
   } else if(r==='manager'){
     h+=`<div class="grid g4" style="margin-bottom:16px">
-      ${kpi(t('team_today'),'12','','teal','M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8')}
-      ${kpi(t('present'),'10','83%','ok','M20 6L9 17l-5-5')}
-      ${kpi(t('absent'),'1','','bad','M18 6L6 18M6 6l12 12')}
-      ${kpi(t('on_leave'),'1','','warn','M8 2v4M16 2v4M3 10h18')}</div>
+      ${kpi(t('team_today'),dashN('team','total'),'','teal','M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8')}
+      ${kpi(t('present'),dashN('team','present'),dashN('team','pct'),'ok','M20 6L9 17l-5-5')}
+      ${kpi(t('absent'),dashN('team','absent'),dashN('team','notin'),'bad','M18 6L6 18M6 6l12 12')}
+      ${kpi(t('on_leave'),dashN('team','leave'),'','warn','M8 2v4M16 2v4M3 10h18')}</div>
     <div class="grid g2"><div class="grid">${approvals()}${myReq()}</div><div class="grid" style="align-content:start">${clockCard()}${leaveBal()}${side()}</div></div>`;
   } else {
     h+=`<div class="grid g2"><div class="grid" style="align-content:start">${clockCard()}
