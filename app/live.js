@@ -406,16 +406,16 @@ try{EXTYPE.lunch=['Lunch punch missing','लंच पंच छूटा','p-wa
   const _exr=excRows;excRows=function(){const out=_exr();DATA.emps.filter(e=>e.active!==false).forEach(e=>{for(let d=1;d<=TODAY_D;d++){const s=ds(d), a=ATT[e.id+'|'+s];if(!a||!a.lunchMiss||ACORR[e.id+'|'+s]||out.some(x=>x.emp===e.id&&x.s===s&&x.type==='lunch'))continue;out.push({emp:e.id,d,s,type:'lunch',r:dayRec(e.id,d)})}});return out.sort((a,b)=>a.s<b.s?1:a.s>b.s?-1:a.emp-b.emp)}}catch(e){console.warn('lunch exc',e)}
 /* when closing a month its last day is over: one punch only = missed punch (Absent until corrected) */
 try{const _dst=dayStatus;dayStatus=function(){const r=_dst.apply(this,arguments);return LIVE.asOf&&r&&r.pending?{...r,st:'A',miss:true,pending:false}:r}}catch(e){}
-const setAsOf=v=>{try{if(v)sessionStorage.setItem('lvAsOf',v);else sessionStorage.removeItem('lvAsOf')}catch(e){}location.reload()};
+const setAsOf=v=>{try{if(v)sessionStorage.setItem('lvAsOf',v);else sessionStorage.removeItem('lvAsOf')}catch(e){}location.reload()};LIVE.setAsOf=setAsOf;
+/* after the app opens a month or comes back to today, show the page the person was on */
+LIVE.afterLoad=()=>{try{const a=JSON.parse(sessionStorage.getItem('lvAfter')||'null');if(!a)return;sessionStorage.removeItem('lvAfter');Object.assign(state,a);if(a.paym&&!PMON[a.paym])delete state.paym;render()}catch(e){}};
 const lastMonthEnd=()=>{const n=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000);const d=new Date(n.getFullYear(),n.getMonth(),0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 function closeBar(m){let b=document.getElementById('closeBar');if(b)b.remove();if(!isHRrole()){if(LIVE.asOf&&LIVE.profile)setAsOf(null);return}
   const mname=s=>new Date(s+'T12:00:00').toLocaleDateString(loc(),{month:'long',year:'numeric'});
   b=document.createElement('div');b.id='closeBar';b.style.cssText='margin:0 0 12px;padding:9px 12px;border-radius:10px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
   if(LIVE.asOf){b.style.background='rgba(185,28,28,.12)';b.style.color='#991b1b';
     b.innerHTML=`<b>${L('Closing month: ','महीना बंद हो रहा है: ')+mname(LIVE.asOf)}</b><span>${L('The app shows the last day of that month. Process attendance, run payroll and close the KPI scores, then go back.','ऐप उस महीने का आख़िरी दिन दिखा रहा है। हाज़िरी प्रोसेस, पेरोल और KPI स्कोर बंद करें, फिर वापस जाएँ।')}</span><button class="btn btn-p btn-s" id="asOfBack">${L('Back to today','आज पर वापस')}</button>`}
-  else{const cur=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000).getDate();if(cur>15||!['timeoffice','payroll','pms','dashboard'].includes(state.page))return;
-    const le=lastMonthEnd();b.style.background='rgba(37,99,235,.10)';b.style.color='#1e3a8a';
-    b.innerHTML=`<span>${L('Last month is not closed? ','पिछला महीना बंद नहीं हुआ? ')}</span><button class="btn btn-o btn-s" id="asOfGo">${L('Close ','बंद करें: ')+mname(le)}</button>`}
+  else return; /* last month is closed from Payroll > Monthly payroll: choose the month there */
   m.insertBefore(b,m.children[1]||null);
   const g=document.getElementById('asOfGo');if(g)g.onclick=()=>setAsOf(lastMonthEnd());const k=document.getElementById('asOfBack');if(k)k.onclick=()=>setAsOf(null)}
 
@@ -439,6 +439,7 @@ async function startSession(user){
   try{if(typeof CO==='object'&&LIVE.client)CO.name=LIVE.client.name}catch(x){}
   if(LIVE.profile.must_change_password){LV.view='change';LV.pend={first:true,emp:e,role:LIVE.profile.role,live:true};drawLogin();return}
   enterApp(e,LIVE.profile.role,false);
+  try{LIVE.afterLoad&&LIVE.afterLoad()}catch(x){}
 }
 const fail=m=>{LV.msg=m;const u=$('#lgU')&&$('#lgU').value, c=$('#lgC')&&$('#lgC').value;drawLogin();if($('#lgU'))$('#lgU').value=u||'';if($('#lgC'))$('#lgC').value=c||''};
 doSignin=async function(){

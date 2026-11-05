@@ -4963,12 +4963,15 @@ function incUpload(text){
 }
 /* payroll page, with the Incentives tab */
 function payrollPage(){
-  payHook();const mg=canManage(), tabs=mg?PAYT2.filter(x=>x[0]!=='vars'||modOn('pms')):[['mine','pay_mine'],['earned',null,'Salary earned','अर्जित सैलरी'],['adv',null,'Salary advance','सैलरी एडवांस'],['tax',null,'My tax','मेरा टैक्स']], tab=tabs.some(x=>x[0]===state.paytab)?state.paytab:(mg?'run':'mine');
-  if(state.payview&&(tab==='run'||tab==='slips'))return `<button class="back" data-pback>← ${t('back')}</button>${mySlip()}`;
+  payHook();const mg=canManage();
+  /* the old monthly tabs now live inside the "Monthly payroll" page as its steps */
+  const mpo=window.MP_OLD||{};if(mg&&mpo[state.paytab]){state.mstep=mpo[state.paytab];state.paytab='month'}
+  const tabs=mg?PAYT2.filter(x=>x[0]!=='vars'||modOn('pms')):[['mine','pay_mine'],['earned',null,'Salary earned','अर्जित सैलरी'],['adv',null,'Salary advance','सैलरी एडवांस'],['tax',null,'My tax','मेरा टैक्स']], tab=tabs.some(x=>x[0]===state.paytab)?state.paytab:(mg?'month':'mine');
+  if(state.payview&&(tab==='run'||tab==='slips'||tab==='month'))return `<button class="back" data-pback>← ${t('back')}</button>${mySlip()}`;
   const noMonth=['struct','stat','stasg','sstr','bank','fs','adv','earned','hdimp','minw','tax','taxd'].includes(tab);
   return `<div class="page-h"><div><h1>${t('payroll')}</h1><p>${t('payroll_sub')}</p></div>${noMonth?'':monthSeg()}</div>
   <div class="tabs">${tabs.map(([k,l,en,hi])=>`<button data-paytab="${k}" class="${tab===k?'on':''}">${l?t(l):L(en,hi)}</button>`).join('')}</div>
-  ${tab==='run'?runTab():tab==='vars'?varsTab():tab==='adv'?advTab():tab==='inc'?incTab():tab==='pays'?payTab():tab==='fs'?fsTab():tab==='slips'?payslipsTab():tab==='bank'?bankTab():tab==='stat'?statTab():tab==='struct'?structTab():tab==='adj'?adjTab():tab==='earned'?earnedTab():tab==='stasg'?stasgTab():tab==='sstr'?sstrTab():tab==='hdimp'?hdimpTab():tab==='minw'?minwTab():tab==='tax'?taxTab():tab==='taxd'?taxdTab():mySlip()}`;
+  ${tab==='run'?runTab():tab==='vars'?varsTab():tab==='adv'?advTab():tab==='inc'?incTab():tab==='pays'?payTab():tab==='fs'?fsTab():tab==='slips'?payslipsTab():tab==='bank'?bankTab():tab==='stat'?statTab():tab==='struct'?structTab():tab==='adj'?adjTab():tab==='earned'?earnedTab():tab==='stasg'?stasgTab():tab==='sstr'?sstrTab():tab==='hdimp'?hdimpTab():tab==='minw'?minwTab():tab==='tax'?taxTab():tab==='taxd'?taxdTab():tab==='month'?monthTab():mySlip()}`;
 }
 /* ---- KPI data source register ---- */
 const DSR={}, DSRT=['ERP Auto','ERP module','Report import','Manager scoring','Audit / checklist','Survey','Team average','Task tracker','Training records','Manual entry'], DSRS=['Suggested','Approved','Changed'];
@@ -11096,6 +11099,63 @@ rp('tds_decl','payroll','Tax declarations and TDS','टैक्स घोषण
 PAYT2.splice(PAYT2.findIndex(x=>x[0]==='stat'),0,['taxd',null,'Tax declarations','टैक्स घोषणाएँ']);
 PAYT2.push(['tax',null,'My tax','मेरा टैक्स']);
 window.TDS_READY=true;
+/* ================= Monthly payroll: one page, five steps (attendance, variable pay, additions and deductions, salary sheet, approve and pay) =================
+   The old tabs Payroll run, Monthly variables, Additions & deductions and Extra heads are the bodies of the steps.
+   A new employee whose joining month is already processed shows as "pending": HR processes that person's attendance and runs that person's payroll
+   for that month only (the others stay locked). If the person was processed with zero attendance and corrected later, the attendance correction arrear
+   of the next month pays it (nothing new is needed for that). */
+window.MP_OLD={run:'sheet',vars:'vars',adj:'adj',hdimp:'adj'};
+['run','vars','adj','hdimp'].forEach(k=>{const i=PAYT2.findIndex(x=>x[0]===k);if(i>=0)PAYT2.splice(i,1)});
+PAYT2.unshift(['month',null,'Monthly payroll','मासिक पेरोल']);
+NAVSUB.payroll=[['Monthly payroll','मासिक पेरोल',['month']],['Pay and payslips','भुगतान और पे-स्लिप',['pays','slips','bank','earned','inc','mine','tax']],['Advance and exit','एडवांस और एक्ज़िट',['adv','fs']],['Settings','सेटिंग',['stat','minw','stasg','sstr','struct','taxd']]];
+Object.assign(state,{mstep:null,mpq:''});
+/* who is waiting in a month that is already processed: not in the processed attendance, or processed late and not yet run */
+const mpLate=mk=>{const P=ATTP[mk];if(!P||PAYRUN[mk]==='draft')return{att:[],pay:[]};const es=attEmps(mk);
+ return{att:es.filter(e=>!P.rows[e.id]),pay:es.filter(e=>{const r=P.rows[e.id];return r&&r.late&&!r.payRun&&!r.held})}};
+{const _ahr=attHeldRun;attHeldRun=function(e,mk){if(_ahr(e,mk))return true;try{const P=ATTP[mk];if(!P||!PAYRUN[mk]||PAYRUN[mk]==='draft'||P.seed)return false;const r=P.rows[e.id];return !r||(r.late&&!r.payRun)}catch(x){return false}}}
+const mpPast=mk=>mk<curMk();
+const mpNeedsDate=mk=>mpPast(mk)&&!(window.LIVE&&LIVE.asOf&&LIVE.asOf.slice(0,7)===mk);
+function mpAttProcessLate(mk){const P=ATTP[mk];if(!P)return;const l=mpLate(mk).att;l.forEach(e=>{const r=attRow(e,mk);r.late=true;r.at=TODAY_S;r.by=USERS[state.role].name;P.rows[e.id]=r});
+ audit('Attendance','Processed late joiners',mkP(mk),l.map(e=>e.name).join(', '));return l.length}
+function mpRunLate(mk){const l=mpLate(mk).pay;SNAP[mk]=SNAP[mk]||{};
+ l.forEach(e=>{const r=ATTP[mk].rows[e.id];r.payRun=true;r.payAt=TODAY_S;r.payBy=USERS[state.role].name;SNAP[mk][e.id]=_calc(e,mk);try{payNew('payroll',`payroll:${mk}:${e.id}`,e.id,SNAP[mk][e.id].net,mk)}catch(x){}});
+ audit('Payroll','Run for late joiners',mkP(mk),l.map(e=>e.name).join(', '));return l.length}
+function monthTab(){const mk=state.paym, P=ATTP[mk], st=PAYRUN[mk]||'draft', late=mpLate(mk), E=can('payroll','E'), past=mpPast(mk), need=mpNeedsDate(mk), pms=modOn('pms');
+ const held=P?Object.values(P.rows).filter(r=>r.held).length:0, adjP=ADJ.filter(x=>x.mk===mk&&x.status==='Pending').length, pays=PAY.filter(p=>p.cat==='payroll'&&p.mk===mk), paid=pays.filter(p=>p.status==='Paid').length;
+ const steps=[
+  ['att',L('Attendance','हाज़िरी'),!P?[0,L('Not processed yet','अभी प्रोसेस नहीं')]:late.att.length?[0,late.att.length+L(' new employee(s) pending',' नए कर्मचारी बाकी')]:P.stale?[0,L('Punches changed: process again','पंच बदले: दोबारा प्रोसेस करें')]:held?[0,held+L(' employee(s) held: approve their requests',' कर्मचारी रुके: उनकी माँगें मंज़ूर करें')]:[1,L('Processed','प्रोसेस हो गई')+' v'+P.v]],
+  ...(pms?[['vars',L('Variable pay (KPI)','वेरिएबल पे (KPI)'),VARS[mk]?[1,L('Generated','बन गया')]:[0,L('Not generated','नहीं बना')]]]:[]),
+  ['adj',L('Additions and deductions','जोड़ और कटौती'),adjP?[0,adjP+L(' waiting for approval',' मंज़ूरी बाकी')]:[1,L('Nothing waiting','कुछ बाकी नहीं')]],
+  ['sheet',L('Salary sheet and run','सैलरी शीट और रन'),st==='draft'?[0,L('Not run yet','अभी रन नहीं')]:late.pay.length?[0,late.pay.length+L(' new employee(s): payroll pending',' नए कर्मचारी: पेरोल बाकी')]:[1,L('Run, month locked','रन हो गया, महीना लॉक')]],
+  ['pay',L('Approve and pay','मंज़ूरी और भुगतान'),st==='draft'?[0,L('After the run','रन के बाद')]:pays.length&&paid===pays.length?[1,L('All paid','सब भुगतान')]:[0,paid+' / '+pays.length+L(' paid',' भुगतान')]]];
+ const first=(steps.find(s=>!s[2][0])||steps[steps.length-1])[0], open=state.mstep==='__none'?null:steps.some(s=>s[0]===state.mstep)?state.mstep:first;
+ const body=k=>{
+  if(k==='att'){if(need&&(!P||late.att.length||P.stale))return `<p style="font-size:13px">${L('To work out the attendance of ','')+mkP(mk)+L(', the app opens that month (the last day of it). It comes back to today by itself when the payroll of the month is run.',' की हाज़िरी निकालने के लिए ऐप वह महीना (उसका आख़िरी दिन) खोलता है। उस महीने का पेरोल रन होते ही ऐप अपने आप आज पर लौट आता है।')}</p><button class="btn btn-p" data-mpasof="${mk}">${L('Open ','')+mkP(mk)+L(' to work',' पर काम करें')}</button>`;
+   if(P&&st!=='draft'){return late.att.length?`<p style="font-size:13px">${L('The payroll of this month is already run. These employees joined in this month and are not processed yet. Mark their attendance first if needed, then process them; the others stay as they are.','इस महीने का पेरोल चल चुका है। ये कर्मचारी इसी महीने जुड़े और अभी प्रोसेस नहीं हुए। ज़रूरत हो तो पहले हाज़िरी लगाएँ, फिर प्रोसेस करें; बाकी सब वैसे ही रहेंगे।')}</p><ul style="font-size:13px">${late.att.map(e=>`<li><b>${esc(e.name)}</b> (${esc(e.code)}) · ${L('joined','जॉइन')} ${fmtS(e.doj)}</li>`).join('')}</ul>${E?`<button class="btn btn-p" data-mplatt="${mk}">${L('Process these employees','इन कर्मचारियों को प्रोसेस करें')}</button>`:''}`:`<p style="font-size:13px;color:var(--muted)">${L('Attendance is processed and locked with the payroll. A later change goes to the next month as an arrear.','हाज़िरी प्रोसेस होकर पेरोल के साथ लॉक है। बाद का बदलाव अगले महीने एरियर में जाता है।')}</p>`}
+   state.procM=mk;return procTab()}
+  if(k==='vars')return varsTab();
+  if(k==='adj')return adjTab()+`<div style="margin-top:16px"></div>`+hdimpTab();
+  if(k==='sheet')return (late.pay.length?`<div class="card" style="border-left:3px solid var(--warn);margin-bottom:12px"><b>${L('New employee(s) waiting for this month\'s payroll','इस महीने के पेरोल के लिए नए कर्मचारी')}</b><ul style="font-size:13px">${late.pay.map(e=>{const c=_calc(e,mk);return `<li>${esc(e.name)} (${esc(e.code)}) · ${c.paidDays}/${c.days} ${L('days','दिन')} · ${L('net','शुद्ध')} ${inr(c.net)}</li>`}).join('')}</ul>${E?`<button class="btn btn-p" data-mplrun="${mk}">${L('Run payroll for these employees','इन कर्मचारियों का पेरोल रन करें')}</button>`:''}</div>`:'')
+   +`<div class="tools"><input class="inp" id="mpq" placeholder="${L('Search employee name or code','कर्मचारी का नाम या कोड खोजें')}" value="${esc(state.mpq)}" style="max-width:300px"></div>`+runTab();
+  if(k==='pay')return st==='draft'?`<p style="color:var(--muted);font-size:13px">${L('First run the payroll in the step above.','पहले ऊपर वाले चरण में पेरोल रन करें।')}</p>`
+   :`<p style="font-size:13px">${L('The month is locked with the run. Approve the payments, make the bank file, download the PF and ESIC files and publish the payslips.','रन के साथ महीना लॉक है। भुगतान मंज़ूर करें, बैंक फ़ाइल बनाएँ, PF और ESIC फ़ाइल लें और पे-स्लिप प्रकाशित करें।')}</p>
+    <div class="tools" style="flex-wrap:wrap;gap:8px"><button class="btn btn-p" data-mpgo="pays">${L('Approve payments and bank file','भुगतान मंज़ूरी और बैंक फ़ाइल')} (${pays.length-paid})</button><button class="btn btn-o" data-mprpt="pay_epfo">PF (ECR)</button><button class="btn btn-o" data-mprpt="pay_esic">ESIC</button><button class="btn btn-o" data-mprpt="reg_wages">${L('Register of wages','वेतन रजिस्टर')}</button><button class="btn btn-o" data-mpgo="slips">${L('Publish payslips','पे-स्लिप प्रकाशित करें')}</button></div>`;
+  return ''};
+ return `${window.LIVE&&LIVE.asOf?`<p style="font-size:13px;margin:0 0 10px">${L('Working on ','काम चल रहा है: ')}<b>${mkP(LIVE.asOf.slice(0,7))}</b> · ${L('the app comes back to today when its payroll is run.','उसका पेरोल रन होते ही ऐप आज पर लौट आएगा।')}</p>`:''}
+ ${steps.map(([k,ttl,[ok,txt]],i)=>`<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden"><div data-mpstep="${k}" style="display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;${open===k?'border-bottom:1px solid var(--line)':''}"><span style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;background:${ok?'var(--ok-l)':'var(--warn-l)'};color:${ok?'var(--ok)':'var(--warn)'}">${ok?'✓':i+1}</span><b style="flex:1">${ttl}</b><span class="pill ${ok?'p-ok':'p-warn'}">${esc(txt)}</span><span style="font-size:11px;color:var(--muted)">${open===k?'▾':'▸'}</span></div>${open===k?`<div style="padding:16px 18px">${body(k)}</div>`:''}</div>`).join('')}`}
+{const _beMP=bindExtra;bindExtra=function(){_beMP();const m=$('#main');if(!m)return;const on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
+ on('[data-mpstep]',b=>b.onclick=()=>{state.mstep=state.mstep===b.dataset.mpstep?'__none':b.dataset.mpstep;render()});
+ on('[data-mpasof]',b=>b.onclick=()=>{try{sessionStorage.setItem('lvAfter',JSON.stringify({page:'payroll',paytab:'month',paym:b.dataset.mpasof,mstep:'att'}))}catch(x){}if(window.LIVE&&LIVE.setAsOf)LIVE.setAsOf(mkEnd(b.dataset.mpasof))});
+ on('[data-mplatt]',b=>b.onclick=()=>{const n=mpAttProcessLate(b.dataset.mplatt);toast(n+L(' employee(s) processed',' कर्मचारी प्रोसेस हुए'));state.mstep='sheet';render()});
+ on('[data-mplrun]',b=>b.onclick=()=>{const n=mpRunLate(b.dataset.mplrun);toast(n+L(' employee(s) run',' कर्मचारियों का पेरोल रन'));state.mstep='pay';render();mpAutoBack()});
+ on('[data-mpgo]',b=>b.onclick=()=>{state.paytab=b.dataset.mpgo;render()});
+ on('[data-mprpt]',b=>b.onclick=()=>{state.page='reports';state.rptMod='payroll';state.rptId=b.dataset.mprpt;render()});
+ const q=$('#mpq');if(q){const f=()=>{state.mpq=q.value;const s=q.value.trim().toLowerCase();m.querySelectorAll('tr[data-pv]').forEach(tr=>{tr.style.display=!s||tr.textContent.toLowerCase().includes(s)?'':'none'})};q.oninput=f;f()}
+ /* when the month being worked on is run, go back to today by itself */
+ mpAutoBack()}}
+let _mpBack=false;
+function mpAutoBack(){try{if(_mpBack||!window.LIVE||!LIVE.asOf)return;const mk=LIVE.asOf.slice(0,7);if(PAYRUN[mk]&&PAYRUN[mk]!=='draft'&&!mpLate(mk).att.length&&!mpLate(mk).pay.length){_mpBack=true;toast(L('The payroll of ','')+mkP(mk)+L(' is run and the month is closed. Going back to today…',' का पेरोल रन हुआ, महीना बंद। आज पर लौट रहे हैं…'));
+ try{sessionStorage.setItem('lvAfter',JSON.stringify({page:'payroll',paytab:'month',paym:mk,mstep:'pay'}))}catch(x){}setTimeout(()=>LIVE.setAsOf&&LIVE.setAsOf(null),2500)}}catch(x){}}
 {const g=NAVSUB.payroll[0][2];if(!g.includes('taxd'))g.splice(Math.max(0,g.indexOf('stat')),0,'taxd');if(!g.includes('tax'))g.push('tax')}
 {const _beTD=bindExtra;bindExtra=function(){_beTD();const m=$('#main');if(!m)return;const on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
  on('[data-tdsave]',b=>b.onclick=()=>tdSave(b.dataset.tdsave));on('[data-tdver]',b=>b.onclick=()=>tdVerModal(+b.dataset.tdver));on('[data-tdf16]',b=>b.onclick=()=>tdForm16(+b.dataset.tdf16))};
