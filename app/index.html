@@ -7845,10 +7845,21 @@ ltSync();
 const ltYearStart=()=>{const y=+TODAY_S.slice(0,4), mo=+TODAY_S.slice(5,7);return (mo>=4?y:y-1)+'-04-01'};
 function ltProb(e){if(!e.doj)return false;const d=dt(e.doj);d.setMonth(d.getMonth()+SLA.probMonths);return d.toISOString().slice(0,10)>TODAY_S}
 function ltEligible(m,e){if(!e||!e.id)return true;if(m.gender!=='All'&&(e.gender||'')!==m.gender)return false;if(!m.prob&&ltProb(e))return false;if(m.desigs.length&&!m.desigs.includes(e.desig))return false;return true}
+/* "earned by work" leave (labour code): nothing until the person has worked accMin days (default 180) in the first year,
+   then 1 day for every accDays (default 20) days worked in the leave year. Worked = present, half day as half, paid leave and holidays.
+   Past months come from Process attendance; the running month from the attendance of each day. Someone who joined more than a year
+   before the leave year started is already past the first 180 days. */
+const _lvW={};
+function lvWorked(e){const k=e.id+'|'+TODAY_S, c=_lvW[k];if(c&&Date.now()-c.t<5000)return c.v;const ys=ltYearStart(), from=e.doj&&e.doj>ys?e.doj:ys;let w=0;
+ Object.keys(typeof ATTP!=='undefined'?ATTP:{}).forEach(mk=>{if(mk<from.slice(0,7)||mk>=curMk())return;const r=ATTP[mk].rows&&ATTP[mk].rows[e.id];if(r&&!r.seed)w+=(+r.present||0)+(+r.lv||0)+(+r.hol||0)});
+ for(let d=1;d<=TODAY_D;d++){const s=ds(d);if(s<from)continue;const st=dayRec(e.id,d).st;if(['P','L','WOP','HP','LV','H'].includes(st))w+=1;else if(st==='HD')w+=0.5}
+ _lvW[k]={t:Date.now(),v:w};return w}
+function lvEarned(e,m){if(!e||!e.id)return 0;const per=Math.max(1,+m.accDays||20), min=+m.accMin||180, ys=ltYearStart(), w=lvWorked(e);
+ const old=e.doj&&addD(e.doj,365)<=ys;if(!old&&w<min)return 0;return Math.floor(w/per)}
 function leaveBalance(emp){const o={}, e=empById(emp), ys=ltYearStart();
  Object.getOwnPropertyNames(LT).forEach(k=>{const m=LT[k].m, inYr=x=>m.once||(x.from||x.date)>=ys;
   const used=LEAVES.filter(l=>l.emp===emp&&l.type===k&&l.st==='approved'&&inYr(l)).reduce((a,l)=>a+l.days,0), pend=LEAVES.filter(l=>l.emp===emp&&l.type===k&&l.st==='pending'&&inYr(l)).reduce((a,l)=>a+l.days,0), adj=LADJ.filter(x=>x.emp===emp&&x.type===k&&inYr(x)).reduce((a,x)=>a+x.days,0);
-  const tot=(m.unlimited||m.earned?0:m.quota)+adj;
+  const tot=(m.unlimited||m.earned?0:(m.accrual==='work'?lvEarned(e,m):m.quota))+adj;
   o[k]={tot,used,pend,avail:m.unlimited?'∞':Math.round((tot-used-pend)*10)/10,na:!m.active||!ltEligible(m,e),unl:!!m.unlimited}});return o}
 const ltKeysFor=b=>Object.keys(LT).filter(k=>!b[k].na);
 const ltCard=(k,b)=>{const x=b[k];return `<div class="card"><small>${t(LT[k].k)} ${LT[k].paid===false?`<span class="pill p-bad" style="font-size:10px">${L('Unpaid','अवैतनिक')}</span>`:''}</small><div class="n">${x.avail}</div><small>${t('used')} ${x.used} · ${t('st_pending')} ${x.pend}${x.unl?'':` · ${t('total')} ${x.tot}`}</small>${x.unl?'':`<div class="bar"><i style="width:${x.tot>0?Math.min(100,(x.used+x.pend)/x.tot*100):0}%"></i></div>`}</div>`};
@@ -7973,6 +7984,8 @@ function ltModal(id){const m=id?LTM.find(x=>x.id===id):ltBase('','','',{quota:0}
   <div class="fgrid"><div><label>${L('Notice needed (days before)','कितने दिन पहले सूचना')}</label><input class="inp" type="number" name="notice" min="0" value="${m.notice}"></div><div><label>${L('Proof needed from (days, 0 = never)','सबूत कितने दिन से (0 = कभी नहीं)')}</label><input class="inp" type="number" name="proof" min="0" value="${m.proof}"></div></div>
   <div class="fgrid"><div><label>${L('Who can take','कौन ले सकता है')}</label><select class="inp" name="gender"><option value="All" ${m.gender==='All'?'selected':''}>${L('All','सभी')}</option><option value="F" ${m.gender==='F'?'selected':''}>${L('Women only','सिर्फ़ महिला')}</option><option value="M" ${m.gender==='M'?'selected':''}>${L('Men only','सिर्फ़ पुरुष')}</option></select></div><div><label>${L('Off days between leave days','छुट्टियों के बीच के अवकाश')}</label><select class="inp" name="sw">${Object.keys(LTSW).map(k=>`<option value="${k}" ${m.sandwich===k?'selected':''}>${L(...LTSW[k])}</option>`).join('')}</select></div></div>
   <label>${L('Only these designations (leave empty for all)','सिर्फ़ ये पद (सभी के लिए खाली छोड़ें)')}</label><select class="inp" name="ds" multiple size="4">${DATA.desigs.filter(d=>!d.off).map(d=>`<option value="${d.id}" ${m.desigs.includes(d.id)?'selected':''}>${esc(d.name)}</option>`).join('')}</select>
+  <label>${L('How the balance is given','बैलेंस कैसे मिलता है')}</label><select class="inp" name="accrual"><option value="start" ${m.accrual!=='work'?'selected':''}>${L('Full quota from the first day (quota above)','पहले दिन से पूरा कोटा (ऊपर वाला कोटा)')}</option><option value="work" ${m.accrual==='work'?'selected':''}>${L('As per labour law: after 180 days of work, 1 day for every 20 days worked','श्रम कानून के अनुसार: 180 दिन काम के बाद, हर 20 दिन काम पर 1 दिन')}</option></select>
+  <div class="fgrid"><div><label>${L('Days of work before the first leave (law: 180)','पहली छुट्टी से पहले काम के दिन (कानून: 180)')}</label><input class="inp" type="number" name="accMin" min="0" value="${m.accMin!=null?m.accMin:180}"></div><div><label>${L('1 day of leave for every … days worked (law: 20)','हर … दिन काम पर 1 दिन छुट्टी (कानून: 20)')}</label><input class="inp" type="number" name="accDays" min="1" value="${m.accDays!=null?m.accDays:20}"></div></div>
   <label style="display:flex;gap:8px;font-weight:400;margin-top:8px"><input type="checkbox" name="prob" ${m.prob?'checked':''}> ${L('Can be taken during probation','प्रोबेशन में ली जा सकती है')}</label>
   <label style="display:flex;gap:8px;font-weight:400"><input type="checkbox" name="unl" ${m.unlimited?'checked':''}> ${L('No limit (like leave without pay)','कोई सीमा नहीं (जैसे बिना वेतन छुट्टी)')}</label>
   <label style="display:flex;gap:8px;font-weight:400"><input type="checkbox" name="earned" ${m.earned?'checked':''}> ${L('Balance is given by HR only (like compensatory off)','बैलेंस सिर्फ़ HR देता है (जैसे कंपेन्सेटरी ऑफ़)')}</label>
@@ -7982,8 +7995,9 @@ function ltModal(id){const m=id?LTM.find(x=>x.id===id):ltBase('','','',{quota:0}
   if(!/^[A-Z]{2,6}$/.test(code))return er(L('Code must be 2 to 6 letters','कोड 2 से 6 अक्षर का हो'));if(!v.name.trim())return er(t('e_req'));
   if(!id&&LTM.some(x=>x.code===code))return er(L('This code already exists','यह कोड पहले से है'));
   if(LTM.some(x=>x.id!==id&&x.name.toLowerCase()===v.name.trim().toLowerCase()))return er(L('This name already exists','यह नाम पहले से है'));
-  const o={paid:v.paid==='1',name:v.name.trim(),hi:v.hi.trim()||v.name.trim(),quota:Math.max(0,+v.quota||0),maxDays:Math.max(0,+v.max||0),notice:Math.max(0,+v.notice||0),proof:Math.max(0,+v.proof||0),gender:v.gender,sandwich:v.sw,desigs:fd.getAll('ds').map(Number),prob:!!v.prob,unlimited:!!v.unl,earned:!!v.earned,once:!!v.once};
-  if(id){Object.assign(m,o);audit('Leave type','Edit',m.code,`${o.paid?'paid':'unpaid'}, quota ${o.quota}`)}else{LTM.push({...ltBase(code,'',''),...o,code});audit('Leave type','Add',code,`${o.paid?'paid':'unpaid'}, quota ${o.quota}`)}
+  const o={paid:v.paid==='1',name:v.name.trim(),hi:v.hi.trim()||v.name.trim(),quota:Math.max(0,+v.quota||0),maxDays:Math.max(0,+v.max||0),notice:Math.max(0,+v.notice||0),proof:Math.max(0,+v.proof||0),gender:v.gender,sandwich:v.sw,desigs:fd.getAll('ds').map(Number),prob:!!v.prob,unlimited:!!v.unl,earned:!!v.earned,once:!!v.once,accrual:v.accrual==='work'?'work':'start',accMin:Math.max(0,+v.accMin||0),accDays:Math.max(1,+v.accDays||20)};
+  if(o.accrual==='work'&&(o.unlimited||o.earned||o.once))return er(L('"As per labour law" cannot be used with no limit, HR-given balance or whole-service quota','"श्रम कानून के अनुसार" को बिना सीमा, HR बैलेंस या पूरी नौकरी के कोटे के साथ नहीं चुन सकते'));
+  if(id){Object.assign(m,o);audit('Leave type','Edit',m.code,`${o.paid?'paid':'unpaid'}, quota ${o.quota}, ${o.accrual==='work'?'earned by work '+o.accMin+'/'+o.accDays:'full quota'}`)}else{LTM.push({...ltBase(code,'',''),...o,code});audit('Leave type','Add',code,`${o.paid?'paid':'unpaid'}, quota ${o.quota}`)}
   ltSync();c();toast(t('saved'));render()})}
 function ltAdjModal(){const es=DATA.emps.filter(e=>e.active&&e.status==='Working');
  openModal(`<h3>${L('Add or cut a leave balance','छुट्टी का बैलेंस जोड़ें या घटाएँ')}</h3><label>${t('employees')}</label><select class="inp" name="e">${es.map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>
