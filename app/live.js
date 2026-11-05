@@ -79,6 +79,7 @@ async function syncAttendance(){
   const me=LIVE.profile&&LIVE.rev.emps[LIVE.profile.employee_id];
   for(const k of Object.keys(ATT)){const v=ATT[k], s=JSON.stringify(v);if(LIVE.attSnap[k]===s)continue;const [n,date]=k.split('|'), uuid=LIVE.map.emps[+n];if(!uuid){LIVE.attSnap[k]=s;continue}
     const old=LIVE.attSnap[k]?JSON.parse(LIVE.attSnap[k]):{};
+    if(LIVE.asOf&&+n===me&&date===TODAY_S){LIVE.attSnap[k]=s;continue}
     if(+n===me&&date===TODAY_S&&((v.in&&!old.in)||(v.out&&!old.out))){const r=await sb.rpc('punch');if(r.error)throw r.error;
       const a=(await sb.from('attendance').select('in_time,out_time').eq('employee_id',uuid).eq('work_date',date).maybeSingle()).data;if(a){v.in=t12(a.in_time);v.out=t12(a.out_time);v.bio=true}}
     else if(isHRrole()&&(v.in||v.out||v.status)){const row={client_id:LIVE.profile.client_id,employee_id:uuid,work_date:date,in_time:toTs(date,v.in),out_time:toTs(date,v.out),source:v.src||'Imported',note:v.status||null};
@@ -358,7 +359,7 @@ try{side=function(){const up=(typeof HOLI!=='undefined'?HOLI:[]).filter(h=>h[0]>
 const _dayRec=dayRec;
 dayRec=function(emp,d){const r=_dayRec(emp,d);if(!LIVE.on||LIVE.platform)return r;const s=ds(d), k=emp+'|'+s;
   if(d<TODAY_D&&['P','L','A'].includes(r.st)&&!ATT[k]&&!(typeof ACORR==='object'&&ACORR[k])&&!r.od&&r.src!=='Regularized'&&r.src!=='Corrected')return{st:'A'};
-  if(d===TODAY_D&&!ATT[k]&&['P','L'].includes(r.st))return{st:'N'};
+  if(d===TODAY_D&&!ATT[k]&&['P','L'].includes(r.st))return LIVE.asOf&&!(typeof ACORR==='object'&&ACORR[k])&&!r.od?{st:'A'}:{st:'N'};
   return r};
 
 /* ---------- save what changed ---------- */
@@ -393,7 +394,21 @@ function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.pl
     :L('This module is not connected to the database yet: it shows sample data and changes are not saved. Live now: employees, organisation, attendance, leave, payroll, PMS, My Assignment, assets, support and inbox.','यह मॉड्यूल अभी डेटाबेस से नहीं जुड़ा: इसमें नमूना डेटा है और बदलाव सेव नहीं होते। अभी लाइव: कर्मचारी, संगठन, हाज़िरी, छुट्टी, पेरोल, PMS, माई असाइनमेंट, एसेट, सपोर्ट और इनबॉक्स।');
   if(!n){n=document.createElement('div');n.id='liveNote';n.style.cssText='margin:0 0 12px;padding:8px 12px;border-radius:10px;font-size:12px'}
   n.style.background=live?'rgba(22,138,74,.12)':'rgba(183,121,31,.14)';n.style.color=live?'#166534':'#92400e';n.textContent=(LIVE.err?'⚠ '+LIVE.err+' · ':'')+txt;
-  if(m.firstChild!==n)m.insertBefore(n,m.firstChild)}
+  if(m.firstChild!==n)m.insertBefore(n,m.firstChild);closeBar(m)}
+/* ---------- close last month: HR works on the app as on the last day of last month (attendance, payroll, KPI) ---------- */
+LIVE.asOf=typeof _ASOF!=='undefined'?_ASOF:null;
+const setAsOf=v=>{try{if(v)sessionStorage.setItem('lvAsOf',v);else sessionStorage.removeItem('lvAsOf')}catch(e){}location.reload()};
+const lastMonthEnd=()=>{const n=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000);const d=new Date(n.getFullYear(),n.getMonth(),0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function closeBar(m){let b=document.getElementById('closeBar');if(b)b.remove();if(!isHRrole()){if(LIVE.asOf&&LIVE.profile)setAsOf(null);return}
+  const mname=s=>new Date(s+'T12:00:00').toLocaleDateString(loc(),{month:'long',year:'numeric'});
+  b=document.createElement('div');b.id='closeBar';b.style.cssText='margin:0 0 12px;padding:9px 12px;border-radius:10px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+  if(LIVE.asOf){b.style.background='rgba(185,28,28,.12)';b.style.color='#991b1b';
+    b.innerHTML=`<b>${L('Closing month: ','महीना बंद हो रहा है: ')+mname(LIVE.asOf)}</b><span>${L('The app shows the last day of that month. Process attendance, run payroll and close the KPI scores, then go back.','ऐप उस महीने का आख़िरी दिन दिखा रहा है। हाज़िरी प्रोसेस, पेरोल और KPI स्कोर बंद करें, फिर वापस जाएँ।')}</span><button class="btn btn-p btn-s" id="asOfBack">${L('Back to today','आज पर वापस')}</button>`}
+  else{const cur=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000).getDate();if(cur>15||!['timeoffice','payroll','pms','dashboard'].includes(state.page))return;
+    const le=lastMonthEnd();b.style.background='rgba(37,99,235,.10)';b.style.color='#1e3a8a';
+    b.innerHTML=`<span>${L('Last month is not closed? ','पिछला महीना बंद नहीं हुआ? ')}</span><button class="btn btn-o btn-s" id="asOfGo">${L('Close ','बंद करें: ')+mname(le)}</button>`}
+  m.insertBefore(b,m.children[1]||null);
+  const g=document.getElementById('asOfGo');if(g)g.onclick=()=>setAsOf(lastMonthEnd());const k=document.getElementById('asOfBack');if(k)k.onclick=()=>setAsOf(null)}
 
 /* ---------- hooks into the prototype ---------- */
 const _render=render;

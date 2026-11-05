@@ -699,7 +699,8 @@ function bindExtra(){
 }
 
 /* ---------- Day 7-9: attendance and leave ---------- */
-const _NOW=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000), Y=_NOW.getFullYear(), M=_NOW.getMonth(), TODAY_D=_NOW.getDate();
+const _ASOF=(()=>{try{const v=sessionStorage.getItem('lvAsOf');return /^\d{4}-\d{2}-\d{2}$/.test(v||'')?v:null}catch(e){return null}})();
+const _NOW=_ASOF?new Date(_ASOF+'T12:00:00'):new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000), Y=_NOW.getFullYear(), M=_NOW.getMonth(), TODAY_D=_NOW.getDate();
 const pad=n=>String(n).padStart(2,'0');
 const ds=(d,m=M,y=Y)=>`${y}-${pad(m+1)}-${pad(d)}`;
 const TODAY_S=ds(TODAY_D);
