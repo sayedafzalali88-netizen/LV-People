@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LV People</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#17212f;--muted:#64748b;--line:#e2e8f0;--brand:#1f3a5f;--brand2:#2f6fed;--ok:#168a4a;--warn:#b7791f;--bad:#c0392b;--side:#14233a;--sideink:#c9d6ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1623;--card:#16223a;--ink:#e6edf7;--muted:#93a4bd;--line:#26344e;--brand:#7fa8ff;--brand2:#4f86f7;--side:#0a1220;--sideink:#b6c4dc}}
+:root[data-theme=dark]{--bg:#0e1623;--card:#16223a;--ink:#e6edf7;--muted:#93a4bd;--line:#26344e;--brand:#7fa8ff;--brand2:#4f86f7;--side:#0a1220;--sideink:#b6c4dc}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit;color:inherit}
+.inp{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.inp:focus{outline:2px solid var(--brand2);outline-offset:0}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn-p{background:var(--brand2);border-color:var(--brand2);color:#fff}.btn-s{padding:4px 10px;font-size:12px}.btn-d{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+.login{min-height:100vh;display:grid;place-items:center;padding:16px}
+.lbox{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+.lbox h1{margin:0 0 4px;font-size:24px;color:var(--brand)}.lbox p{margin:0 0 14px;color:var(--muted)}
+.seg{display:flex;gap:6px;margin:12px 0}.seg button{flex:1}.seg .on{background:var(--brand2);color:#fff;border-color:var(--brand2)}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:8px}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.side{background:var(--side);color:var(--sideink);padding:18px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.side .logo{font-weight:700;font-size:18px;color:#fff;padding:4px 10px 14px}.side small{display:block;font-weight:400;color:var(--sideink);font-size:11px}
+.side a{display:block;padding:9px 12px;border-radius:8px;color:var(--sideink);text-decoration:none;margin:2px 0;cursor:pointer}
+.side a.on,.side a:hover{background:rgba(255,255,255,.12);color:#fff}
+.main{padding:20px 24px;min-width:0}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}.top h1{margin:0;font-size:22px;flex:1}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:var(--line)}.p-ok{background:#dcfce7;color:#166534}.p-warn{background:#fef3c7;color:#92400e}.p-bad{background:#fee2e2;color:#991b1b}.p-teal{background:#ccfbf1;color:#115e59}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.tw{overflow:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:12px;color:var(--muted);font-weight:600;background:var(--bg)}tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
+.tools{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}.tools .inp{max-width:210px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}.cards .card{padding:14px}.cards .n{font-size:26px;font-weight:700}
+.modal-bg{position:fixed;inset:0;background:rgba(10,18,32,.55);display:grid;place-items:center;padding:14px;z-index:20;overflow:auto}
+.modal{background:var(--card);border-radius:14px;padding:22px;width:100%;max-width:640px;max-height:92vh;overflow:auto}.modal h3{margin:0 0 6px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 14px}
+.acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.sec-t{font-weight:600;margin:16px 0 4px;color:var(--brand)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:40}
+.muted{color:var(--muted)}
+.menu-btn{display:none}
+@media print{body *{visibility:hidden}.modal-bg{position:static;background:none;padding:0}.modal,.modal *{visibility:visible}.modal{position:absolute;left:0;top:0;max-height:none;max-width:none;border:0}.noprint{display:none!important}}
+@media (max-width:820px){.shell{grid-template-columns:1fr}.side{position:fixed;left:-250px;width:230px;z-index:15;transition:left .2s}.side.open{left:0}.menu-btn{display:inline-block}.main{padding:14px 16px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+if(!window.supabase){document.getElementById('app').innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:16px;font-family:system-ui"><div style="max-width:380px;text-align:center"><h1 style="color:#1f3a5f">LV People</h1><p>Internet is not available, or it is very slow. Please check the connection and reload the page.</p><p>इंटरनेट उपलब्ध नहीं है या बहुत धीमा है। कनेक्शन जाँचें और पेज दोबारा खोलें।</p><button onclick="location.reload()" style="padding:8px 16px">Reload</button></div></div>';throw new Error('offline')}
+const SB_URL='https://okhikmjugdytahgnddjm.supabase.co', SB_KEY='sb_publishable_2rSs43HfAzKoTbqw5_AQkA_7XzAxMv0';
+const sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let LANG=(()=>{try{return localStorage.getItem('lv_lang')||'en'}catch(e){return 'en'}})();
+const L=(en,hi)=>LANG==='hi'&&hi?hi:en;
+const S={user:null,profile:null,client:null,platform:false,page:'home',nav:false,data:{},q:'',fb:'',fs:'',side:false,loading:false};
+const isHR=()=>S.platform||['admin','hr'].includes(S.profile&&S.profile.role);
+const fmtD=d=>{if(!d)return '—';const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})};
+const inr=n=>'₹'+Number(n||0).toLocaleString('en-IN');
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function modal(html,onSubmit,wide){const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<form class="modal" ${wide?'style="max-width:820px"':''}>${html}</form>`;document.body.appendChild(bg);
+  const close=()=>bg.remove();bg.addEventListener('mousedown',e=>{if(e.target===bg)close()});$$('[data-close]',bg).forEach(b=>b.onclick=close);
+  const f=$('form',bg);f.onsubmit=async e=>{e.preventDefault();const btn=$('button.btn-p',f);if(btn)btn.disabled=true;try{await onSubmit(f,close,bg)}catch(x){const m=$('#me',bg);if(m)m.textContent=x.message||String(x)}finally{if(btn)btn.disabled=false}};return bg}
+async function logAudit(module,action,subject,detail){if(!S.profile)return;await sb.from('audit_log').insert({client_id:S.profile.client_id,user_id:S.user.id,module,action,subject,detail:detail||''})}
+
+/* ---------- start ---------- */
+async function boot(){
+  $('#app').innerHTML='<div class="login"><div class="muted">LV People…</div></div>';
+  try{
+    const res=await Promise.race([sb.auth.getSession(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),6000))]);
+    const session=res&&res.data&&res.data.session;
+    if(session){S.user=session.user;await loadMe()}
+  }catch(x){
+    /* a stale or broken saved session: forget it and start clean (once) */
+    try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(y){}
+    let again=false;try{again=sessionStorage.getItem('lv_reset')==='1';sessionStorage.setItem('lv_reset','1')}catch(y){}
+    if(!again){location.reload();return}
+    S.user=null;S.profile=null;S.platform=false;
+  }
+  try{sessionStorage.removeItem('lv_reset')}catch(y){}
+  render();
+}
+async function loadMe(){
+  const [p,pa]=await Promise.all([sb.from('profiles').select('*, employee:employee_id(name,code), client:client_id(code,name,status,modules,leave_year_start)').eq('user_id',S.user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',S.user.id).maybeSingle()]);
+  S.platform=!!(pa.data);S.profile=p.data||null;S.client=p.data?p.data.client:null;
+  if(!S.platform&&!S.profile){await sb.auth.signOut();S.user=null;throw new Error('This login is not active')}
+  S.page=S.platform?'clients':'home';
+}
+
+/* ---------- login ---------- */
+let LMODE='client';
+function loginView(msg){
+  return `<div class="login"><form class="lbox" id="lf"><h1>LV People</h1><p>${L('Sign in to your company account','अपने कंपनी अकाउंट में साइन इन करें')}</p>
+  <div class="seg"><button type="button" class="btn ${LMODE==='client'?'on':''}" data-m="client">${L('Company login','कंपनी लॉगिन')}</button><button type="button" class="btn ${LMODE==='platform'?'on':''}" data-m="platform">${L('Platform admin','प्लेटफ़ॉर्म एडमिन')}</button></div>
+  ${LMODE==='client'?`<label>${L('Company code','कंपनी कोड')}</label><input class="inp" name="client" autocomplete="organization" placeholder="demo" required><label>${L('Employee code','कर्मचारी कोड')}</label><input class="inp" name="code" autocomplete="username" placeholder="E001" required>`:`<label>Email</label><input class="inp" name="email" type="email" autocomplete="username" required>`}
+  <label>${L('Password','पासवर्ड')}</label><input class="inp" name="pw" type="password" autocomplete="current-password" required>
+  <div class="err" id="le">${esc(msg||'')}</div><button class="btn btn-p" style="width:100%;margin-top:10px">${L('Sign in','साइन इन')}</button>
+  <p class="muted" style="margin-top:14px;font-size:12px;text-align:center"><a href="#" id="lg">${LANG==='hi'?'English':'हिंदी'}</a></p></form></div>`;
+}
+function bindLogin(){
+  $$('[data-m]').forEach(b=>b.onclick=()=>{LMODE=b.dataset.m;render()});
+  $('#lg').onclick=e=>{e.preventDefault();LANG=LANG==='hi'?'en':'hi';try{localStorage.setItem('lv_lang',LANG)}catch(x){}render()};
+  $('#lf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target), le=$('#le');le.textContent='';const btn=$('button.btn-p',e.target);btn.disabled=true;
+    try{const email=LMODE==='client'?`${f.get('code').trim().toLowerCase()}.${f.get('client').trim().toLowerCase()}@login.example.com`:f.get('email').trim();
+      const {data,error}=await sb.auth.signInWithPassword({email,password:f.get('pw')});
+      if(error)throw new Error(L('Wrong code or password','कोड या पासवर्ड ग़लत है'));
+      S.user=data.user;await loadMe();
+      if(LMODE==='client'&&!S.profile)throw new Error(L('This login is not active','यह लॉगिन चालू नहीं है'));
+      render()}catch(x){await sb.auth.signOut();S.user=null;S.profile=null;S.platform=false;render(x.message)}finally{btn&&(btn.disabled=false)}}
+}
+async function logout(){await sb.auth.signOut();S.user=null;S.profile=null;S.platform=false;S.data={};render()}
+
+/* ---------- change password ---------- */
+function pwView(msg){return `<div class="login"><form class="lbox" id="pf"><h1>${L('Set your password','अपना पासवर्ड बनाएँ')}</h1><p>${L('This is your first sign-in. Choose a new password (at least 8 characters).','यह आपका पहला साइन-इन है। नया पासवर्ड चुनें (कम से कम 8 अक्षर)।')}</p>
+ <label>${L('New password','नया पासवर्ड')}</label><input class="inp" type="password" name="a" autocomplete="new-password" required minlength="8"><label>${L('Repeat the password','पासवर्ड दोबारा')}</label><input class="inp" type="password" name="b" autocomplete="new-password" required minlength="8">
+ <div class="err" id="pe">${esc(msg||'')}</div><button class="btn btn-p" style="width:100%;margin-top:10px">${L('Save and continue','सेव करें और आगे बढ़ें')}</button></form></div>`}
+function bindPw(){$('#pf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target), pe=$('#pe');
+  if(f.get('a')!==f.get('b'))return pe.textContent=L('The two passwords are not the same','दोनों पासवर्ड एक जैसे नहीं हैं');
+  const {error}=await sb.auth.updateUser({password:f.get('a')});if(error)return pe.textContent=error.message;
+  await sb.from('profiles').update({must_change_password:false}).eq('user_id',S.user.id);S.profile.must_change_password=false;toast(L('Password saved','पासवर्ड सेव हुआ'));render()}}
+
+/* ---------- shell ---------- */
+const NAV=()=>S.platform?[['clients',L('Clients','क्लाइंट')]]:[['home',L('Home','होम')],['employees',L('Employees','कर्मचारी')],['att',L('Attendance','हाज़िरी')],['leave',L('Leave','छुट्टी')],['pay',L('Payroll','पेरोल')],['org',L('Organisation','संगठन')],...(isHR()?[['logins',L('Logins','लॉगिन')]]:[]),['me',L('My profile','मेरी प्रोफ़ाइल')]];
+function shell(body){
+  const who=S.platform?'LV People · Platform':(S.profile.employee?S.profile.employee.name:S.profile.login_code);
+  return `<div class="shell"><aside class="side ${S.side?'open':''}"><div class="logo">LV People<small>${esc(S.platform?L('All clients','सभी क्लाइंट'):S.client.name)}</small></div>
+  ${NAV().map(([k,n])=>`<a data-nav="${k}" class="${S.page===k?'on':''}">${n}</a>`).join('')}
+  <div style="margin-top:26px;border-top:1px solid rgba(255,255,255,.14);padding-top:12px;font-size:12px"><div style="padding:0 12px;color:#fff">${esc(who)}</div><div style="padding:0 12px 8px">${S.platform?'Platform admin':esc(S.profile.role)}</div><a id="lgo">${L('Sign out','साइन आउट')}</a><a id="lang">${LANG==='hi'?'English':'हिंदी'}</a></div></aside>
+  <main class="main"><div class="top"><button class="btn btn-s menu-btn" id="mb">☰</button>${body.head}</div>${body.html}</main></div>`;
+}
+function bindShell(){
+  $$('[data-nav]').forEach(a=>a.onclick=()=>{S.page=a.dataset.nav;S.side=false;S.q='';S.fb='';S.fs='';render()});
+  $('#lgo').onclick=logout;$('#lang').onclick=()=>{LANG=LANG==='hi'?'en':'hi';try{localStorage.setItem('lv_lang',LANG)}catch(x){}render()};
+  const mb=$('#mb');if(mb)mb.onclick=()=>{S.side=!S.side;$('.side').classList.toggle('open',S.side)};
+}
+
+/* ---------- data helpers ---------- */
+async function loadOrg(){
+  const [b,d,dp,f,g]=await Promise.all(['branches','divisions','departments','job_functions','designations'].map(t=>sb.from(t).select('*').order('name')));
+  S.data.branches=b.data||[];S.data.divisions=d.data||[];S.data.departments=dp.data||[];S.data.functions=f.data||[];S.data.designations=g.data||[];
+}
+async function loadEmps(){
+  const {data,error}=await sb.from('employees').select('*').order('code').limit(2000);if(error)throw error;S.data.emps=data||[];
+  const {data:pf}=await sb.from('profiles').select('user_id,employee_id,login_code,role,active,must_change_password');S.data.logins=pf||[];
+}
+const nmOf=(list,id)=>{const x=(S.data[list]||[]).find(r=>r.id===id);return x?x.name:'—'};
+const empName=id=>{const e=(S.data.emps||[]).find(r=>r.id===id);return e?e.name:'—'};
+const opts=(list,sel,blank)=>`<option value="">${blank||'—'}</option>`+(S.data[list]||[]).filter(x=>x.active!==false||x.id===sel).map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)}</option>`).join('');
+
+/* ---------- pages ---------- */
+async function pageHome(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const E=S.data.emps, w=E.filter(e=>e.active), me=S.profile.employee_id?E.find(e=>e.id===S.profile.employee_id):null;
+  const byB=S.data.branches.map(b=>[b.name,w.filter(e=>e.branch_id===b.id).length]);
+  return {head:`<h1>${L('Home','होम')}</h1>`,html:`<div class="cards"><div class="card"><div class="muted">${L('Working employees','कार्यरत कर्मचारी')}</div><div class="n">${w.length}</div></div><div class="card"><div class="muted">${L('Branches','शाखाएँ')}</div><div class="n">${S.data.branches.length}</div></div><div class="card"><div class="muted">${L('Left or relieved','छोड़ चुके')}</div><div class="n">${E.length-w.length}</div></div></div>
+  ${me?`<div class="card" style="padding:16px;margin-bottom:16px"><b>${L('Welcome','स्वागत है')}, ${esc(me.name)}</b><div class="muted">${esc(me.code)} · ${esc(nmOf('designations',me.designation_id))} · ${esc(nmOf('branches',me.branch_id))}</div></div>`:''}
+  <div class="card tw"><table><thead><tr><th>${L('Branch','शाखा')}</th><th>${L('Working employees','कार्यरत')}</th></tr></thead><tbody>${byB.map(([n,c])=>`<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</tbody></table></div>`};
+}
+async function pageEmployees(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const q=S.q.toLowerCase(), rows=S.data.emps.filter(e=>(!S.fb||e.branch_id===S.fb)&&(!S.fs||(S.fs==='W'?e.active:!e.active))&&(!q||[e.name,e.code,e.mobile].join(' ').toLowerCase().includes(q)));
+  const lg=id=>S.data.logins.find(l=>l.employee_id===id);
+  return {head:`<h1>${L('Employees','कर्मचारी')} <span class="muted" style="font-size:14px">${rows.length}</span></h1>${isHR()?`<button class="btn btn-p" id="addE">+ ${L('Add employee','कर्मचारी जोड़ें')}</button>`:''}`,
+  html:`<div class="tools"><input class="inp" id="q" placeholder="${L('Search name, code, mobile','नाम, कोड, मोबाइल खोजें')}" value="${esc(S.q)}"><select class="inp" id="fb"><option value="">${L('All branches','सभी शाखाएँ')}</option>${S.data.branches.map(b=>`<option value="${b.id}" ${S.fb===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select><select class="inp" id="fs"><option value="">${L('All','सभी')}</option><option value="W" ${S.fs==='W'?'selected':''}>${L('Working','कार्यरत')}</option><option value="L" ${S.fs==='L'?'selected':''}>${L('Left','छोड़ चुके')}</option></select></div>
+  <div class="card tw"><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Designation','पद')}</th><th>${L('Branch','शाखा')}</th><th>${L('Reports to','रिपोर्टिंग')}</th><th>${L('Status','स्थिति')}</th><th>${L('Login','लॉगिन')}</th></tr></thead><tbody>${rows.map(e=>{const l=lg(e.id);return `<tr class="click" data-e="${e.id}"><td>${esc(e.code)}</td><td><b>${esc(e.name)}</b></td><td>${esc(nmOf('designations',e.designation_id))}</td><td>${esc(nmOf('branches',e.branch_id))}</td><td>${esc(empName(e.manager_id))}</td><td><span class="pill ${e.active?'p-ok':'p-warn'}">${esc(e.status)}</span></td><td>${l?`<span class="pill ${l.active?'p-teal':'p-bad'}">${esc(l.role)}</span>`:'—'}</td></tr>`}).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">${L('No employee found','कोई कर्मचारी नहीं मिला')}</td></tr>`}</tbody></table></div>`};
+}
+function bindEmployees(){
+  $('#q').oninput=e=>{S.q=e.target.value;clearTimeout(bindEmployees.t);bindEmployees.t=setTimeout(()=>render(true),250)};
+  $('#fb').onchange=e=>{S.fb=e.target.value;render()};$('#fs').onchange=e=>{S.fs=e.target.value;render()};
+  $$('tr[data-e]').forEach(r=>r.onclick=()=>empModal(r.dataset.e));
+  const a=$('#addE');if(a)a.onclick=()=>empForm(null);
+}
+async function empModal(id){
+  const e=S.data.emps.find(x=>x.id===id), canSee=isHR()||S.profile.employee_id===id;
+  let pr=null;if(canSee){const r=await sb.from('employee_private').select('*').eq('employee_id',id).maybeSingle();pr=r.data}
+  const row=(a,b)=>`<tr><td class="muted" style="width:42%">${a}</td><td style="white-space:normal">${b==null||b===''?'—':esc(b)}</td></tr>`;
+  const em=(e.emergency||[]).map(x=>`${x.name} · ${x.relation} · ${x.mobile}`).join('; ');
+  const bg=modal(`<h3>${esc(e.name)} <span class="muted" style="font-size:13px">${esc(e.code)}</span></h3>
+  <div class="sec-t">${L('Work','काम')}</div><table>${row(L('Designation','पद'),nmOf('designations',e.designation_id))}${row(L('Division','डिवीज़न'),nmOf('divisions',e.division_id))}${row(L('Department','विभाग'),nmOf('departments',e.department_id))}${row(L('Branch','शाखा'),nmOf('branches',e.branch_id))}${row(L('Reports to','रिपोर्टिंग'),empName(e.manager_id))}${row(L('Date of joining','जॉइनिंग'),fmtD(e.doj))}${row(L('Status','स्थिति'),e.status+(e.lwd?' · '+fmtD(e.lwd):''))}</table>
+  <div class="sec-t">${L('Personal','निजी')}</div><table>${row(L('Mobile','मोबाइल'),e.mobile)}${row('Email',e.email)}${row(L('Date of birth','जन्मतिथि'),fmtD(e.dob))}${row(L('Gender','लिंग'),e.gender)}${row(L('Marital status','वैवाहिक स्थिति'),e.marital_status)}${row(L('Emergency contact','आपातकालीन संपर्क'),em)}</table>
+  ${pr?`<div class="sec-t">${L('Pay and ID','वेतन और पहचान')}</div><table>${row('CTC',inr(pr.ctc))}${row('PAN',pr.pan)}${row('Aadhaar',pr.aadhaar&&('XXXX XXXX '+pr.aadhaar.slice(-4)))}${row('UAN',pr.uan)}${row('ESIC',pr.esi)}${row(L('Bank','बैंक'),[pr.bank_name,pr.ifsc,pr.account_no].filter(Boolean).join(' · '))}</table>`:''}
+  <div class="acts"><button type="button" class="btn" data-close>${L('Close','बंद')}</button>${isHR()?`<button type="button" class="btn btn-p" id="ed">${L('Edit','बदलें')}</button>`:''}</div>`,()=>{});
+  const ed=$('#ed',bg);if(ed)ed.onclick=()=>{bg.remove();empForm(id)};
+}
+async function empForm(id){
+  const e=id?S.data.emps.find(x=>x.id===id):{status:'Working',active:true,emergency:[]};
+  let pr={};if(id){const r=await sb.from('employee_private').select('*').eq('employee_id',id).maybeSingle();pr=r.data||{}}
+  let code=e.code;if(!id){const r=await sb.rpc('next_emp_code');if(r.error)return toast(r.error.message);code=r.data}
+  const em0=(e.emergency&&e.emergency[0])||{}, v=x=>esc(x==null?'':x);
+  const bg=modal(`<h3>${id?L('Edit employee','कर्मचारी बदलें'):L('New employee','नया कर्मचारी')} · ${esc(code)}</h3>
+  <div class="sec-t">${L('Work','काम')}</div><div class="fgrid">
+  <div><label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${v(e.name)}" required></div>
+  <div><label>${L('Date of joining','जॉइनिंग')} *</label><input class="inp" type="date" name="doj" value="${v(e.doj)}" required></div>
+  <div><label>${L('Branch','शाखा')} *</label><select class="inp" name="branch_id" required>${opts('branches',e.branch_id,L('Choose','चुनें'))}</select></div>
+  <div><label>${L('Division','डिवीज़न')}</label><select class="inp" name="division_id">${opts('divisions',e.division_id)}</select></div>
+  <div><label>${L('Department','विभाग')}</label><select class="inp" name="department_id">${opts('departments',e.department_id)}</select></div>
+  <div><label>${L('Designation','पद')} *</label><select class="inp" name="designation_id" required>${opts('designations',e.designation_id,L('Choose','चुनें'))}</select></div>
+  <div><label>${L('Reports to','रिपोर्टिंग')}</label><select class="inp" name="manager_id"><option value="">—</option>${S.data.emps.filter(x=>x.active&&x.id!==id).map(x=>`<option value="${x.id}" ${x.id===e.manager_id?'selected':''}>${esc(x.code+' '+x.name)}</option>`).join('')}</select></div>
+  <div><label>${L('Status','स्थिति')}</label><select class="inp" name="status">${['Working','Notice','Relieved','Absconding'].map(s=>`<option ${s===e.status?'selected':''}>${s}</option>`).join('')}</select></div>
+  <div><label>${L('Last working day','अंतिम कार्यदिवस')}</label><input class="inp" type="date" name="lwd" value="${v(e.lwd)}"></div></div>
+  <div class="sec-t">${L('Personal','निजी')}</div><div class="fgrid">
+  <div><label>${L('Mobile','मोबाइल')} *</label><input class="inp" name="mobile" value="${v(e.mobile)}" inputmode="numeric" maxlength="10" required></div>
+  <div><label>Email</label><input class="inp" type="email" name="email" value="${v(e.email)}"></div>
+  <div><label>${L('Date of birth','जन्मतिथि')}</label><input class="inp" type="date" name="dob" value="${v(e.dob)}"></div>
+  <div><label>${L('Gender','लिंग')}</label><select class="inp" name="gender"><option value="">—</option>${[['M',L('Male','पुरुष')],['F',L('Female','महिला')],['O',L('Other','अन्य')]].map(([k,n])=>`<option value="${k}" ${e.gender===k?'selected':''}>${n}</option>`).join('')}</select></div>
+  <div><label>${L('Marital status','वैवाहिक स्थिति')}</label><select class="inp" name="marital_status"><option value="">—</option>${['Single','Married','Divorced','Widowed'].map(s=>`<option ${e.marital_status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+  <div><label>${L('Emergency contact name','आपातकालीन संपर्क')}</label><input class="inp" name="em_name" value="${v(em0.name)}"></div>
+  <div><label>${L('Relation','संबंध')}</label><input class="inp" name="em_rel" value="${v(em0.relation)}"></div>
+  <div><label>${L('Emergency mobile','आपातकालीन मोबाइल')}</label><input class="inp" name="em_mob" value="${v(em0.mobile)}" maxlength="10"></div></div>
+  <div class="sec-t">${L('Pay and ID','वेतन और पहचान')}</div><div class="fgrid">
+  <div><label>CTC (${L('per year','सालाना')})</label><input class="inp" type="number" min="0" step="1" name="ctc" value="${v(pr.ctc||0)}"></div>
+  <div><label>PAN</label><input class="inp" name="pan" value="${v(pr.pan)}" maxlength="10" style="text-transform:uppercase"></div>
+  <div><label>Aadhaar</label><input class="inp" name="aadhaar" value="${v(pr.aadhaar)}" inputmode="numeric" maxlength="12"></div>
+  <div><label>UAN</label><input class="inp" name="uan" value="${v(pr.uan)}" inputmode="numeric" maxlength="12"></div>
+  <div><label>ESIC</label><input class="inp" name="esi" value="${v(pr.esi)}" maxlength="17"></div>
+  <div><label>${L('Bank name','बैंक')}</label><input class="inp" name="bank_name" value="${v(pr.bank_name)}"></div>
+  <div><label>IFSC</label><input class="inp" name="ifsc" value="${v(pr.ifsc)}" maxlength="11" style="text-transform:uppercase"></div>
+  <div><label>${L('Account number','खाता नंबर')}</label><input class="inp" name="account_no" value="${v(pr.account_no)}" inputmode="numeric" maxlength="20"></div></div>
+  <div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));
+    const bad=m=>{throw new Error(m)};
+    if(!d.name.trim())bad(L('Write the name','नाम लिखें'));
+    if(!/^[6-9]\d{9}$/.test(d.mobile))bad(L('Mobile must be 10 digits','मोबाइल 10 अंक का हो'));
+    if(d.em_mob&&!/^\d{10}$/.test(d.em_mob))bad(L('Emergency mobile must be 10 digits','आपातकालीन मोबाइल 10 अंक का हो'));
+    d.pan=d.pan.toUpperCase().trim();d.ifsc=d.ifsc.toUpperCase().trim();
+    if(d.pan&&!/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan))bad(L('PAN looks wrong (like ABCDE1234F)','PAN सही नहीं (जैसे ABCDE1234F)'));
+    if(d.aadhaar&&!/^\d{12}$/.test(d.aadhaar))bad(L('Aadhaar must be 12 digits','आधार 12 अंक का हो'));
+    if(d.uan&&!/^\d{12}$/.test(d.uan))bad(L('UAN must be 12 digits','UAN 12 अंक का हो'));
+    if(d.ifsc&&!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(d.ifsc))bad(L('IFSC looks wrong','IFSC सही नहीं'));
+    if(d.dob&&d.doj&&d.dob>=d.doj)bad(L('Date of birth must be before joining','जन्मतिथि जॉइनिंग से पहले हो'));
+    const status=d.status, active=!['Relieved','Absconding'].includes(status);
+    const emp={client_id:S.profile.client_id,code,name:d.name.trim(),mobile:d.mobile,email:d.email||null,dob:d.dob||null,gender:d.gender||null,doj:d.doj,branch_id:d.branch_id||null,division_id:d.division_id||null,department_id:d.department_id||null,designation_id:d.designation_id||null,manager_id:d.manager_id||null,status,lwd:d.lwd||null,active,marital_status:d.marital_status||null,
+      emergency:d.em_name?[{name:d.em_name,relation:d.em_rel,mobile:d.em_mob}]:[]};
+    let eid=id;
+    if(id){const r=await sb.from('employees').update(emp).eq('id',id);if(r.error)throw r.error}
+    else{const r=await sb.from('employees').insert(emp).select('id').single();if(r.error)throw r.error;eid=r.data.id}
+    const p={employee_id:eid,client_id:S.profile.client_id,ctc:+d.ctc||0,pan:d.pan||null,aadhaar:d.aadhaar||null,uan:d.uan||null,esi:d.esi||null,bank_name:d.bank_name||null,ifsc:d.ifsc||null,account_no:d.account_no||null};
+    const r2=await sb.from('employee_private').upsert(p);if(r2.error)throw r2.error;
+    await logAudit('Employee',id?'Edited':'Added',code,emp.name);close();toast(L('Saved','सेव हुआ'));render()},true);
+}
+async function pageOrg(){
+  await loadOrg();const D=S.data;
+  const box=(t,key,title,cols)=>`<div class="card tw" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${title}</h3>${isHR()?`<button class="btn btn-p btn-s" data-oadd="${t}">+ ${L('Add','जोड़ें')}</button>`:''}</div><table><thead><tr><th>${L('Name','नाम')}</th>${cols.map(c=>`<th>${c[0]}</th>`).join('')}<th></th></tr></thead><tbody>${D[key].map(x=>`<tr style="${x.active===false?'opacity:.5':''}"><td><b>${esc(x.name)}</b></td>${cols.map(c=>`<td>${esc(c[1](x))}</td>`).join('')}<td style="text-align:right">${isHR()?`<button class="btn btn-s" data-oed="${t}|${x.id}">${L('Edit','बदलें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="${cols.length+2}" class="muted">—</td></tr>`}</tbody></table></div>`;
+  return {head:`<h1>${L('Organisation','संगठन')}</h1>`,html:
+   box('branches','branches',L('Branches','शाखाएँ'),[[L('City','शहर'),x=>x.city||''],[L('State','राज्य'),x=>x.state||'']])+
+   box('divisions','divisions',L('Divisions','डिवीज़न'),[])+
+   box('departments','departments',L('Departments','विभाग'),[[L('Division','डिवीज़न'),x=>nmOf('divisions',x.division_id)]])+
+   box('designations','designations',L('Designations','पद'),[[L('Level','स्तर'),x=>x.level||'']])};
+}
+const ORG_T={branches:{table:'branches',extra:[['city','City'],['state','State']]},divisions:{table:'divisions',extra:[]},departments:{table:'departments',extra:[],fk:['division_id','divisions']},designations:{table:'designations',extra:[['level','Level (L1, L2...)']]}};
+function orgForm(t,id){
+  const m=ORG_T[t], x=id?S.data[t].find(r=>r.id===id):{active:true};
+  modal(`<h3>${id?L('Edit','बदलें'):L('Add','जोड़ें')}</h3><label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${esc(x.name||'')}" required>${m.extra.map(([k,n])=>`<label>${n}</label><input class="inp" name="${k}" value="${esc(x[k]||'')}">`).join('')}${m.fk?`<label>${L('Division','डिवीज़न')}</label><select class="inp" name="${m.fk[0]}">${opts(m.fk[1],x[m.fk[0]])}</select>`:''}
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="active" ${x.active!==false?'checked':''}> ${L('Active','चालू')}</label><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));if(!d.name.trim())throw new Error(L('Write the name','नाम लिखें'));
+    if((S.data[t]||[]).some(r=>r.id!==id&&r.name.toLowerCase()===d.name.trim().toLowerCase()))throw new Error(L('This name already exists','यह नाम पहले से है'));
+    const row={name:d.name.trim(),active:!!d.active};m.extra.forEach(([k])=>row[k]=d[k]||null);if(m.fk)row[m.fk[0]]=d[m.fk[0]]||null;
+    const r=id?await sb.from(m.table).update(row).eq('id',id):await sb.from(m.table).insert({...row,client_id:S.profile.client_id});if(r.error)throw r.error;
+    await logAudit('Organisation',id?'Edited':'Added',t,row.name);close();toast(L('Saved','सेव हुआ'));render()});
+}
+function bindOrg(){$$('[data-oadd]').forEach(b=>b.onclick=()=>orgForm(b.dataset.oadd,null));$$('[data-oed]').forEach(b=>b.onclick=()=>{const [t,id]=b.dataset.oed.split('|');orgForm(t,id)})}
+async function pageLogins(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const E=S.data.emps, rows=S.data.logins.map(l=>({l,e:E.find(x=>x.id===l.employee_id)})).sort((a,b)=>(a.l.login_code>b.l.login_code?1:-1)), without=E.filter(e=>e.active&&!S.data.logins.some(l=>l.employee_id===e.id));
+  return {head:`<h1>${L('Logins','लॉगिन')}</h1>${without.length?`<button class="btn btn-p" id="addL">+ ${L('Give a login','लॉगिन दें')}</button>`:''}`,html:`<p class="muted">${L('Employees sign in with the company code, their employee code and a password. You give a first password; the employee must change it at the first sign-in.','कर्मचारी कंपनी कोड, अपने कोड और पासवर्ड से साइन इन करते हैं। आप पहला पासवर्ड देते हैं; कर्मचारी को पहले साइन-इन पर उसे बदलना होता है।')}</p>
+  <div class="card tw"><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Role','भूमिका')}</th><th>${L('State','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(({l,e})=>`<tr><td>${esc(l.login_code)}</td><td><b>${esc(e?e.name:'—')}</b></td><td>${esc(l.role)}</td><td><span class="pill ${l.active?'p-ok':'p-bad'}">${l.active?L('Active','चालू'):L('Off','बंद')}</span>${l.must_change_password?` <span class="pill p-warn">${L('first sign-in pending','पहला साइन-इन बाकी')}</span>`:''}</td><td style="text-align:right"><button class="btn btn-s" data-le="${l.user_id}">${L('Change','बदलें')}</button> <button class="btn btn-s" data-lr="${l.user_id}">${L('Reset password','पासवर्ड रीसेट')}</button></td></tr>`).join('')}</tbody></table></div>`,without};
+}
+const tmpPw=()=>{const a=new Uint8Array(6);crypto.getRandomValues(a);return 'Lv'+[...a].map(x=>'abcdefghjkmnpqrstuvwxyz23456789'[x%31]).join('')+'7'};
+function loginForm(){
+  const without=S.data.emps.filter(e=>e.active&&!S.data.logins.some(l=>l.employee_id===e.id)), pw=tmpPw();
+  modal(`<h3>${L('Give a login','लॉगिन दें')}</h3><label>${L('Employee','कर्मचारी')}</label><select class="inp" name="emp" required>${without.map(e=>`<option value="${e.id}">${esc(e.code+' '+e.name)}</option>`).join('')}</select>
+  <label>${L('Role','भूमिका')}</label><select class="inp" name="role">${['employee','manager','hr','admin'].map(r=>`<option>${r}</option>`).join('')}</select><label>${L('First password','पहला पासवर्ड')}</label><input class="inp" name="pw" value="${pw}" required minlength="8">
+  <p class="muted">${L('Tell this password to the employee. It is shown only now.','यह पासवर्ड कर्मचारी को बताएँ। यह अभी ही दिखता है।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Create','बनाएँ')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('create_login',{p_employee:d.emp,p_role:d.role,p_password:d.pw});if(r.error)throw r.error;close();toast(L('Login created','लॉगिन बन गया'));render()});
+}
+function loginEdit(uid){
+  const l=S.data.logins.find(x=>x.user_id===uid), e=S.data.emps.find(x=>x.id===l.employee_id);
+  modal(`<h3>${esc(e?e.name:l.login_code)}</h3><label>${L('Role','भूमिका')}</label><select class="inp" name="role">${['employee','manager','hr','admin'].map(r=>`<option ${l.role===r?'selected':''}>${r}</option>`).join('')}</select>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="active" ${l.active?'checked':''}> ${L('Login is active','लॉगिन चालू है')}</label><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('update_login',{p_user:uid,p_role:d.role,p_active:!!d.active});if(r.error)throw r.error;close();toast(L('Saved','सेव हुआ'));render()});
+}
+function loginReset(uid){
+  const pw=tmpPw();modal(`<h3>${L('Reset password','पासवर्ड रीसेट')}</h3><label>${L('New first password','नया पहला पासवर्ड')}</label><input class="inp" name="pw" value="${pw}" required minlength="8"><p class="muted">${L('The employee must change it at the next sign-in.','कर्मचारी को अगले साइन-इन पर इसे बदलना होगा।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reset','रीसेट')}</button></div>`,
+  async(f,close)=>{const r=await sb.rpc('reset_login_password',{p_user:uid,p_password:new FormData(f).get('pw')});if(r.error)throw r.error;close();toast(L('Password reset','पासवर्ड रीसेट हुआ'))});
+}
+function bindLogins(){const a=$('#addL');if(a)a.onclick=loginForm;$$('[data-le]').forEach(b=>b.onclick=()=>loginEdit(b.dataset.le));$$('[data-lr]').forEach(b=>b.onclick=()=>loginReset(b.dataset.lr))}
+async function pageMe(){
+  await Promise.all([loadOrg(),loadEmps()]);const id=S.profile.employee_id, e=S.data.emps.find(x=>x.id===id);
+  if(!e)return {head:`<h1>${L('My profile','मेरी प्रोफ़ाइल')}</h1>`,html:`<p class="muted">${L('No employee record is linked to this login.','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा।')}</p>`};
+  return {head:`<h1>${L('My profile','मेरी प्रोफ़ाइल')}</h1><button class="btn" id="chpw">${L('Change password','पासवर्ड बदलें')}</button>`,html:`<div class="card" style="padding:16px"><b>${esc(e.name)}</b> <span class="muted">${esc(e.code)}</span><div class="muted">${esc(nmOf('designations',e.designation_id))} · ${esc(nmOf('branches',e.branch_id))} · ${L('Reports to','रिपोर्टिंग')} ${esc(empName(e.manager_id))}</div><div style="margin-top:10px"><button class="btn btn-p" id="mypf">${L('See all my details','मेरी पूरी जानकारी')}</button></div></div>`};
+}
+function bindMe(){const b=$('#mypf');if(b)b.onclick=()=>empModal(S.profile.employee_id);
+  const c=$('#chpw');if(c)c.onclick=()=>modal(`<h3>${L('Change password','पासवर्ड बदलें')}</h3><label>${L('New password','नया पासवर्ड')}</label><input class="inp" type="password" name="a" required minlength="8" autocomplete="new-password"><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,async(f,close)=>{const r=await sb.auth.updateUser({password:new FormData(f).get('a')});if(r.error)throw r.error;close();toast(L('Password saved','पासवर्ड सेव हुआ'))})}
+async function pageClients(){
+  const [c,e]=await Promise.all([sb.from('clients').select('*').order('created_at'),sb.from('employees').select('client_id,active')]);
+  const cnt=id=>(e.data||[]).filter(x=>x.client_id===id&&x.active).length;
+  return {head:`<h1>${L('Clients','क्लाइंट')}</h1>`,html:`<div class="card tw"><table><thead><tr><th>${L('Company code','कंपनी कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Status','स्थिति')}</th><th>${L('Employees','कर्मचारी')}</th><th>${L('Limit','सीमा')}</th><th>${L('Modules','मॉड्यूल')}</th></tr></thead><tbody>${(c.data||[]).map(x=>`<tr><td><b>${esc(x.code)}</b></td><td>${esc(x.name)}</td><td><span class="pill ${x.status==='active'?'p-ok':'p-warn'}">${esc(x.status)}</span></td><td>${cnt(x.id)}</td><td>${x.employee_limit}</td><td style="white-space:normal">${esc((x.modules||[]).join(', '))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin-top:12px">${L('Creating a new client and its KPI pack comes in the next steps.','नया क्लाइंट और उसका KPI पैक अगले चरणों में आएगा।')}</p>`};
+}
+
+/* ---------- leave ---------- */
+S.ltab='mine';S.lf='';
+const ltName=t=>LANG==='hi'&&t.name_hi?t.name_hi:t.name;
+const stPill=s=>`<span class="pill ${s==='approved'?'p-ok':s==='rejected'||s==='cancelled'?'p-bad':'p-warn'}">${({approved:L('Approved','मंज़ूर'),rejected:L('Rejected','अस्वीकार'),cancelled:L('Cancelled','रद्द'),pending:L('Pending','लंबित')})[s]||s}</span>`;
+const dRange=r=>fmtD(r.from_date)+(r.to_date!==r.from_date?' – '+fmtD(r.to_date):'');
+async function loadLeave(){
+  const [t,h,r]=await Promise.all([sb.from('leave_types').select('*').order('code'),sb.from('holidays').select('*').order('hdate'),sb.from('leave_requests').select('*').order('from_date',{ascending:false}).limit(1000)]);
+  if(r.error)throw r.error;S.data.ltypes=t.data||[];S.data.holidays=h.data||[];S.data.lreq=r.data||[];
+}
+const canDecide=r=>r.status==='pending'&&r.employee_id!==S.profile.employee_id&&(isHR()||(S.data.emps||[]).some(e=>e.id===r.employee_id&&e.manager_id===S.profile.employee_id));
+async function pageLeave(){
+  await Promise.all([loadOrg(),loadEmps(),loadLeave()]);
+  const me=S.profile.employee_id, D=S.data, tn=id=>{const t=D.ltypes.find(x=>x.id===id);return t?ltName(t):'—'};
+  const mineR=D.lreq.filter(r=>r.employee_id===me), wait=D.lreq.filter(canDecide), hrView=isHR(), isMgr=D.emps.some(e=>e.manager_id===me);
+  const tabs=[['mine',L('My leave','मेरी छुट्टी')],...((hrView||isMgr)?[['approve',L('Approvals','मंज़ूरी')+(wait.length?` (${wait.length})`:'')]]:[]),...(hrView?[['all',L('All requests','सभी माँगें')],['setup',L('Setup','सेटअप')]]:[])];
+  if(!tabs.some(t=>t[0]===S.ltab))S.ltab='mine';
+  let body='';
+  const table=(rows,opt)=>`<div class="card tw"><table><thead><tr>${opt.emp?`<th>${L('Employee','कर्मचारी')}</th>`:''}<th>${L('Type','प्रकार')}</th><th>${L('Dates','तारीख़')}</th><th>${L('Days','दिन')}</th><th>${L('Reason','कारण')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr>${opt.emp?`<td><b>${esc(empName(r.employee_id))}</b></td>`:''}<td>${esc(tn(r.type_id))}</td><td>${dRange(r)}</td><td>${r.days}${r.half?' ('+L('half','आधा')+')':''}</td><td style="white-space:normal;max-width:240px">${esc(r.reason||'')}${r.comment?`<small class="muted" style="display:block">${esc(r.comment)}</small>`:''}</td><td>${stPill(r.status)}</td><td style="text-align:right;white-space:nowrap">${opt.dec&&canDecide(r)?`<button class="btn btn-p btn-s" data-lok="${r.id}">${L('Approve','मंज़ूर')}</button> <button class="btn btn-s btn-d" data-lno="${r.id}">${L('Reject','अस्वीकार')}</button>`:''}${opt.cancel&&(r.employee_id===me||hrView)&&(r.status==='pending'||(r.status==='approved'&&r.from_date>todayS()))?` <button class="btn btn-s" data-lcan="${r.id}">${L('Cancel','रद्द करें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">${L('Nothing here','यहाँ कुछ नहीं')}</td></tr>`}</tbody></table></div>`;
+  if(S.ltab==='mine'){
+    let bal=[];if(me){const b=await sb.rpc('leave_balance',{p_employee:me});if(b.error)throw b.error;bal=b.data||[]}
+    body=me?`<div class="cards">${bal.map(b=>`<div class="card"><div class="muted">${esc(LANG==='hi'&&b.name_hi?b.name_hi:b.name)}</div><div class="n">${b.quota>0?b.available:'—'}</div><div class="muted" style="font-size:12px">${b.quota>0?`${L('of','में से')} ${b.quota} · ${L('used','लिए')} ${b.used} · ${L('pending','लंबित')} ${b.pending}`:`${L('used','लिए')} ${b.used} · ${L('no limit','सीमा नहीं')}`}</div></div>`).join('')}</div>${table(mineR,{cancel:true})}`:`<p class="muted">${L('No employee record is linked to this login.','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा।')}</p>`;
+  }else if(S.ltab==='approve'){body=table(wait,{emp:true,dec:true})}
+  else if(S.ltab==='all'){const q=S.q.toLowerCase();const rows=D.lreq.filter(r=>(!S.lf||r.status===S.lf)&&(!q||empName(r.employee_id).toLowerCase().includes(q)));
+    body=`<div class="tools"><input class="inp" id="q" placeholder="${L('Search employee','कर्मचारी खोजें')}" value="${esc(S.q)}"><select class="inp" id="lfs"><option value="">${L('All','सभी')}</option>${['pending','approved','rejected','cancelled'].map(s=>`<option value="${s}" ${S.lf===s?'selected':''}>${s}</option>`).join('')}</select></div>${table(rows,{emp:true,dec:true,cancel:true})}`}
+  else{
+    body=`<div class="card tw" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${L('Leave types','छुट्टी के प्रकार')}</h3><button class="btn btn-p btn-s" id="ltnew">+ ${L('Add','जोड़ें')}</button></div><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Per year','सालाना')}</th><th>${L('Paid','वेतन सहित')}</th><th>${L('Half day','आधा दिन')}</th><th></th></tr></thead><tbody>${D.ltypes.map(t=>`<tr style="${t.active?'':'opacity:.5'}"><td><b>${esc(t.code)}</b></td><td>${esc(t.name)}</td><td>${t.yearly_quota>0?t.yearly_quota:L('no limit','सीमा नहीं')}</td><td>${t.paid?'✓':'—'}</td><td>${t.allow_half?'✓':'—'}</td><td style="text-align:right"><button class="btn btn-s" data-lted="${t.id}">${L('Edit','बदलें')}</button></td></tr>`).join('')}</tbody></table><p class="muted" style="padding:0 16px 12px;font-size:12px">${L('The leave year starts in month','छुट्टी का साल शुरू होता है महीना')} ${S.client.leave_year_start||4}. ${L('Leave days do not count company holidays and the weekly off of the employee.','छुट्टी के दिनों में कंपनी की छुट्टियाँ और कर्मचारी का साप्ताहिक ऑफ नहीं गिना जाता।')}</p></div>
+    <div class="card tw"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${L('Company holidays','कंपनी की छुट्टियाँ')}</h3><button class="btn btn-p btn-s" id="hnew">+ ${L('Add','जोड़ें')}</button></div><table><thead><tr><th>${L('Date','तारीख़')}</th><th>${L('Holiday','छुट्टी')}</th><th></th></tr></thead><tbody>${D.holidays.map(h=>`<tr><td>${fmtD(h.hdate)}</td><td><b>${esc(h.name)}</b></td><td style="text-align:right"><button class="btn btn-s btn-d" data-hdel="${h.id}">${L('Delete','हटाएँ')}</button></td></tr>`).join('')}</tbody></table></div>`;
+  }
+  return {head:`<h1>${L('Leave','छुट्टी')}</h1>${S.ltab==='mine'&&me?`<button class="btn btn-p" id="lapply">+ ${L('Apply for leave','छुट्टी माँगें')}</button>`:''}`,html:`<div class="tools">${tabs.map(([k,n])=>`<button class="btn ${S.ltab===k?'btn-p':''}" data-lt="${k}">${n}</button>`).join('')}</div>${body}`};
+}
+const todayS=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+function leaveDays(emp,from,to,half){const wo=(emp&&emp.weekly_off)||'0', hs=new Set((S.data.holidays||[]).map(h=>h.hdate));let n=0;for(let d=new Date(from+'T00:00:00Z'),e=new Date(to+'T00:00:00Z');d<=e;d.setUTCDate(d.getUTCDate()+1)){const s=d.toISOString().slice(0,10);if(String(d.getUTCDay())!==wo&&!hs.has(s))n++}return half&&n>0?0.5:n}
+function applyForm(){
+  const today=todayS(), me=S.data.emps.find(e=>e.id===S.profile.employee_id);
+  const bg=modal(`<h3>${L('Apply for leave','छुट्टी माँगें')}</h3><label>${L('Leave type','प्रकार')}</label><select class="inp" name="type">${S.data.ltypes.filter(t=>t.active).map(t=>`<option value="${t.id}">${esc(ltName(t))}</option>`).join('')}</select>
+  <div class="fgrid"><div><label>${L('From','से')}</label><input class="inp" type="date" name="from" value="${today}" required></div><div><label>${L('To','तक')}</label><input class="inp" type="date" name="to" value="${today}" required></div></div>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="half"> ${L('Half day (one date only)','आधा दिन (सिर्फ़ एक तारीख़)')}</label><label>${L('Reason','कारण')}</label><input class="inp" name="reason">
+  <p id="pv" class="muted" style="margin-top:10px"></p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Send','भेजें')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('apply_leave',{p_type:d.type,p_from:d.from,p_to:d.to,p_half:!!d.half,p_reason:d.reason||null});if(r.error)throw r.error;close();toast(L('Sent for approval','मंज़ूरी के लिए गया'));render()});
+  const f=$('form',bg), pv=()=>{const d=Object.fromEntries(new FormData(f));if(!d.from||!d.to||d.to<d.from){$('#pv',bg).textContent=L('Check the dates','तारीख़ जाँचें');return}$('#pv',bg).textContent=`${L('Days counted','गिने गए दिन')}: ${leaveDays(me,d.from,d.to,!!d.half)}`};
+  f.oninput=pv;f.onchange=pv;pv();
+}
+function rejectForm(id){modal(`<h3>${L('Reject','अस्वीकार')}</h3><label>${L('Reason (the employee will see it)','कारण (कर्मचारी को दिखेगा)')} *</label><textarea class="inp" name="c" rows="3"></textarea><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reject','अस्वीकार')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_leave',{p_request:id,p_approve:false,p_comment:new FormData(f).get('c')});if(r.error)throw r.error;close();toast(L('Rejected','अस्वीकार'));render()})}
+function ltForm(id){const t=id?S.data.ltypes.find(x=>x.id===id):{active:true,paid:true,allow_half:true,yearly_quota:0};
+  modal(`<h3>${id?L('Edit leave type','प्रकार बदलें'):L('New leave type','नया प्रकार')}</h3><div class="fgrid"><div><label>${L('Code','कोड')} *</label><input class="inp" name="code" value="${esc(t.code||'')}" maxlength="6" required ${id?'readonly':''} style="text-transform:uppercase"></div><div><label>${L('Per year (0 = no limit)','सालाना (0 = सीमा नहीं)')}</label><input class="inp" type="number" name="q" min="0" max="365" step="0.5" value="${t.yearly_quota}"></div></div>
+  <label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${esc(t.name||'')}" required><label>${L('Name in Hindi','हिंदी में नाम')}</label><input class="inp" name="hi" value="${esc(t.name_hi||'')}">
+  ${[['paid',L('Paid leave','वेतन सहित')],['allow_half',L('Half day allowed','आधा दिन मान्य')],['active',L('Active','चालू')]].map(([k,n])=>`<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="${k}" ${t[k]?'checked':''}> ${n}</label>`).join('')}<div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const row={code:d.code.trim().toUpperCase(),name:d.name.trim(),name_hi:d.hi.trim()||null,yearly_quota:+d.q||0,paid:!!d.paid,allow_half:!!d.allow_half,active:!!d.active};if(!row.code||!row.name)throw new Error(L('Write the code and name','कोड और नाम लिखें'));
+    const r=id?await sb.from('leave_types').update(row).eq('id',id):await sb.from('leave_types').insert({...row,client_id:S.profile.client_id});if(r.error)throw new Error(r.error.code==='23505'?L('This code already exists','यह कोड पहले से है'):r.error.message);await logAudit('Leave','Type saved',row.code,'');close();toast(L('Saved','सेव हुआ'));render()})}
+function holidayForm(){modal(`<h3>${L('Add a holiday','छुट्टी जोड़ें')}</h3><label>${L('Date','तारीख़')}</label><input class="inp" type="date" name="d" required><label>${L('Holiday','छुट्टी')}</label><input class="inp" name="n" required><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+  async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.from('holidays').insert({client_id:S.profile.client_id,hdate:d.d,name:d.n.trim()});if(r.error)throw new Error(r.error.code==='23505'?L('This date already has a holiday','इस तारीख़ की छुट्टी पहले से है'):r.error.message);await logAudit('Leave','Holiday added',d.d,d.n);close();toast(L('Saved','सेव हुआ'));render()})}
+function bindLeave(){
+  $$('[data-lt]').forEach(b=>b.onclick=()=>{S.ltab=b.dataset.lt;S.q='';render()});
+  const a=$('#lapply');if(a)a.onclick=applyForm;
+  $$('[data-lok]').forEach(b=>b.onclick=async()=>{b.disabled=true;const r=await sb.rpc('decide_leave',{p_request:b.dataset.lok,p_approve:true,p_comment:null});if(r.error){toast(r.error.message);b.disabled=false;return}toast(L('Approved','मंज़ूर'));render()});
+  $$('[data-lno]').forEach(b=>b.onclick=()=>rejectForm(b.dataset.lno));
+  $$('[data-lcan]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Cancel this leave?','यह छुट्टी रद्द करें?')))return;const r=await sb.rpc('cancel_leave',{p_request:b.dataset.lcan});if(r.error)return toast(r.error.message);toast(L('Cancelled','रद्द हुआ'));render()});
+  const q=$('#q');if(q)q.oninput=e=>{S.q=e.target.value;clearTimeout(bindLeave.t);bindLeave.t=setTimeout(()=>render(true),250)};const fs=$('#lfs');if(fs)fs.onchange=e=>{S.lf=e.target.value;render()};
+  const n=$('#ltnew');if(n)n.onclick=()=>ltForm(null);$$('[data-lted]').forEach(b=>b.onclick=()=>ltForm(b.dataset.lted));const h=$('#hnew');if(h)h.onclick=holidayForm;
+  $$('[data-hdel]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Delete this holiday?','यह छुट्टी हटाएँ?')))return;const r=await sb.from('holidays').delete().eq('id',b.dataset.hdel);if(r.error)return toast(r.error.message);toast(L('Deleted','हटाया'));render()});
+}
+
+/* ---------- attendance ---------- */
+S.atab='mine';S.amonth=todayS().slice(0,7);S.aemp=null;
+const AST={P:['p-ok',L('Present','उपस्थित')],L:['p-warn',L('Late','देर से')],HD:['p-warn',L('Half day','आधा दिन')],A:['p-bad',L('Absent','अनुपस्थित')],MP:['p-bad',L('Missed punch','पंच छूटा')],LV:['p-teal',L('Leave','छुट्टी')],H:['p-teal',L('Holiday','छुट्टी (कंपनी)')],W:['',L('Weekly off','साप्ताहिक ऑफ')],IN:['p-ok',L('In now','अभी अंदर')]};
+const tm=t=>t?new Date(t).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'—';
+const hm=m=>m==null?'—':`${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}m`;
+async function loadAttSetup(){const [s,p]=await Promise.all([sb.from('shifts').select('*').order('name'),sb.from('attendance_policy').select('*').maybeSingle()]);S.data.shifts=s.data||[];S.data.apol=p.data||{lates_per_half_day:4,punch_window_days:3}}
+function attSum(rows){const c={};rows.forEach(r=>{c[r.status]=(c[r.status]||0)+1});c.late=rows.filter(r=>r.late).length;return c}
+function paidDays(s,lph,unpaid){const ded=lph>0?Math.floor((s.late_count||0)/lph)*0.5:0;const pd=(s.present||0)+(s.late||0)+(s.on_leave||0)+(s.holidays||0)+(s.weekly_off||0)+0.5*(s.half_day||0)-ded;return {ded,pd:Math.max(0,pd)}}
+function calendar(rows){
+  const first=new Date(rows[0].day+'T00:00:00Z'), pad=(first.getUTCDay()+6)%7;
+  return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${[L('Mon','सोम'),L('Tue','मंगल'),L('Wed','बुध'),L('Thu','गुरु'),L('Fri','शुक्र'),L('Sat','शनि'),L('Sun','रवि')].map(d=>`<div class="muted" style="font-size:11px;text-align:center">${d}</div>`).join('')}${'<div></div>'.repeat(pad)}${rows.map(r=>{const s=AST[r.status];return `<div class="card" title="${esc(r.holiday||'')} ${tm(r.in_time)} – ${tm(r.out_time)}" style="padding:6px;min-height:58px;font-size:12px"><b>${+r.day.slice(8)}</b>${s?`<div><span class="pill ${s[0]}" style="font-size:11px">${esc(r.status==='LV'&&r.leave_code?r.leave_code:r.status)}</span></div>`:''}${r.in_time?`<div class="muted" style="font-size:10px">${tm(r.in_time)}${r.out_time?' – '+tm(r.out_time):''}</div>`:''}</div>`}).join('')}</div>`;
+}
+async function pageAtt(){
+  await Promise.all([loadOrg(),loadEmps(),loadAttSetup()]);
+  const me=S.profile.employee_id, hr=isHR(), mgr=S.data.emps.some(e=>e.manager_id===me), m=S.amonth+'-01';
+  const rq=await sb.from('attendance_requests').select('*').order('created_at',{ascending:false}).limit(500);S.data.areq=rq.data||[];
+  const canDec=r=>r.status==='pending'&&r.employee_id!==me&&(hr||S.data.emps.some(e=>e.id===r.employee_id&&e.manager_id===me));
+  const wait=S.data.areq.filter(canDec);
+  const tabs=[['mine',L('My attendance','मेरी हाज़िरी')],...((hr||mgr)?[['team',L('Team','टीम')],['req',L('Corrections','सुधार')+(wait.length?` (${wait.length})`:'')]]:[]),...(hr?[['setup',L('Setup','सेटअप')]]:[])];
+  if(!tabs.some(t=>t[0]===S.atab))S.atab='mine';
+  const monthSel=`<input class="inp" type="month" id="am" value="${S.amonth}" max="${todayS().slice(0,7)}" style="max-width:170px">`;
+  const lph=S.data.apol.lates_per_half_day;
+  let body='';
+  if(S.atab==='mine'||(S.atab==='team'&&S.aemp)){
+    const eid=S.atab==='mine'?me:S.aemp, e=S.data.emps.find(x=>x.id===eid);
+    if(!eid){body=`<p class="muted">${L('No employee record is linked to this login.','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा।')}</p>`}
+    else{const r=await sb.rpc('attendance_month',{p_employee:eid,p_month:m});if(r.error)throw r.error;const rows=r.data||[];
+      const c=attSum(rows), s={present:c.P||0,late:c.L||0,half_day:c.HD||0,on_leave:(c.LV||0),holidays:c.H||0,weekly_off:c.W||0,late_count:c.late}, p=paidDays(s,lph);
+      const today=rows.find(x=>x.day===todayS());
+      body=`${S.atab==='team'?`<button class="btn btn-s" id="aback">← ${L('Back to team','टीम पर वापस')}</button> <b style="margin-left:8px">${esc(e?e.code+' '+e.name:'')}</b><div style="height:10px"></div>`:''}
+      ${S.atab==='mine'&&S.amonth===todayS().slice(0,7)?`<div class="card" style="padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1"><div class="muted">${L('Today','आज')} · ${fmtD(todayS())}</div><div style="font-size:18px;font-weight:600">${today&&today.in_time?`${L('In','अंदर')} ${tm(today.in_time)}${today.out_time?` · ${L('Out','बाहर')} ${tm(today.out_time)}`:''}`:L('Not punched in yet','अभी पंच-इन नहीं')}</div></div>${today&&today.out_time?`<span class="pill p-ok">${L('Day done','दिन पूरा')}</span>`:`<button class="btn btn-p" id="punch">${today&&today.in_time?L('Punch out','पंच-आउट'):L('Punch in','पंच-इन')}</button>`}</div>`:''}
+      <div class="cards">${[['P',c.P],['L',c.L],['HD',c.HD],['A',(c.A||0)+(c.MP||0)],['LV',c.LV],['H',(c.H||0)+(c.W||0)]].map(([k,n])=>`<div class="card"><div class="muted">${k==='H'?L('Holidays and offs','छुट्टी और ऑफ'):k==='A'?L('Absent or missed punch','अनुपस्थित/पंच छूटा'):AST[k][1]}</div><div class="n">${n||0}</div></div>`).join('')}<div class="card"><div class="muted">${L('Paid days so far','अब तक भुगतान दिन')}</div><div class="n">${p.pd}</div><div class="muted" style="font-size:12px">${L('Lates','देरी')} ${c.late||0}${lph>0?` · ${L('cut','कटौती')} ${p.ded} ${L('day','दिन')} (${L('every','हर')} ${lph} ${L('lates = half day','देरी = आधा दिन')})`:''}</div></div></div>
+      ${calendar(rows)}`;
+      if(S.atab==='mine'){const mine=S.data.areq.filter(x=>x.employee_id===me);body+=`<div class="sec-t" style="margin-top:18px">${L('My correction requests','मेरे सुधार अनुरोध')}</div>${areqTable(mine,{cancel:true})}`}
+    }
+  }else if(S.atab==='team'){
+    const r=await sb.rpc('attendance_summary',{p_month:m});if(r.error)throw r.error;
+    const rows=(r.data||[]).filter(x=>x.employee_id!==me||hr);
+    body=`<div class="card tw"><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>P</th><th>${L('Late','देर')}</th><th>HD</th><th>A</th><th>${L('Missed','छूटा')}</th><th>${L('Leave','छुट्टी')}</th><th>LWP</th><th>H+W</th><th>${L('Late cut','देरी कटौती')}</th><th>${L('Paid days so far','अब तक भुगतान दिन')}</th></tr></thead><tbody>${rows.map(x=>{const p=paidDays(x,lph);return `<tr class="click" data-ae="${x.employee_id}"><td><b>${esc(empName(x.employee_id))}</b></td><td>${x.present}</td><td>${x.late}</td><td>${x.half_day}</td><td>${x.absent}</td><td>${x.missed_punch}</td><td>${x.on_leave}</td><td>${x.unpaid_leave}</td><td>${x.holidays+x.weekly_off}</td><td>${p.ded}</td><td><b>${p.pd}</b></td></tr>`}).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin-top:8px">${L('Click a name to see the day-by-day calendar. Missed punch counts as absent until it is corrected.','नाम पर क्लिक करें, रोज़ का कैलेंडर दिखेगा। पंच छूटा हो तो सुधार होने तक अनुपस्थित गिना जाता है।')}</p>`;
+  }else if(S.atab==='req'){body=areqTable(S.data.areq.filter(x=>hr||canDec(x)||x.employee_id!==me),{emp:true,dec:true,canDec})}
+  else{const sh=S.data.shifts[0]||{};
+    body=`<form class="card" id="asf" style="padding:16px;max-width:560px"><h3 style="margin:0">${L('Shift and rules','शिफ़्ट और नियम')}</h3><div class="fgrid"><div><label>${L('Shift name','शिफ़्ट नाम')}</label><input class="inp" name="name" value="${esc(sh.name||'General')}"></div><div><label>${L('Start','शुरू')}</label><input class="inp" type="time" name="start" value="${(sh.start_time||'10:00').slice(0,5)}"></div><div><label>${L('End','ख़त्म')}</label><input class="inp" type="time" name="end" value="${(sh.end_time||'19:00').slice(0,5)}"></div><div><label>${L('Grace minutes','छूट मिनट')}</label><input class="inp" type="number" min="0" max="120" name="grace" value="${sh.grace_min??10}"></div><div><label>${L('Hours for a full day','पूरे दिन के घंटे')}</label><input class="inp" type="number" step="0.5" min="1" max="16" name="full" value="${sh.full_day_hours??8}"></div><div><label>${L('Hours for a half day','आधे दिन के घंटे')}</label><input class="inp" type="number" step="0.5" min="1" max="12" name="half" value="${sh.half_day_hours??4}"></div><div><label>${L('Lates that make a half day cut','कितनी देरी पर आधा दिन कटे')}</label><input class="inp" type="number" min="0" max="31" name="lph" value="${S.data.apol.lates_per_half_day}"></div><div><label>${L('Days back a correction can be asked','कितने पुराने दिन का सुधार माँग सकते')}</label><input class="inp" type="number" min="0" max="31" name="win" value="${S.data.apol.punch_window_days}"></div></div><div class="err" id="me"></div><div class="acts"><button class="btn btn-p">${L('Save','सेव')}</button></div></form><p class="muted" style="font-size:12px">${L('Late = punch-in after start + grace. Worked hours below the half-day hours count as absent. 0 lates = no cut.','देर = शुरू + छूट के बाद पंच-इन। आधे दिन के घंटों से कम काम अनुपस्थित गिना जाता है। 0 = कोई कटौती नहीं।')}</p>`}
+  return {head:`<h1>${L('Attendance','हाज़िरी')}</h1>${monthSel}${S.atab==='mine'&&me?`<button class="btn" id="areqb">${L('Ask a correction','सुधार माँगें')}</button>`:''}`,html:`<div class="tools">${tabs.map(([k,n])=>`<button class="btn ${S.atab===k?'btn-p':''}" data-at="${k}">${n}</button>`).join('')}</div>${body}`};
+}
+function areqTable(rows,opt){return `<div class="card tw"><table><thead><tr>${opt.emp?`<th>${L('Employee','कर्मचारी')}</th>`:''}<th>${L('Date','तारीख़')}</th><th>${L('In','अंदर')}</th><th>${L('Out','बाहर')}</th><th>${L('Reason','कारण')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr>${opt.emp?`<td><b>${esc(empName(r.employee_id))}</b></td>`:''}<td>${fmtD(r.work_date)}</td><td>${r.in_time?r.in_time.slice(0,5):'—'}</td><td>${r.out_time?r.out_time.slice(0,5):'—'}</td><td style="white-space:normal;max-width:240px">${esc(r.reason)}${r.comment?`<small class="muted" style="display:block">${esc(r.comment)}</small>`:''}</td><td>${stPill(r.status)}</td><td style="text-align:right;white-space:nowrap">${opt.dec&&opt.canDec(r)?`<button class="btn btn-p btn-s" data-aok="${r.id}">${L('Approve','मंज़ूर')}</button> <button class="btn btn-s btn-d" data-ano="${r.id}">${L('Reject','अस्वीकार')}</button>`:''}${opt.cancel&&r.status==='pending'?`<button class="btn btn-s" data-acan="${r.id}">${L('Cancel','रद्द करें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">${L('Nothing here','यहाँ कुछ नहीं')}</td></tr>`}</tbody></table></div>`}
+function bindAtt(){
+  $$('[data-at]').forEach(b=>b.onclick=()=>{S.atab=b.dataset.at;S.aemp=null;render()});
+  const am=$('#am');if(am)am.onchange=e=>{if(e.target.value){S.amonth=e.target.value;render()}};
+  const p=$('#punch');if(p)p.onclick=async()=>{p.disabled=true;const r=await sb.rpc('punch');if(r.error){toast(r.error.message);p.disabled=false;return}toast(r.data==='in'?L('Punched in','पंच-इन हुआ'):L('Punched out','पंच-आउट हुआ'));render()};
+  $$('[data-ae]').forEach(r=>r.onclick=()=>{S.aemp=r.dataset.ae;render()});const bk=$('#aback');if(bk)bk.onclick=()=>{S.aemp=null;render()};
+  const rb=$('#areqb');if(rb)rb.onclick=()=>modal(`<h3>${L('Ask a correction','सुधार माँगें')}</h3><label>${L('Date','तारीख़')}</label><input class="inp" type="date" name="d" max="${todayS()}" value="${todayS()}" required><div class="fgrid"><div><label>${L('In time','अंदर का समय')}</label><input class="inp" type="time" name="i"></div><div><label>${L('Out time','बाहर का समय')}</label><input class="inp" type="time" name="o"></div></div><label>${L('Reason','कारण')} *</label><input class="inp" name="r" required><p class="muted">${L('Fill only what is missing or wrong. Your manager or HR approves it.','सिर्फ़ जो छूटा या ग़लत है वही भरें। आपका मैनेजर या HR मंज़ूर करेगा।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Send','भेजें')}</button></div>`,
+    async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('request_attendance',{p_date:d.d,p_in:d.i||null,p_out:d.o||null,p_reason:d.r});if(r.error)throw r.error;close();toast(L('Sent for approval','मंज़ूरी के लिए गया'));render()});
+  $$('[data-aok]').forEach(b=>b.onclick=async()=>{b.disabled=true;const r=await sb.rpc('decide_attendance',{p_request:b.dataset.aok,p_approve:true,p_comment:null});if(r.error){toast(r.error.message);b.disabled=false;return}toast(L('Approved','मंज़ूर'));render()});
+  $$('[data-ano]').forEach(b=>b.onclick=()=>modal(`<h3>${L('Reject','अस्वीकार')}</h3><label>${L('Reason','कारण')} *</label><textarea class="inp" name="c" rows="3"></textarea><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reject','अस्वीकार')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_attendance',{p_request:b.dataset.ano,p_approve:false,p_comment:new FormData(f).get('c')});if(r.error)throw r.error;close();toast(L('Rejected','अस्वीकार'));render()}));
+  $$('[data-acan]').forEach(b=>b.onclick=async()=>{const r=await sb.rpc('cancel_attendance_request',{p_request:b.dataset.acan});if(r.error)return toast(r.error.message);toast(L('Cancelled','रद्द हुआ'));render()});
+  const sf=$('#asf');if(sf)sf.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(sf)), me_=$('#me',sf);me_.textContent='';
+    if(d.end<=d.start){me_.textContent=L('End must be after start','ख़त्म शुरू के बाद हो');return}if(+d.half>=+d.full){me_.textContent=L('Half-day hours must be less than full-day hours','आधे दिन के घंटे पूरे दिन से कम हों');return}
+    const row={name:d.name.trim()||'General',start_time:d.start,end_time:d.end,grace_min:+d.grace,full_day_hours:+d.full,half_day_hours:+d.half}, sh=S.data.shifts[0];
+    let r=sh?await sb.from('shifts').update(row).eq('id',sh.id):await sb.from('shifts').insert({...row,client_id:S.profile.client_id});if(r.error){me_.textContent=r.error.message;return}
+    r=await sb.from('attendance_policy').upsert({client_id:S.profile.client_id,lates_per_half_day:+d.lph,punch_window_days:+d.win});if(r.error){me_.textContent=r.error.message;return}
+    await logAudit('Attendance','Rules saved','',`${d.start}-${d.end} grace ${d.grace}, lates ${d.lph}`);toast(L('Saved','सेव हुआ'));render()};
+}
+
+/* ---------- payroll ---------- */
+const lastMonth=()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+S.ptab=null;S.pmonth=lastMonth();
+const monName=m=>new Date(m+'T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+function words(n){n=Math.round(n);const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  const two=x=>x<20?a[x]:b[Math.floor(x/10)]+(x%10?' '+a[x%10]:''), three=x=>(x>99?a[Math.floor(x/100)]+' Hundred'+(x%100?' ':''):'')+(x%100?two(x%100):'');
+  if(n===0)return 'Zero';const out=[];for(const [v,l] of [[10000000,'Crore'],[100000,'Lakh'],[1000,'Thousand'],[1,'']]){const q=Math.floor(n/v);if(q){out.push((v===1?three(q):two(q))+(l?' '+l:''));n%=v}}return out.join(' ')}
+async function pagePay(){
+  await Promise.all([loadOrg(),loadEmps()]);
+  const hr=isHR(), me=S.profile.employee_id, tabs=[...(hr?[['run',L('Payroll run','पेरोल रन')],['extra',L('Extra heads','अतिरिक्त हेड')]]:[]),...(me?[['mine',L('My payslips','मेरी सैलरी स्लिप')]]:[]),['adv',L('Advances','एडवांस')],...(hr?[['fnf',L('Full and final','फ़ुल एंड फ़ाइनल')],['stat',L('Statutory','वैधानिक')]]:[])];
+  if(!tabs.some(t=>t[0]===S.ptab))S.ptab=tabs[0]&&tabs[0][0];
+  let body='', head=`<h1>${L('Payroll','पेरोल')}</h1>`;
+  if(S.ptab==='run'){
+    const m=S.pmonth+'-01', run=(await sb.from('payroll_runs').select('*').eq('month',m).maybeSingle()).data;
+    const slips=run?((await sb.from('payslips').select('*').eq('run_id',run.id)).data||[]):[];S.data.slips=slips;S.data.run=run;
+    slips.sort((x,y)=>{const a=S.data.emps.find(e=>e.id===x.employee_id)||{}, b=S.data.emps.find(e=>e.id===y.employee_id)||{};return (a.code||'')>(b.code||'')?1:-1});
+    const tot=k=>slips.reduce((s,x)=>s+Number(x[k]),0), isAdmin=S.profile.role==='admin';
+    head+=`<input class="inp" type="month" id="pm" value="${S.pmonth}" max="${lastMonth()}" style="max-width:170px">${(!run||run.status==='draft')?`<button class="btn" id="pcomp">${run?L('Compute again','फिर से निकालें'):L('Compute payroll','पेरोल निकालें')}</button>`:''}${run&&run.status==='draft'&&isAdmin?`<button class="btn btn-p" id="pappr">${L('Approve','मंज़ूर करें')}</button>`:''}${slips.length?`<button class="btn" id="pcsv">${L('Download register','रजिस्टर डाउनलोड')}</button>`:''}${run&&run.status==='approved'?`<button class="btn" id="pbank">${L('Bank file','बैंक फ़ाइल')}</button><button class="btn" id="pecr">EPFO ECR</button><button class="btn" id="pesic">ESIC</button>`:''}`;
+    body=`<p class="muted">${monName(m)} · ${run?`<span class="pill ${run.status==='approved'?'p-ok':'p-warn'}">${run.status==='approved'?L('Approved','मंज़ूर'):L('Draft','ड्राफ़्ट')}</span>`:L('Not computed yet','अभी नहीं निकाला')} ${run&&run.status==='draft'?L('· HR computes, then an Admin (not the same person) approves. After approval employees see their payslip and nothing can change.','· HR निकालता है, फिर कोई Admin (दूसरा व्यक्ति) मंज़ूर करता है। मंज़ूरी के बाद कर्मचारी स्लिप देखते हैं और कुछ नहीं बदलता।'):''}</p>
+    ${slips.length?`<div class="cards"><div class="card"><div class="muted">${L('Employees','कर्मचारी')}</div><div class="n">${slips.length}</div></div><div class="card"><div class="muted">${L('Gross','ग्रॉस')}</div><div class="n">${inr(tot('gross'))}</div></div><div class="card"><div class="muted">${L('Net pay','नेट वेतन')}</div><div class="n">${inr(tot('net'))}</div></div><div class="card"><div class="muted">${L('Company cost','कंपनी लागत')}</div><div class="n">${inr(tot('gross')+tot('employer_pf')+tot('employer_esi'))}</div></div></div>
+    <div class="card tw"><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>${L('Paid days','भुगतान दिन')}</th><th>${L('Late cut','देरी कटौती')}</th><th>${L('Gross','ग्रॉस')}</th><th>PF</th><th>ESIC</th><th>PT</th><th>TDS</th><th>${L('Net pay','नेट वेतन')}</th></tr></thead><tbody>${slips.map(x=>`<tr class="click" data-slip="${x.id}"><td><b>${esc(empName(x.employee_id))}</b></td><td>${x.paid_days} / ${x.days}</td><td>${x.late_cut}</td><td>${inr(x.gross)}</td><td>${inr(x.pf)}</td><td>${inr(x.esi)}</td><td>${inr(x.pt)}</td><td>${inr(x.tds)}</td><td><b>${inr(x.net)}</b></td></tr>`).join('')}<tr><td><b>${L('Total','कुल')}</b></td><td></td><td></td><td><b>${inr(tot('gross'))}</b></td><td><b>${inr(tot('pf'))}</b></td><td><b>${inr(tot('esi'))}</b></td><td><b>${inr(tot('pt'))}</b></td><td><b>${inr(tot('tds'))}</b></td><td><b>${inr(tot('net'))}</b></td></tr></tbody></table></div>`:''}
+    <p class="muted" style="font-size:12px;margin-top:10px">${L('Salary is worked out from the yearly CTC: Basic 40% of the monthly CTC, HRA 50% of Basic, the rest Special. Paid days come from Attendance (late cut included). Not yet in the real app: KPI pay, incentives, advances, extra heads and overtime.','सैलरी सालाना CTC से निकलती है: बेसिक मासिक CTC का 40%, HRA बेसिक का 50%, बाकी स्पेशल। भुगतान दिन हाज़िरी से (देरी कटौती सहित)। अभी असली ऐप में नहीं: KPI पे, इंसेंटिव, एडवांस, अतिरिक्त हेड और ओवरटाइम।')}</p>`;
+  }else if(S.ptab==='extra'){
+    const m=S.pmonth+'-01', [hd,ad,rn]=await Promise.all([sb.from('pay_heads').select('*').order('kind').order('code'),sb.from('pay_adjustments').select('*').eq('month',m).order('created_at'),sb.from('payroll_runs').select('status').eq('month',m).maybeSingle()]);
+    S.data.heads=hd.data||[];S.data.adj=ad.data||[];const locked=rn.data&&rn.data.status==='approved', hn=id=>{const h=S.data.heads.find(x=>x.id===id);return h?h.code+' · '+h.name:'—'};
+    head+=`<input class="inp" type="month" id="pm" value="${S.pmonth}" style="max-width:170px">${locked?'':`<button class="btn btn-p" id="adjnew">+ ${L('Add line','लाइन जोड़ें')}</button><button class="btn" id="adjimp">${L('Import','इम्पोर्ट')}</button>`}`;
+    body=`<p class="muted">${monName(m)} · ${locked?L('Payroll of this month is approved, so these lines are locked.','इस महीने का पेरोल मंज़ूर है, इसलिए ये लाइनें लॉक हैं।'):L('Lines added here go into the payroll of this month when it is computed (compute again after a change).','यहाँ जोड़ी लाइनें इस महीने के पेरोल में जाती हैं (बदलाव के बाद फिर से निकालें)।')}</p>
+    <div class="card tw" style="margin-bottom:16px"><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>${L('Head','हेड')}</th><th>${L('Amount','राशि')}</th><th>${L('Remark','टिप्पणी')}</th><th></th></tr></thead><tbody>${S.data.adj.map(a=>`<tr><td><b>${esc(empName(a.employee_id))}</b></td><td>${esc(hn(a.head_id))}</td><td>${inr(a.amount)}</td><td style="white-space:normal">${esc(a.remark||'')}</td><td style="text-align:right">${locked?'':`<button class="btn btn-s btn-d" data-adel="${a.id}">${L('Delete','हटाएँ')}</button>`}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">${L('No line for this month','इस महीने कोई लाइन नहीं')}</td></tr>`}</tbody></table></div>
+    <div class="card tw"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0"><h3 style="margin:0;flex:1">${L('Heads','हेड')}</h3><button class="btn btn-p btn-s" id="hdnew">+ ${L('Add','जोड़ें')}</button></div><table><thead><tr><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Type','प्रकार')}</th><th>PF</th><th>ESIC</th><th>TDS</th><th></th></tr></thead><tbody>${S.data.heads.map(h=>`<tr style="${h.active?'':'opacity:.5'}"><td><b>${esc(h.code)}</b></td><td>${esc(h.name)}</td><td>${h.kind==='earning'?L('Earning','आय'):L('Deduction','कटौती')}</td><td>${h.pf?'✓':'—'}</td><td>${h.esi?'✓':'—'}</td><td>${h.tds?'✓':'—'}</td><td style="text-align:right"><button class="btn btn-s" data-hded="${h.id}">${L('Edit','बदलें')}</button></td></tr>`).join('')}</tbody></table><p class="muted" style="font-size:12px;padding:0 16px 12px">${L('PF, ESIC and TDS ticks say whether an earning head counts in that wage.','PF, ESIC और TDS के टिक बताते हैं कि आय हेड उस वेतन में गिना जाएगा या नहीं।')}</p></div>`;
+  }else if(S.ptab==='fnf'){
+    const fs=(await sb.from('final_settlements').select('*').order('lwd',{ascending:false})).data||[];S.data.fnf=fs;
+    const due=S.data.emps.filter(e=>e.lwd&&!fs.some(f=>f.employee_id===e.id&&f.status!=='draft'));
+    const pill=s=>s==='paid'?['p-ok',L('Paid','भुगतान हुआ')]:s==='approved'?['p-teal',L('Approved, to pay','मंज़ूर, देना बाकी')]:['p-warn',L('Draft','ड्राफ़्ट')];
+    body=`<p class="muted">${L('For an employee who is leaving: salary up to the last working day, leave encashment, gratuity, notice and advance recovery. HR prepares, an Admin (another person) approves, then HR marks it paid. After approval the employee is marked Relieved and is left out of the normal payroll.','जाने वाले कर्मचारी के लिए: अंतिम कार्यदिवस तक की सैलरी, छुट्टी का नकदीकरण, ग्रेच्युटी, नोटिस और एडवांस की वसूली। HR बनाता है, कोई दूसरा Admin मंज़ूर करता है, फिर HR भुगतान दर्ज करता है। मंज़ूरी के बाद कर्मचारी Relieved हो जाता है और सामान्य पेरोल से बाहर।')}</p>
+    <div class="sec-t">${L('Employees with a last working day','अंतिम कार्यदिवस वाले कर्मचारी')}</div><div class="card tw" style="margin-bottom:16px"><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>${L('Last working day','अंतिम कार्यदिवस')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${due.map(e=>`<tr><td><b>${esc(e.code+' '+e.name)}</b></td><td>${fmtD(e.lwd)}</td><td>${esc(e.status)}</td><td style="text-align:right"><button class="btn btn-p btn-s" data-fprep="${e.id}">${fs.some(f=>f.employee_id===e.id)?L('Prepare again','फिर से बनाएँ'):L('Prepare settlement','सेटलमेंट बनाएँ')}</button></td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:18px">${L('Nobody. Set the last working day in the employee record first.','कोई नहीं। पहले कर्मचारी रिकॉर्ड में अंतिम कार्यदिवस भरें।')}</td></tr>`}</tbody></table></div>
+    <div class="sec-t">${L('Settlements','सेटलमेंट')}</div><div class="card tw"><table><thead><tr><th>${L('No.','नं.')}</th><th>${L('Employee','कर्मचारी')}</th><th>${L('Last working day','अंतिम कार्यदिवस')}</th><th>${L('Net payable','कुल देय')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${fs.map(f=>{const p=pill(f.status);return `<tr><td>${esc(f.no)}</td><td><b>${esc(empName(f.employee_id))}</b></td><td>${fmtD(f.lwd)}</td><td><b>${inr(f.net)}</b></td><td><span class="pill ${p[0]}">${p[1]}</span>${f.paid_on?`<small class="muted" style="display:block">${fmtD(f.paid_on)}</small>`:''}</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-s" data-fview="${f.id}">${L('Statement','विवरण')}</button>${f.status==='draft'&&S.profile.role==='admin'?` <button class="btn btn-p btn-s" data-fapp="${f.id}">${L('Approve','मंज़ूर')}</button>`:''}${f.status==='approved'?` <button class="btn btn-p btn-s" data-fpaid="${f.id}">${L('Mark paid','भुगतान दर्ज')}</button>`:''}</td></tr>`}).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:18px">${L('No settlement yet','अभी कोई सेटलमेंट नहीं')}</td></tr>`}</tbody></table></div>`;
+  }else if(S.ptab==='adv'){
+    const [ad,pp]=await Promise.all([sb.from('salary_advances').select('*').order('created_at',{ascending:false}),sb.from('payroll_policy').select('*').maybeSingle()]);
+    const list=ad.data||[];S.data.advs=list;S.data.ppol=pp.data||{adv_max_months:1,adv_max_emi:6};
+    const rec=await Promise.all(list.map(a=>a.status==='disbursed'?sb.rpc('advance_recovered',{p_adv:a.id}).then(r=>Number(r.data||0)):Promise.resolve(0)));list.forEach((a,i)=>a.rec=rec[i]);
+    const open=list.some(a=>a.employee_id===me&&(['pending','approved'].includes(a.status)||(a.status==='disbursed'&&a.rec<a.amount)));
+    const stx=a=>a.status==='disbursed'?(a.rec>=a.amount?['p-ok',L('Fully recovered','पूरा वसूल')]:['p-teal',L('Paid, recovering','दिया, वसूली जारी')]):a.status==='approved'?['p-warn',L('Approved, to pay','मंज़ूर, देना बाकी')]:a.status==='pending'?['p-warn',L('Waiting','लंबित')]:['p-bad',a.status==='rejected'?L('Rejected','अस्वीकार'):L('Cancelled','रद्द')];
+    const rows=hr?list:list.filter(a=>a.employee_id===me);
+    if(me&&!open)head+=`<button class="btn btn-p" id="advnew">+ ${L('Ask for an advance','एडवांस माँगें')}</button>`;
+    body=`<p class="muted">${L('An advance is recovered from salary in equal instalments, starting the month after it is paid.','एडवांस सैलरी से बराबर किस्तों में वसूला जाता है, देने के अगले महीने से।')} ${L('Limit','सीमा')}: ${S.data.ppol.adv_max_months} ${L('month salary','महीने की सैलरी')}, ${L('up to','अधिकतम')} ${S.data.ppol.adv_max_emi} ${L('instalments','किस्तें')}.</p>
+    <div class="card tw"><table><thead><tr><th>${L('No.','नं.')}</th>${hr?`<th>${L('Employee','कर्मचारी')}</th>`:''}<th>${L('Amount','राशि')}</th><th>${L('Instalment','किस्त')}</th><th>${L('Recovered','वसूल')}</th><th>${L('Left','बाकी')}</th><th>${L('Reason','कारण')}</th><th>${L('Status','स्थिति')}</th><th></th></tr></thead><tbody>${rows.map(a=>{const s=stx(a);return `<tr><td>${esc(a.no)}</td>${hr?`<td><b>${esc(empName(a.employee_id))}</b></td>`:''}<td>${inr(a.amount)}</td><td>${inr(a.emi)} × ${a.emi_count}</td><td>${inr(a.rec)}</td><td>${a.status==='disbursed'?inr(a.amount-a.rec):'—'}</td><td style="white-space:normal;max-width:220px">${esc(a.reason)}${a.comment?`<small class="muted" style="display:block">${esc(a.comment)}</small>`:''}</td><td><span class="pill ${s[0]}">${s[1]}</span>${a.disbursed_on?`<small class="muted" style="display:block">${L('paid','दिया')} ${fmtD(a.disbursed_on)}</small>`:''}</td><td style="text-align:right;white-space:nowrap">${hr&&a.employee_id!==me&&a.status==='pending'?`<button class="btn btn-p btn-s" data-adv="approve|${a.id}">${L('Approve','मंज़ूर')}</button> <button class="btn btn-s btn-d" data-adv="reject|${a.id}">${L('Reject','अस्वीकार')}</button>`:''}${hr&&a.employee_id!==me&&a.status==='approved'?`<button class="btn btn-p btn-s" data-adv="disburse|${a.id}">${L('Mark paid','दिया गया')}</button>`:''}${a.employee_id===me&&a.status==='pending'?`<button class="btn btn-s" data-adv="cancel|${a.id}">${L('Cancel','रद्द करें')}</button>`:''}</td></tr>`}).join('')||`<tr><td colspan="9" class="muted" style="text-align:center;padding:22px">${L('No advance','कोई एडवांस नहीं')}</td></tr>`}</tbody></table></div>
+    ${hr?`<form class="card" id="ppf" style="padding:14px 16px;margin-top:16px;max-width:520px"><b>${L('Advance rules','एडवांस नियम')}</b><div class="fgrid"><div><label>${L('Most, in months of salary','अधिकतम, महीने की सैलरी में')}</label><input class="inp" type="number" step="0.5" min="0" max="12" name="m" value="${S.data.ppol.adv_max_months}"></div><div><label>${L('Most instalments','अधिकतम किस्तें')}</label><input class="inp" type="number" min="1" max="36" name="e" value="${S.data.ppol.adv_max_emi}"></div></div><div class="acts"><button class="btn btn-p btn-s">${L('Save','सेव')}</button></div></form>`:''}`;
+  }else if(S.ptab==='mine'){
+    const r=await sb.from('payslips').select('*, run:run_id(month,status)').eq('employee_id',me);const list=(r.data||[]).filter(x=>x.run&&x.run.status==='approved').sort((a,b)=>a.run.month<b.run.month?1:-1);S.data.slips=list;
+    body=`<div class="card tw"><table><thead><tr><th>${L('Month','महीना')}</th><th>${L('Paid days','भुगतान दिन')}</th><th>${L('Gross','ग्रॉस')}</th><th>${L('Deductions','कटौती')}</th><th>${L('Net pay','नेट वेतन')}</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td><b>${monName(x.run.month)}</b></td><td>${x.paid_days} / ${x.days}</td><td>${inr(x.gross)}</td><td>${inr(x.deductions)}</td><td><b>${inr(x.net)}</b></td><td style="text-align:right"><button class="btn btn-s" data-slip="${x.id}">${L('View / download','देखें / डाउनलोड')}</button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">${L('No approved payslip yet','अभी कोई मंज़ूर स्लिप नहीं')}</td></tr>`}</tbody></table></div>`;
+  }else if(S.ptab==='stat'){
+    const [st,es]=await Promise.all([sb.from('statutory_settings').select('*').maybeSingle(),sb.from('employee_statutory').select('*')]);const s=st.data||{};S.data.estat=es.data||[];
+    const f=(k,n,step)=>`<div><label>${n}</label><input class="inp" type="number" step="${step||'0.01'}" name="${k}" value="${s[k]??''}"></div>`;
+    body=`<form class="card" id="stf" style="padding:16px;margin-bottom:16px"><h3 style="margin:0">${L('Rates','दरें')}</h3><p class="muted" style="font-size:12px">${L('Check these with your CA before the first real payroll.','पहले असली पेरोल से पहले अपने CA से जाँच लें।')}</p><div class="fgrid">${f('pf_rate','PF %')}${f('pf_cap',L('PF wage limit','PF वेतन सीमा'),'1')}${f('esi_ee','ESIC '+L('employee','कर्मचारी')+' %')}${f('esi_er','ESIC '+L('employer','नियोक्ता')+' %')}${f('esi_limit','ESIC '+L('gross limit','ग्रॉस सीमा'),'1')}${f('std_ded',L('Standard deduction','मानक कटौती'),'1')}${f('rebate_limit',L('Tax rebate up to','टैक्स छूट सीमा'),'1')}${f('cess',L('Cess','सेस')+' %')}</div><label>${L('Professional tax slabs (state: monthly gross from → tax)','प्रोफ़ेशनल टैक्स स्लैब')}</label><textarea class="inp" name="pt" rows="4" style="font-family:monospace;font-size:12px">${esc(JSON.stringify(s.pt||{},null,1))}</textarea><div class="err" id="me"></div><div class="acts"><button class="btn btn-p">${L('Save','सेव')}</button></div></form>
+    <div class="card tw"><div style="padding:14px 16px 0"><h3 style="margin:0">${L('Who has what','किस पर क्या लागू')}</h3></div><table><thead><tr><th>${L('Employee','कर्मचारी')}</th><th>PF</th><th>${L('PF on full Basic','पूरे बेसिक पर PF')}</th><th>ESIC</th><th>PT</th><th>TDS</th></tr></thead><tbody>${S.data.emps.filter(e=>e.active).map(e=>{const x=S.data.estat.find(z=>z.employee_id===e.id)||{pf:true,esic:true,pt:true,tds:true};return `<tr><td><b>${esc(e.code+' '+e.name)}</b></td>${['pf','pf_full_basic','esic','pt','tds'].map(k=>`<td><input type="checkbox" data-es="${e.id}|${k}" ${x[k]?'checked':''}></td>`).join('')}</tr>`}).join('')}</tbody></table></div>`;
+  }
+  return {head,html:`<div class="tools">${tabs.map(([k,n])=>`<button class="btn ${S.ptab===k?'btn-p':''}" data-pt="${k}">${n}</button>`).join('')}</div>${body}`};
+}
+function slipModal(id){
+  const x=S.data.slips.find(z=>z.id===id), e=S.data.emps.find(z=>z.id===x.employee_id)||{}, m=x.run?x.run.month:S.data.run.month;
+  const row=(a,b)=>`<tr><td>${a}</td><td style="text-align:right">${inr(b)}</td></tr>`;
+  const bg=modal(`<div class="slip"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${esc(S.client.name)}</h3><div class="muted">${L('Salary slip','सैलरी स्लिप')} · ${monName(m)}</div></div><div style="text-align:right"><b>${esc(e.name||'')}</b><div class="muted">${esc(e.code||'')} · ${esc(nmOf('designations',e.designation_id))}</div><div class="muted">${esc(nmOf('branches',e.branch_id))}</div></div></div>
+  <p class="muted" style="margin:10px 0">${L('Days in month','महीने के दिन')} ${x.days} · ${L('Paid days','भुगतान दिन')} ${x.paid_days}${Number(x.late_cut)?` · ${L('late cut','देरी कटौती')} ${x.late_cut}`:''}</p>
+  <div class="fgrid"><div><div class="sec-t">${L('Earnings','आय')}</div><table>${row('Basic',x.basic)}${row('HRA',x.hra)}${row(L('Special allowance','स्पेशल अलाउंस'),x.special)}${(x.lines||[]).filter(l=>l.kind==='earning').map(l=>row(esc(l.name)+(l.remark?`<small class="muted" style="display:block">${esc(l.remark)}</small>`:''),l.amount)).join('')}<tr><td><b>${L('Gross','ग्रॉस')}</b></td><td style="text-align:right"><b>${inr(x.gross)}</b></td></tr></table></div>
+  <div><div class="sec-t">${L('Deductions','कटौती')}</div><table>${row('PF',x.pf)}${row('ESIC',x.esi)}${row(L('Professional tax','प्रोफ़ेशनल टैक्स'),x.pt)}${row('TDS',x.tds)}${Number(x.advance)?row(L('Advance recovery','एडवांस वसूली')+(x.adv_lines||[]).map(l=>`<small class="muted" style="display:block">${esc(l.no)}</small>`).join(''),x.advance):''}${Number(x.extra_ded)?row(L('Other deductions','अन्य कटौती')+(x.lines||[]).filter(l=>l.kind==='deduction').map(l=>`<small class="muted" style="display:block">${esc(l.name)}${l.remark?': '+esc(l.remark):''}</small>`).join(''),x.extra_ded):''}<tr><td><b>${L('Total','कुल')}</b></td><td style="text-align:right"><b>${inr(x.deductions)}</b></td></tr></table></div></div>
+  <div class="card" style="padding:12px;margin-top:14px"><div class="muted">${L('Net pay','नेट वेतन')}</div><div class="n" style="font-size:24px;font-weight:700">${inr(x.net)}</div><div class="muted">${L('Rupees','रुपये')} ${words(Number(x.net))} ${L('only','मात्र')}</div></div>
+  <p class="muted" style="font-size:11px;margin-top:10px">${L('This is a computer generated slip and does not need a signature.','यह कंप्यूटर से बनी स्लिप है, इस पर हस्ताक्षर की ज़रूरत नहीं।')}</p></div>
+  <div class="acts noprint"><button type="button" class="btn" data-close>${L('Close','बंद')}</button><button type="button" class="btn btn-p" id="prn">${L('Print / Save as PDF','प्रिंट / PDF सेव')}</button></div>`,()=>{},true);
+  $('#prn',bg).onclick=()=>window.print();
+}
+function bindPay(){
+  $$('[data-pt]').forEach(b=>b.onclick=()=>{S.ptab=b.dataset.pt;render()});
+  const pm=$('#pm');if(pm)pm.onchange=e=>{if(e.target.value){S.pmonth=e.target.value;render()}};
+  const pc=$('#pcomp');if(pc)pc.onclick=async()=>{if(!confirm(L('Compute the payroll of','पेरोल निकालें:')+' '+monName(S.pmonth+'-01')+'?'))return;pc.disabled=true;const r=await sb.rpc('payroll_compute',{p_month:S.pmonth+'-01'});if(r.error){toast(r.error.message);pc.disabled=false;return}toast(`${r.data} ${L('payslips made','स्लिप बनीं')}`);render()};
+  const pa=$('#pappr');if(pa)pa.onclick=async()=>{if(!confirm(L('Approve this payroll? It cannot be changed after this.','यह पेरोल मंज़ूर करें? इसके बाद बदलाव नहीं होगा।')))return;const r=await sb.rpc('payroll_approve',{p_run:S.data.run.id});if(r.error)return toast(r.error.message);toast(L('Approved','मंज़ूर'));render()};
+  $$('[data-slip]').forEach(b=>b.onclick=()=>slipModal(b.dataset.slip));
+  const pv=$('#pcsv');if(pv)pv.onclick=()=>{const H=['Code','Name','Paid days','Days','Late cut','Basic','HRA','Special','Gross','PF','ESIC','PT','TDS','Deductions','Net','Employer PF','Employer ESIC'];
+    const rows=S.data.slips.map(x=>{const e=S.data.emps.find(z=>z.id===x.employee_id)||{};return [e.code,e.name,x.paid_days,x.days,x.late_cut,x.basic,x.hra,x.special,x.gross,x.pf,x.esi,x.pt,x.tds,x.deductions,x.net,x.employer_pf,x.employer_esi]});
+    const csv=[H,...rows].map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n'), a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));a.download=`Salary-register-${S.pmonth}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+  /* full and final */
+  const fnfView=id=>{const f=S.data.fnf.find(x=>x.id===id), e=S.data.emps.find(x=>x.id===f.employee_id)||{}, row=(a,b,neg)=>`<tr><td>${a}</td><td style="text-align:right">${neg&&Number(b)?'− ':''}${inr(b)}</td></tr>`;
+    const bg=modal(`<div><h3 style="margin:0">${esc(S.client.name)}</h3><div class="muted">${L('Full and final settlement','फ़ुल एंड फ़ाइनल सेटलमेंट')} · ${esc(f.no)}</div>
+    <p style="margin:10px 0"><b>${esc(e.name||'')}</b> · ${esc(e.code||'')} · ${esc(nmOf('designations',e.designation_id))}<br><span class="muted">${L('Joined','जॉइनिंग')} ${fmtD(e.doj)} · ${L('Last working day','अंतिम कार्यदिवस')} ${fmtD(f.lwd)} · ${L('Service','सेवा')} ${f.service_years} ${L('years','वर्ष')}</span></p>
+    <div class="fgrid"><div><div class="sec-t">${L('Payable','देय')}</div><table>${row(`${L('Salary','सैलरी')} (${f.paid_days} / ${f.days} ${L('days','दिन')})`,f.salary)}${row(`${L('Leave encashment','छुट्टी नकदीकरण')} (EL ${f.el_days} ${L('days','दिन')})`,f.encashment)}${row(L('Gratuity','ग्रेच्युटी'),f.gratuity)}${row(L('Other earnings','अन्य आय'),f.other_earn)}</table></div>
+    <div><div class="sec-t">${L('Recovery','वसूली')}</div><table>${row('PF',f.pf,1)}${row('ESIC',f.esi,1)}${row(`${L('Notice short','नोटिस कमी')} (${f.notice_days} ${L('days','दिन')})`,f.notice_recovery,1)}${row(L('Advance due','बकाया एडवांस'),f.advance_due,1)}${row(L('Other deductions','अन्य कटौती'),f.other_ded,1)}</table></div></div>
+    ${f.remark?`<p class="muted">${L('Remark','टिप्पणी')}: ${esc(f.remark)}</p>`:''}<div class="card" style="padding:12px;margin-top:12px"><div class="muted">${Number(f.net)>=0?L('Net payable to the employee','कर्मचारी को कुल देय'):L('Net recoverable from the employee','कर्मचारी से कुल वसूली')}</div><div style="font-size:24px;font-weight:700">${inr(Math.abs(f.net))}</div><div class="muted">${L('Rupees','रुपये')} ${words(Math.abs(Number(f.net)))} ${L('only','मात्र')}</div></div>
+    <p class="muted" style="font-size:11px;margin-top:10px">${L('Gratuity is paid after 5 years of service (4 years and 240 days also counts); in the amount 6 months or more count as a full year: 15/26 × last Basic × years. Leave encashment: Basic ÷ 26 × EL balance. TDS on the settlement is not worked out here; check with your CA.','ग्रेच्युटी 5 साल की सेवा के बाद (4 साल 240 दिन भी चलेगा); राशि में 6 महीने या ज़्यादा = पूरा साल: 15/26 × अंतिम बेसिक × साल। छुट्टी नकदीकरण: बेसिक ÷ 26 × EL बैलेंस। सेटलमेंट पर TDS यहाँ नहीं निकाला गया; CA से जाँचें।')}</p></div>
+    <div class="acts noprint"><button type="button" class="btn" data-close>${L('Close','बंद')}</button><button type="button" class="btn btn-p" id="fprn">${L('Print / Save as PDF','प्रिंट / PDF सेव')}</button></div>`,()=>{},true);$('#fprn',bg).onclick=()=>window.print()};
+  $$('[data-fview]').forEach(b=>b.onclick=()=>fnfView(b.dataset.fview));
+  $$('[data-fprep]').forEach(b=>b.onclick=()=>{const e=S.data.emps.find(x=>x.id===b.dataset.fprep), f=(S.data.fnf||[]).find(x=>x.employee_id===e.id)||{};
+    modal(`<h3>${L('Prepare settlement','सेटलमेंट बनाएँ')} · ${esc(e.name)}</h3><p class="muted">${L('Last working day','अंतिम कार्यदिवस')} ${fmtD(e.lwd)}. ${L('Salary, leave encashment, gratuity, PF, ESIC and advance due are worked out by the system.','सैलरी, छुट्टी नकदीकरण, ग्रेच्युटी, PF, ESIC और बकाया एडवांस सिस्टम निकालता है।')}</p><div class="fgrid"><div><label>${L('Notice days short (to recover)','नोटिस के कम दिन (वसूली)')}</label><input class="inp" type="number" min="0" max="180" step="1" name="nd" value="${f.notice_days||0}"></div><div><label>${L('Other earnings (₹)','अन्य आय (₹)')}</label><input class="inp" type="number" min="0" step="1" name="oe" value="${f.other_earn||0}"></div><div><label>${L('Other deductions (₹)','अन्य कटौती (₹)')}</label><input class="inp" type="number" min="0" step="1" name="od" value="${f.other_ded||0}"></div></div><label>${L('Remark','टिप्पणी')}</label><input class="inp" name="rm" value="${esc(f.remark||'')}"><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Work it out','निकालें')}</button></div>`,
+      async(fm,close)=>{const d=Object.fromEntries(new FormData(fm));const r=await sb.rpc('prepare_settlement',{p_employee:e.id,p_notice_days:+d.nd||0,p_other_earn:+d.oe||0,p_other_ded:+d.od||0,p_remark:d.rm||null});if(r.error)throw r.error;close();toast(L('Settlement prepared','सेटलमेंट बन गया'));await render();fnfView(r.data)})});
+  $$('[data-fapp]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Approve this settlement? The employee will be marked Relieved.','यह सेटलमेंट मंज़ूर करें? कर्मचारी Relieved हो जाएगा।')))return;const r=await sb.rpc('decide_settlement',{p_id:b.dataset.fapp,p_action:'approve',p_date:null});if(r.error)return toast(r.error.message);toast(L('Approved','मंज़ूर'));render()});
+  $$('[data-fpaid]').forEach(b=>b.onclick=()=>modal(`<h3>${L('Mark paid','भुगतान दर्ज')}</h3><label>${L('Date paid','भुगतान की तारीख़')}</label><input class="inp" type="date" name="d" value="${todayS()}" max="${todayS()}" required><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_settlement',{p_id:b.dataset.fpaid,p_action:'paid',p_date:new FormData(f).get('d')});if(r.error)throw r.error;close();toast(L('Saved','सेव हुआ'));render()}));
+  /* advances */
+  const avn=$('#advnew');if(avn)avn.onclick=()=>modal(`<h3>${L('Ask for an advance','एडवांस माँगें')}</h3><div class="fgrid"><div><label>${L('Amount','राशि')} (₹)</label><input class="inp" type="number" name="a" min="1" step="1" required></div><div><label>${L('Instalments (months)','किस्तें (महीने)')}</label><input class="inp" type="number" name="n" min="1" max="${S.data.ppol.adv_max_emi}" value="1" required></div></div><label>${L('Reason','कारण')} *</label><input class="inp" name="r" required><p id="emi" class="muted"></p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Send','भेजें')}</button></div>`,
+    async(f,close)=>{const d=Object.fromEntries(new FormData(f));const r=await sb.rpc('request_advance',{p_amount:+d.a,p_emi_count:+d.n,p_reason:d.r});if(r.error)throw r.error;close();toast(L('Sent for approval','मंज़ूरी के लिए गया'));render()});
+  if(avn&&!window._emiL){window._emiL=1;document.addEventListener('input',function upd(ev){const f=ev.target.closest&&ev.target.closest('form.modal');if(!f||!f.querySelector('#emi'))return;const a=+f.a.value,n=+f.n.value;f.querySelector('#emi').textContent=a>0&&n>0?`${L('Instalment','किस्त')} ≈ ${inr(Math.ceil(a/n))} × ${n}`:''})}
+  $$('[data-adv]').forEach(b=>b.onclick=()=>{const [act,id]=b.dataset.adv.split('|');
+    if(act==='approve'||act==='cancel'){(async()=>{if(act==='cancel'&&!confirm(L('Cancel this advance?','यह एडवांस रद्द करें?')))return;const r=await sb.rpc('decide_advance',{p_adv:id,p_action:act,p_comment:null,p_date:null});if(r.error)return toast(r.error.message);toast(L('Done','हो गया'));render()})();return}
+    if(act==='reject')return modal(`<h3>${L('Reject','अस्वीकार')}</h3><label>${L('Reason','कारण')} *</label><textarea class="inp" name="c" rows="3"></textarea><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Reject','अस्वीकार')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_advance',{p_adv:id,p_action:'reject',p_comment:new FormData(f).get('c'),p_date:null});if(r.error)throw r.error;close();toast(L('Rejected','अस्वीकार'));render()});
+    modal(`<h3>${L('Mark paid','दिया गया')}</h3><label>${L('Date it was paid','देने की तारीख़')}</label><input class="inp" type="date" name="d" value="${todayS()}" max="${todayS()}" required><p class="muted">${L('Recovery starts from the salary of the next month.','वसूली अगले महीने की सैलरी से शुरू होगी।')}</p><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,async(f,close)=>{const r=await sb.rpc('decide_advance',{p_adv:id,p_action:'disburse',p_comment:null,p_date:new FormData(f).get('d')});if(r.error)throw r.error;close();toast(L('Saved','सेव हुआ'));render()})});
+  const ppf=$('#ppf');if(ppf)ppf.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(ppf));const r=await sb.from('payroll_policy').upsert({client_id:S.profile.client_id,adv_max_months:+d.m,adv_max_emi:+d.e});if(r.error)return toast(r.error.message);await logAudit('Payroll','Advance rules saved','',d.m+' / '+d.e);toast(L('Saved','सेव हुआ'));render()};
+  /* extra heads */
+  const an=$('#adjnew');if(an)an.onclick=()=>modal(`<h3>${L('Add line','लाइन जोड़ें')} · ${monName(S.pmonth+'-01')}</h3><label>${L('Employee','कर्मचारी')}</label><select class="inp" name="emp" required>${S.data.emps.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.code+' '+e.name)}</option>`).join('')}</select><label>${L('Head','हेड')}</label><select class="inp" name="head" required>${S.data.heads.filter(h=>h.active).map(h=>`<option value="${h.id}">${esc(h.code+' · '+h.name)}</option>`).join('')}</select><label>${L('Amount','राशि')} (₹)</label><input class="inp" type="number" name="amt" min="1" step="1" required><label>${L('Remark','टिप्पणी')}</label><input class="inp" name="rem"><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+    async(f,close)=>{const d=Object.fromEntries(new FormData(f));if(!(+d.amt>0))throw new Error(L('Write the amount','राशि लिखें'));const r=await sb.from('pay_adjustments').insert({client_id:S.profile.client_id,month:S.pmonth+'-01',employee_id:d.emp,head_id:d.head,amount:+d.amt,remark:d.rem.trim()||null});if(r.error)throw r.error;await logAudit('Payroll','Extra head added',empName(d.emp),d.amt);close();toast(L('Saved','सेव हुआ'));render()});
+  const ai=$('#adjimp');if(ai)ai.onclick=()=>modal(`<h3>${L('Import lines','लाइनें इम्पोर्ट करें')} · ${monName(S.pmonth+'-01')}</h3><p class="muted">${L('One line per row: employee code, head code, amount, remark. You can copy the columns from Excel and paste here.','हर पंक्ति में: कर्मचारी कोड, हेड कोड, राशि, टिप्पणी। Excel से कॉलम कॉपी करके यहाँ पेस्ट कर सकते हैं।')}</p><textarea class="inp" name="t" rows="8" placeholder="E004, AWA, 1500, Diwali duty&#10;E005, SWEET, 300, Extra sale"></textarea><div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Import','इम्पोर्ट')}</button></div>`,
+    async(f,close)=>{const lines=new FormData(f).get('t').split(/\r?\n/).map(s=>s.trim()).filter(Boolean), rows=[], bad=[];
+      lines.forEach((ln,i)=>{const c=ln.split(/\t|,/).map(x=>x.trim()), e=S.data.emps.find(x=>x.active&&x.code.toUpperCase()===(c[0]||'').toUpperCase()), h=S.data.heads.find(x=>x.active&&x.code.toUpperCase()===(c[1]||'').toUpperCase()), a=+String(c[2]||'').replace(/[₹,\s]/g,'');
+        if(!e||!h||!(a>0))bad.push(`${L('row','पंक्ति')} ${i+1}: ${!e?L('employee code not found','कर्मचारी कोड नहीं मिला'):!h?L('head code not found','हेड कोड नहीं मिला'):L('amount is wrong','राशि ग़लत')}`);else rows.push({client_id:S.profile.client_id,month:S.pmonth+'-01',employee_id:e.id,head_id:h.id,amount:a,remark:c.slice(3).join(', ')||null})});
+      if(!rows.length&&!bad.length)throw new Error(L('Paste at least one line','कम से कम एक लाइन पेस्ट करें'));if(bad.length)throw new Error(L('Nothing was imported. Fix these: ','कुछ इम्पोर्ट नहीं हुआ। ये ठीक करें: ')+bad.slice(0,6).join('; '));
+      const r=await sb.from('pay_adjustments').insert(rows);if(r.error)throw r.error;await logAudit('Payroll','Extra heads imported',S.pmonth,rows.length+' lines');close();toast(`${rows.length} ${L('lines imported','लाइनें इम्पोर्ट हुईं')}`);render()});
+  $$('[data-adel]').forEach(b=>b.onclick=async()=>{if(!confirm(L('Delete this line?','यह लाइन हटाएँ?')))return;const r=await sb.from('pay_adjustments').delete().eq('id',b.dataset.adel);if(r.error)return toast(r.error.message);toast(L('Deleted','हटाया'));render()});
+  const headForm=id=>{const h=id?S.data.heads.find(x=>x.id===id):{kind:'earning',pf:false,esi:true,tds:true,active:true};modal(`<h3>${id?L('Edit head','हेड बदलें'):L('New head','नया हेड')}</h3><div class="fgrid"><div><label>${L('Code','कोड')} *</label><input class="inp" name="code" value="${esc(h.code||'')}" maxlength="10" ${id?'readonly':''} required style="text-transform:uppercase"></div><div><label>${L('Type','प्रकार')}</label><select class="inp" name="kind" ${id?'disabled':''}><option value="earning" ${h.kind==='earning'?'selected':''}>${L('Earning','आय')}</option><option value="deduction" ${h.kind==='deduction'?'selected':''}>${L('Deduction','कटौती')}</option></select></div></div><label>${L('Name','नाम')} *</label><input class="inp" name="name" value="${esc(h.name||'')}" required>${[['pf',L('Counts in PF wage','PF वेतन में गिनें')],['esi',L('Counts in ESIC wage','ESIC वेतन में गिनें')],['tds',L('Taxable (TDS)','टैक्स योग्य (TDS)')],['active',L('Active','चालू')]].map(([k,n])=>`<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px"><input type="checkbox" name="${k}" ${h[k]?'checked':''}> ${n}</label>`).join('')}<div class="err" id="me"></div><div class="acts"><button type="button" class="btn" data-close>${L('Cancel','रद्द')}</button><button class="btn btn-p">${L('Save','सेव')}</button></div>`,
+    async(f,close)=>{const d=Object.fromEntries(new FormData(f));const row={code:(d.code||h.code).trim().toUpperCase(),name:d.name.trim(),kind:d.kind||h.kind,pf:!!d.pf,esi:!!d.esi,tds:!!d.tds,active:!!d.active};if(!row.code||!row.name)throw new Error(L('Write the code and name','कोड और नाम लिखें'));
+      const r=id?await sb.from('pay_heads').update(row).eq('id',id):await sb.from('pay_heads').insert({...row,client_id:S.profile.client_id});if(r.error)throw new Error(r.error.code==='23505'?L('This code already exists','यह कोड पहले से है'):r.error.message);await logAudit('Payroll','Head saved',row.code,'');close();toast(L('Saved','सेव हुआ'));render()})};
+  const hn=$('#hdnew');if(hn)hn.onclick=()=>headForm(null);$$('[data-hded]').forEach(b=>b.onclick=()=>headForm(b.dataset.hded));
+  /* files of an approved payroll */
+  const dl=(name,text,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+  const csvOf=rows=>'﻿'+rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const privs=async()=>{const r=await sb.from('employee_private').select('*');return r.data||[]};
+  const emOf=id=>S.data.emps.find(z=>z.id===id)||{};
+  const pb=$('#pbank');if(pb)pb.onclick=async()=>{const P=await privs(), miss=[], rows=[];S.data.slips.forEach(x=>{const e=emOf(x.employee_id), p=P.find(z=>z.employee_id===x.employee_id)||{};if(!p.account_no||!p.ifsc){miss.push(e.name);return}rows.push([e.code,e.name,p.bank_name||'',p.ifsc,p.account_no,Number(x.net).toFixed(2),'Salary '+S.pmonth])});
+    dl(`Bank-transfer-${S.pmonth}.csv`,csvOf([['Code','Name','Bank','IFSC','Account number','Amount','Narration'],...rows]),'text/csv');if(miss.length)toast(L('Left out, no bank details: ','छूटे, बैंक विवरण नहीं: ')+miss.join(', '));await logAudit('Payroll','Bank file downloaded',S.pmonth,rows.length+'')};
+  const pe=$('#pecr');if(pe)pe.onclick=async()=>{const P=await privs(), miss=[], rows=[];S.data.slips.filter(x=>Number(x.pf)>0).forEach(x=>{const e=emOf(x.employee_id), p=P.find(z=>z.employee_id===x.employee_id)||{};if(!/^\d{12}$/.test(p.uan||'')){miss.push(e.name);return}
+      const epfW=Math.round(x.pf_wage), epsW=Math.min(epfW,15000), epf=Math.round(x.pf), eps=Math.round(epsW*8.33/100);rows.push([p.uan,e.name,Math.round(x.gross),epfW,epsW,epsW,epf,eps,epf-eps,Math.max(0,Math.ceil(x.days-x.paid_days-1e-9)),0])});
+    dl(`ECR-${S.pmonth}.txt`,rows.map(r=>r.join('#~#')).join('\n'),'text/plain');if(miss.length)toast(L('Left out, UAN missing or wrong: ','छूटे, UAN नहीं या ग़लत: ')+miss.join(', '));await logAudit('Payroll','EPFO ECR downloaded',S.pmonth,rows.length+'')};
+  const pq=$('#pesic');if(pq)pq.onclick=async()=>{const P=await privs(), miss=[], rows=[];S.data.slips.filter(x=>Number(x.esi)>0).forEach(x=>{const e=emOf(x.employee_id), p=P.find(z=>z.employee_id===x.employee_id)||{};if(!/^\d{10}$/.test(p.esi||'')){miss.push(e.name);return}
+      const days=Math.max(0,Math.round(x.paid_days)), left=e.lwd&&e.lwd.slice(0,7)===S.pmonth;rows.push([p.esi,(e.name||'').replace(/[^A-Za-z ]/g,' ').replace(/\s+/g,' ').trim(),days,Math.round(x.esi_wage),days>0?0:(left?2:1),left?e.lwd.split('-').reverse().join('/'):''])});
+    dl(`ESIC-${S.pmonth}.csv`,csvOf([['IP Number','IP Name','No of Days for which wages paid/payable during the month','Total Monthly Wages','Reason Code for Zero workings days','Last Working Day'],...rows]),'text/csv');if(miss.length)toast(L('Left out, ESIC number missing or wrong: ','छूटे, ESIC नंबर नहीं या ग़लत: ')+miss.join(', '));await logAudit('Payroll','ESIC file downloaded',S.pmonth,rows.length+'')};
+  const sf=$('#stf');if(sf)sf.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(sf)), me_=$('#me',sf);let pt;try{pt=JSON.parse(d.pt||'{}')}catch(x){me_.textContent=L('Professional tax slabs are not in the right format','प्रोफ़ेशनल टैक्स स्लैब सही फ़ॉर्मेट में नहीं');return}
+    const row={client_id:S.profile.client_id,pt};['pf_rate','pf_cap','esi_ee','esi_er','esi_limit','std_ded','rebate_limit','cess'].forEach(k=>row[k]=+d[k]);if(Object.values(row).some(v=>typeof v==='number'&&(isNaN(v)||v<0))){me_.textContent=L('Check the numbers','संख्या जाँचें');return}
+    const r=await sb.from('statutory_settings').upsert(row);if(r.error){me_.textContent=r.error.message;return}await logAudit('Payroll','Statutory rates saved','','');toast(L('Saved','सेव हुआ'))};
+  $$('[data-es]').forEach(c=>c.onchange=async()=>{const [eid,k]=c.dataset.es.split('|');const cur=S.data.estat.find(z=>z.employee_id===eid)||{employee_id:eid,client_id:S.profile.client_id,pf:true,pf_full_basic:false,esic:true,pt:true,tds:true};cur[k]=c.checked;const r=await sb.from('employee_statutory').upsert({employee_id:eid,client_id:S.profile.client_id,pf:cur.pf,pf_full_basic:cur.pf_full_basic,esic:cur.esic,pt:cur.pt,tds:cur.tds});if(r.error){c.checked=!c.checked;return toast(r.error.message)}if(!S.data.estat.includes(cur))S.data.estat.push(cur);toast(L('Saved','सेव हुआ'))});
+}
+
+/* ---------- render ---------- */
+const PAGES={home:[pageHome,()=>{}],employees:[pageEmployees,bindEmployees],leave:[pageLeave,bindLeave],att:[pageAtt,bindAtt],pay:[pagePay,bindPay],org:[pageOrg,bindOrg],logins:[pageLogins,bindLogins],me:[pageMe,bindMe],clients:[pageClients,()=>{}]};
+let RTOKEN=0;
+async function render(keepFocus,msg){
+  const app=$('#app'), tok=++RTOKEN;
+  if(typeof keepFocus==='string'){msg=keepFocus;keepFocus=false}
+  if(!S.user){app.innerHTML=loginView(msg);bindLogin();return}
+  if(S.profile&&S.profile.must_change_password&&!S.platform){app.innerHTML=pwView();bindPw();return}
+  try{const [fn,bind]=PAGES[S.page]||PAGES.home, body=await fn();if(tok!==RTOKEN)return;
+    const ae=document.activeElement, id=ae&&ae.id, pos=ae&&ae.selectionStart;
+    app.innerHTML=shell(body);bindShell();bind(body);
+    if(keepFocus&&id){const n=$('#'+id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(x){}}}
+  }catch(x){app.innerHTML=shell({head:'<h1>Error</h1>',html:`<div class="card" style="padding:16px;color:var(--bad)">${esc(x.message||x)}</div>`});bindShell()}
+}
+boot().catch(x=>{S.user=null;render(x.message)});
+</script>
+</body>
+</html>
