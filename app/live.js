@@ -87,16 +87,17 @@ async function syncAttendance(){
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
-const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','PHEADS','STAT','SSTR','PAYRUN'];
-const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS'];
+const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','SSTR','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','LVR','CF','STATV'];
 const EMPSTORES=['LEAVES','AR','REGS','RH','ADV'];
 const ref=n=>{try{return eval(n)}catch(e){return undefined}};
-const itemsOf=n=>{const v=ref(n);if(v==null)return null;const o={};if(Array.isArray(v))v.forEach((x,i)=>{o[x&&x.id!=null?'id:'+x.id:'i:'+i]=x});else Object.keys(v).forEach(k=>o['k:'+k]=v[k]);return o};
+const hasFn=x=>{try{return /^function|=>/.test('')||Object.values(x||{}).some(y=>typeof y==='function')}catch(e){return true}};
+const itemsOf=n=>{const v=ref(n);if(v==null||typeof v!=='object'||hasFn(v)||(Array.isArray(v)&&v.some(x=>x&&typeof x==='object'&&hasFn(x))))return null;const o={};if(Array.isArray(v))v.forEach((x,i)=>{o[x&&x.id!=null?'id:'+x.id:'i:'+i]=x});else Object.keys(v).forEach(k=>o['k:'+k]=v[k]);return o};
 LIVE.stSnap={};
 async function loadStores(){
   let rows=[], page=0;while(true){const r=await sb.from('app_store').select('store,key,data').range(page*1000,page*1000+999);if(r.error)throw r.error;rows=rows.concat(r.data||[]);if(!r.data||r.data.length<1000)break;page++}
   const demo=LIVE.client&&LIVE.client.code==='demo';
-  for(const n of [...CONFIG,...DATASTORES]){const v=ref(n);if(v==null)continue;const mine=rows.filter(r=>r.store===n);
+  for(const n of [...CONFIG,...DATASTORES]){const v=ref(n);if(v==null||!itemsOf(n))continue;const mine=rows.filter(r=>r.store===n);
     if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>delete v[k])}
       LIVE.stSnap[n]={}; continue }
     if(Array.isArray(v)){v.length=0;mine.sort((a,b)=>{const x=a.key.split(':'), y=b.key.split(':');return (+x[1]||0)-(+y[1]||0)}).forEach(r=>v.push(r.data))}
@@ -110,9 +111,14 @@ async function loadStores(){
 async function syncStores(){
   const hr=isHRrole();
   for(const n of [...CONFIG,...DATASTORES]){if(!hr&&!EMPSTORES.includes(n))continue;const items=itemsOf(n);if(!items)continue;const snap=LIVE.stSnap[n]||(LIVE.stSnap[n]={});
-    const up=[];Object.keys(items).forEach(k=>{const s=JSON.stringify(items[k]);if(s!==undefined&&snap[k]!==s)up.push({client_id:LIVE.profile.client_id,store:n,key:k,data:items[k]})});
-    const gone=Object.keys(snap).filter(k=>!(k in items));
-    for(let i=0;i<up.length;i+=200){const r=await sb.from('app_store').upsert(up.slice(i,i+200));if(r.error)throw r.error}
+    let up=[];Object.keys(items).forEach(k=>{const s=JSON.stringify(items[k]);if(s!==undefined&&snap[k]!==s)up.push({client_id:LIVE.profile.client_id,store:n,key:k,data:items[k]})});
+    const gone=hr?Object.keys(snap).filter(k=>!(k in items)):[];
+    if(hr){for(let i=0;i<up.length;i+=200){const r=await sb.from('app_store').upsert(up.slice(i,i+200));if(r.error)throw r.error}}
+    else{/* not HR: only own requests and the team's approvals go to the server, one by one; the server checks each */
+      const me=LIVE.rev.emps[LIVE.profile.employee_id], team=new Set(DATA.emps.filter(e=>+e.mgr===me).map(e=>e.id));
+      const mine=up.filter(x=>x.data&&(x.data.emp===me||team.has(x.data.emp)));up.filter(x=>!mine.includes(x)).forEach(x=>snap[x.key]=JSON.stringify(x.data));
+      for(const x of mine){const r=await sb.from('app_store').upsert(x);if(r.error){LIVE.err=r.error.message;try{toast(L('Not saved: ','सेव नहीं हुआ: ')+r.error.message)}catch(e){}}}
+      up=mine}
     if(gone.length){const r=await sb.from('app_store').delete().eq('store',n).in('key',gone);if(r.error)throw r.error}
     up.forEach(x=>snap[x.key]=JSON.stringify(x.data));gone.forEach(k=>delete snap[k])}
 }
@@ -201,5 +207,5 @@ const lf=document.getElementById('loginForm');if(lf)lf.addEventListener('click',
 drawLogin();
 /* an open session from before */
 (async()=>{try{const res=await Promise.race([sb.auth.getSession(),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),6000))]);const s=res&&res.data&&res.data.session;if(s)await startSession(s.user)}
-  catch(e){try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(x){}}})();
+  catch(e){if(e&&e.message==='timeout')return;try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(x){}}})();
 })();

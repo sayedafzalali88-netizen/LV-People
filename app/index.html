@@ -936,8 +936,8 @@ const _MK=['jan','feb','mar','apr','may','jun','jul','aug','sept','oct','nov','d
 Object.assign(T.en,{jan:'January',feb:'February',mar:'March',apr:'April',may:'May',jun:'June',jul:'July',aug:'August',sept:T.en.sept||'September',oct:T.en.oct||'October',nov:'November',dec:'December'});
 Object.assign(T.hi,{jan:'जनवरी',feb:'फ़रवरी',mar:'मार्च',apr:'अप्रैल',may:'मई',jun:'जून',jul:'जुलाई',aug:'अगस्त',sept:T.hi.sept||'सितंबर',oct:T.hi.oct||'अक्टूबर',nov:'नवंबर',dec:'दिसंबर'});
 const PAYRUN={}, PMON={};
-(()=>{const now=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000);for(let i=12;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1), y=d.getFullYear(), m=d.getMonth(), k=y+'-'+String(m+1).padStart(2,'0'), last=new Date(y,m+1,0).getDate();
-  PMON[k]={k:_MK[m],days:last,pay:last+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]+' '+y};if(i>=2)PAYRUN[k]='paid';else if(i===1)PAYRUN[k]='draft'}})();
+(()=>{const now=new Date(Date.now()+(330+new Date().getTimezoneOffset())*60000);const fyM=now.getMonth()>=3?now.getMonth()-3:now.getMonth()+9;for(let i=fyM;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1), y=d.getFullYear(), m=d.getMonth(), k=y+'-'+String(m+1).padStart(2,'0'), last=new Date(y,m+1,0).getDate();const lk=_MK[m]+y;T.en[lk]=['January','February','March','April','May','June','July','August','September','October','November','December'][m]+' '+y;T.hi[lk]=['जनवरी','फ़रवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'][m]+' '+y;
+  PMON[k]={k:lk,days:last,pay:last+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]+' '+y};if(i>=2)PAYRUN[k]='paid';else if(i===1)PAYRUN[k]='draft'}})();
 Object.assign(state,{paytab:null,paym:'2026-10',payview:null});
 const r0=Math.round;
 
