@@ -87,7 +87,9 @@ async function syncAttendance(){
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
-const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT'];
+const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT','ALTSET','BIOSET','CRULE','EMPCODE','ORGS','SERIES','SYSSERX','STKSET','TRULE','WAUTO'];
+/* SYSSER has functions inside, so only its plain values (prefix, digits, next number...) are kept */
+window.SYSSERX={};const sysToX=()=>{try{SYSSER.forEach(s=>{const o={};Object.keys(s).forEach(k=>{if(typeof s[k]!=='function')o[k]=s[k]});SYSSERX[s.key]=o})}catch(e){}};const sysFromX=()=>{try{SYSSER.forEach(s=>{const o=SYSSERX[s.key];if(o)Object.keys(o).forEach(k=>{if(typeof s[k]!=='function')s[k]=o[k]})})}catch(e){}};sysToX();
 const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','KRULES','SSTR','TGR','AST','AUDIT'];
 try{Object.keys(SRC).filter(k=>Array.isArray(SRC[k])).forEach(k=>DATASTORES.push('SRC.'+k))}catch(e){}
 const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','FBT','CFB','ASG','TODO','DAILYT','SLP','SLASG','SLLOG','SLT','SLCERT','CREQ','XADV','XREP','XRES','XTRIP','UREQ','WISH','CHE','POLL','RECOG','SRC.content','SRC.campaign','SRC.post','SRC.creview','SRC.ttest','AUDIT'];
@@ -104,11 +106,13 @@ async function loadStores(){
   for(const n of [...CONFIG,...DATASTORES]){const v=ref(n);if(v==null||!itemsOf(n))continue;const mine=rows.filter(r=>r.store===n);
     if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>{if(Array.isArray(v[k]))v[k]=[];else delete v[k]})}
       if(!demo&&n==='PAYRUN')Object.keys(v).forEach(k=>v[k]='draft');
+      if(!demo&&n==='ORGS'&&LIVE.client){v.org=LIVE.client.name}
       LIVE.stSnap[n]={}; continue }
     if(Array.isArray(v)){v.length=0;mine.sort((a,b)=>{const x=a.key.split(':'), y=b.key.split(':');return (+x[1]||0)-(+y[1]||0)}).forEach(r=>v.push(r.data))}
     else{Object.keys(v).forEach(k=>delete v[k]);mine.forEach(r=>{v[r.key.slice(2)]=r.data})}
     LIVE.stSnap[n]={};mine.forEach(r=>LIVE.stSnap[n][r.key]=JSON.stringify(r.data))}
   try{if(typeof syncHoli==='function')syncHoli()}catch(e){}
+  sysFromX();
   if(rows.some(r=>r.data&&hasFileRef(r.data))){try{await showFiles([...CONFIG,...DATASTORES].map(ref).filter(v=>v&&typeof v==='object'))}catch(e){console.warn('files',e)}}
   try{let base=1e12;AUDIT.forEach(a=>{if(a.id==null)a.id=base--});AUDIT.sort((a,b)=>b.id-a.id)}catch(e){}
   /* new records must not reuse an id that is already stored */
@@ -350,7 +354,7 @@ async function syncNow(){
   if(LIVE.busy){LIVE.queued=true;return}
   LIVE.busy=true;let n=0;
   try{
-    await syncAttendance();await syncStores();await syncKpis();
+    sysToX();await syncAttendance();await syncStores();await syncKpis();
     if(isHRrole())for(const k of KINDS){const t=TBL[k];
       for(const o of DATA[k]){const s=sig(k,o);if(LIVE.snap[k][o.id]===s)continue;
         const row=toRow(k,o);let uuid=LIVE.map[k][o.id];
