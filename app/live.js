@@ -130,7 +130,8 @@ async function loadStores(){
   if(rows.some(r=>r.data&&hasFileRef(r.data))){try{await showFiles([...CONFIG,...DATASTORES].map(ref).filter(v=>v&&typeof v==='object'))}catch(e){console.warn('files',e)}}
   try{let base=1e12;AUDIT.forEach(a=>{if(a.id==null)a.id=base--});AUDIT.sort((a,b)=>b.id-a.id)}catch(e){}
   /* new records must not reuse an id that is already stored */
-  let mx=0;rows.forEach(r=>{const id=r.data&&+r.data.id;if(id&&id<1e12&&id>mx)mx=id});
+  /* every stored id counts (a task or request made after a reload used to get the id of an older one); only the audit trail has its own numbers */
+  let mx=0;rows.forEach(r=>{if(r.store==='AUDIT')return;const id=r.data&&+r.data.id;if(id&&id<1e15&&id>mx)mx=id});
   try{if(mx>=seq)seq=mx+1}catch(e){}
 }
 async function syncStores(){

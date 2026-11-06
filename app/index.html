@@ -11861,6 +11861,63 @@ function bulkAssignModal(){
  $$('#asAll').onchange=()=>{bg.querySelectorAll('#asList input').forEach(x=>x.checked=$$('#asAll').checked);cnt()};
  $$('#asList').onchange=cnt;list()}
 
+/* ---------- bulk change of reporting manager and functional manager, through a workflow; the pending work of the old manager moves to the new one ---------- */
+const mgrWfEnsure=()=>{if(!WF_TYPES.includes('Manager Change'))WF_TYPES.push('Manager Change');
+ if(!WFD.some(w=>w.id==='WF-030'))WFD.push({id:'WF-030',name:'Manager change: HR Manager initiates, Division Manager approves',type:'Manager Change',st:'Active',steps:[{k:'init',role:'ROL-001',multi:''},{k:'role',role:'ROL-003',multi:'first'}]})};
+mgrWfEnsure();
+/* would this person end up above himself? walk up from the new manager */
+const mgrLoop=(emp,newMgr)=>{let x=empById(+newMgr),n=0;while(x&&n++<50){if(x.id===+emp)return true;x=x.mgr?empById(+x.mgr):null}return false};
+function mgrApply(p,inst){const rep=[], moved=[];
+ p.emps.forEach(id=>{const e=empById(id);if(!e)return;const oldM=e.mgr?+e.mgr:0, oldF=e.fm?+e.fm:0;
+  if(p.setMgr&&p.mgr&&(+p.mgr===id||mgrLoop(id,p.mgr))){rep.push(`${e.code} ${e.name}: ${L('would report to himself','अपने ही नीचे आ जाता')}`);return}
+  if(p.setMgr&&p.mgr&&+p.mgr!==oldM){e.mgr=String(p.mgr);
+   /* what the old manager still holds for this employee goes to the new manager */
+   TASKS.filter(tk=>tk.status==='Pending'&&tk.kind!=='notice'&&tk.subject===id&&(tk.to||[]).includes(oldM)).forEach(tk=>{tk.to=[...new Set(tk.to.map(h=>h===oldM?+p.mgr:h))];tk.log.push({at:TODAY_S,by:'System',act:`${L('Moved from','से लिया गया')} ${nm_(oldM)} ${L('to','को')} ${nm_(p.mgr)}`});
+    const w=WFI.find(x=>x.id===tk.inst);if(w&&w.steps[tk.step])w.steps[tk.step].holders=w.steps[tk.step].holders.map(h=>h===oldM?+p.mgr:h);moved.push(tk.no)})}
+  if(p.setFm&&String(p.fm||'')!==String(e.fm||''))e.fm=p.fm?String(p.fm):'';
+  rep.push(`${e.code} ${e.name}: ${[p.setMgr&&p.mgr?`${L('Reporting','रिपोर्टिंग')} ${oldM?nm_(oldM):'—'} → ${nm_(p.mgr)}`:'',p.setFm?`${L('Functional','फ़ंक्शनल')} ${oldF?nm_(oldF):'—'} → ${p.fm?nm_(p.fm):'—'}`:''].filter(Boolean).join(' · ')}`);
+  notify([id,oldM,+p.mgr,+p.fm].filter(Boolean),`${L('Manager changed for','मैनेजर बदला:')} ${e.name}`,{page:'employees'},'mgrchg'+inst.id+'|'+id)});
+ if(moved.length)notify([+p.mgr].filter(Boolean),`${moved.length} ${L('pending item(s) of the earlier manager are now with you','पहले मैनेजर के पास लंबित काम अब आपके पास हैं')}`,{page:'inbox'},'mgrmv'+inst.id);
+ audit('Manager change','Applied',inst.no,`${p.emps.length} employee(s), ${moved.length} pending item(s) moved`);inst.report=rep;inst.moved=moved.length}
+WF_ACTIONS.mgrchg={approved:inst=>mgrApply(inst.payload,inst),rejected:()=>{}};
+function bulkMgrModal(){
+ const opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
+ const emps=DATA.emps.filter(e=>e.active), pick=n=>`<select class="inp" name="${n}"><option value="">—</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>`;
+ const bg=openModal(`<h3>${L('Bulk change of manager','मैनेजर एक साथ बदलें')}</h3>
+  <div class="fgrid"><div><label>${t('functions')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('divisions')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div><div><label>${L('Current reporting manager','अभी का रिपोर्टिंग मैनेजर')}</label><select class="inp" data-bf="mgr"><option value="">${L('All','सभी')}</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></div></div>
+  <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005"></textarea>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mgAll" checked> <b>${L('Select all','सभी चुनें')}</b> <span id="mgCnt" style="color:var(--muted)"></span></label>
+  <div id="mgList" class="card tw" style="padding:6px 10px;max-height:170px;overflow:auto"></div>
+  <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="setMgr" checked> ${L('Change the reporting manager','रिपोर्टिंग मैनेजर बदलें')}</label>${pick('mgr')}
+  <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" name="setFm"> ${L('Change the functional manager (leave empty to remove)','फ़ंक्शनल मैनेजर बदलें (खाली छोड़ें तो हट जाएगा)')}</label>${pick('fm')}
+  <label>${L('Reason','कारण')}</label><input class="inp" name="why">
+  <p class="rule" style="font-size:12px;margin:8px 0">${L('This goes through the approval workflow WF-030. When it is approved, what the earlier manager still holds for these employees moves to the new manager.','यह अप्रूवल वर्कफ़्लो WF-030 से जाएगा। मंज़ूर होने पर पहले मैनेजर के पास इन कर्मचारियों का जो काम लंबित है वह नए मैनेजर को चला जाएगा।')}</p>
+  <div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Send for approval','अप्रूवल के लिए भेजें')}</button></div>`,
+ (f,close,bgm)=>{const v=Object.fromEntries(new FormData(f)), ids=[...bgm.querySelectorAll('#mgList input:checked')].map(x=>+x.value), er=m=>bgm.querySelector('#me').textContent=m;
+  const setMgr=!!v.setMgr, setFm=!!v.setFm;if(!ids.length)return er(L('Select at least one employee','कम से कम एक कर्मचारी चुनें'));
+  if(!setMgr&&!setFm)return er(L('Choose what to change','क्या बदलना है चुनें'));if(setMgr&&!v.mgr)return er(L('Choose the new reporting manager','नया रिपोर्टिंग मैनेजर चुनें'));
+  if(!(v.why||'').trim())return er(L('Reason is required','कारण ज़रूरी है'));
+  const skip=[], ok=ids.filter(id=>{const e=empById(id);if(setMgr&&(+v.mgr===id||mgrLoop(id,v.mgr))){skip.push(`${e.code} ${e.name}: ${L('would report to himself','अपने ही नीचे आ जाता')}`);return false}
+   if(setFm&&v.fm&&+v.fm===id){skip.push(`${e.code} ${e.name}: ${L('cannot be his own functional manager','अपना ही फ़ंक्शनल मैनेजर नहीं हो सकता')}`);return false}return true});
+  if(!ok.length){close();return listModal(L('Nothing to change','बदलने को कुछ नहीं'),skip.map(esc))}
+  mgrWfEnsure();
+  /* one request for each division, so the Division Manager of that division approves */
+  const by={};ok.forEach(id=>(by[empById(id).division]=by[empById(id).division]||[]).push(id));let sent=0;
+  Object.keys(by).forEach(dv=>{const list=by[dv], first=list[0];
+   const i=wfStart({wf:'WF-030',type:'Manager Change',subject:first,title:`${L('Manager change','मैनेजर बदलाव')}: ${list.length} ${L('employee(s)','कर्मचारी')}${setMgr?' → '+nm_(+v.mgr):''} (${nm('divisions',+dv)}) · ${v.why.trim()}`,payload:{emps:list,setMgr,mgr:setMgr?+v.mgr:0,setFm,fm:setFm&&v.fm?+v.fm:0,why:v.why.trim()},action:'mgrchg',by:me(),opener:{page:'employees'}});
+   if(i)sent++});
+  close();toast(sent?L('Sent for approval','अप्रूवल के लिए भेजा'):L('The approval workflow WF-030 is not active','अप्रूवल वर्कफ़्लो WF-030 चालू नहीं'));
+  if(skip.length)listModal(`${L('Not included','शामिल नहीं')}: ${skip.length}`,skip.map(esc));render()});
+ const $$=s=>bg.querySelector(s), codesEl=$$('[name=codes]');
+ const list=()=>{const f={};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
+  const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
+  const rows=emps.filter(e=>codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||String(e[k])===f[k]));
+  $$('#mgList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${$$('#mgAll').checked?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${L('Reports to','रिपोर्ट')}: ${e.mgr?esc(nm_(+e.mgr)):'—'}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
+ const cnt=()=>{const a=[...bg.querySelectorAll('#mgList input')];$$('#mgCnt').textContent=`${a.filter(x=>x.checked).length} / ${a.length}`};
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;$$('#mgAll').onchange=()=>{bg.querySelectorAll('#mgList input').forEach(x=>x.checked=$$('#mgAll').checked);cnt()};$$('#mgList').onchange=cnt;list()}
+{const _ep=employeesPage;employeesPage=function(){const h=_ep();return can('employees','E')?h.replace('<button class="btn btn-p" data-eadd>',`<button class="btn btn-o" data-mgbulk>${L('Bulk change manager','मैनेजर एक साथ बदलें')}</button><button class="btn btn-p" data-eadd>`):h};
+ const _bm=bindExtra;bindExtra=function(){_bm();$('#main').querySelectorAll('[data-mgbulk]').forEach(b=>b.onclick=bulkMgrModal)}}
+
 /* ================= Batch 80: KPI-034 Refilling Completion %. A daily Refilling form (product range, quantity needed, quantity refilled) for whoever has the KPI, with a report that exports to Excel ================= */
 Object.assign(T.en,{pm_refill:'Refilling'});Object.assign(T.hi,{pm_refill:'रिफ़िलिंग'});
 Object.assign(kpiById('KPI-034'),{method:'Auto',freq:'Daily',rule:'Daily Refilling form: for every product range the person writes the quantity that needed refilling and the quantity refilled. Completion of a day = quantity refilled ÷ quantity needed (a form with nothing needed counts 100%). A working day with no form counts 0%. Score = max score × the average completion of the working days.'});
