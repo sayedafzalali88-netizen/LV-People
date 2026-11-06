@@ -11818,12 +11818,48 @@ function atvBody(){const mid=me(), team=atvTeam(mid);let mine='';
 Object.assign(T.en,{to_atv:'Attendance check'});Object.assign(T.hi,{to_atv:'हाज़िरी जाँच'});
 RIGHTS.manager.timeoffice=['V'];
 const _tp79=timeofficePage;
+/* the order of the Time Office tabs follows the work of the month */
+TOT.splice(0,TOT.length,'assign','atv','exc','process','ot');
 timeofficePage=function(){const full=can('timeoffice','E');
- if(full&&state.totab!=='atv'){const h=_tp79();return h.replace(/(<div class="tabs">[\s\S]*?)(<\/div>)/,(m,a,b)=>a+'<button data-totab="atv" class="">'+t('to_atv')+'</button>'+b)}
- const tabs=full?[...TOT,'atv']:['atv'];
+ if(full&&state.totab!=='atv')return _tp79();
+ const tabs=full?[...TOT]:['atv'];
  return `<div class="page-h"><div><h1>${t('timeoffice')}</h1><p>${t('timeoffice_sub')}</p></div></div><div class="tabs">${tabs.map(k=>`<button data-totab="${k}" class="${k==='atv'?'on':''}">${t('to_'+k)}</button>`).join('')}</div>${atvBody()}`};
 const _be79=bindExtra;
-bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEach(b=>b.onclick=()=>atvModal(b.dataset.atvopen))};
+bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEach(b=>b.onclick=()=>atvModal(b.dataset.atvopen));$('#main').querySelectorAll('[data-asbulk]').forEach(b=>b.onclick=bulkAssignModal)};
+/* shift assignment in bulk: pick a group (function, department, branch, division, designation) or paste employee codes, tick who is included, one shift for all */
+const _at79=assignTab;
+assignTab=function(){return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('To give one shift to many employees at once, use Bulk assign.','कई कर्मचारियों को एक साथ एक शिफ़्ट देने के लिए Bulk assign इस्तेमाल करें।')}</span><div style="flex:1"></div>${can('timeoffice','A')?`<button class="btn btn-p" data-asbulk>${L('Bulk assign','एक साथ असाइन')}</button>`:''}</div>`+_at79()};
+function bulkAssignModal(){
+ const f0={func:'',dept:'',branch:'',division:'',desig:''}, opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
+ const bg=openModal(`<h3>${L('Bulk shift assignment','एक साथ शिफ़्ट असाइनमेंट')}</h3>
+  <div class="fgrid"><div><label>${t('functions')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('divisions')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div></div>
+  <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005, E006"></textarea>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="asAll" checked> <b>${L('Select all','सभी चुनें')}</b> <span id="asCnt" style="color:var(--muted)"></span></label>
+  <div id="asList" class="card tw" style="padding:6px 10px;max-height:180px;overflow:auto"></div>
+  <label>${t('as_shift')}</label><select class="inp" name="shift">${SHIFTS.filter(s=>!s.off).map(s=>`<option value="${s.id}">${esc(s.name)} ${hm(s.start)}-${hm(s.end)}</option>`).join('')}</select>
+  <div class="fgrid"><div><label>${t('from')}</label><input class="inp" type="date" name="from" value="${TODAY_S}" required></div><div><label>${t('to')}</label><input class="inp" type="date" name="to"></div></div>
+  <div class="fgrid"><div><label>${t('wo')}</label><select class="inp" name="wo"><option value="-1">${t('wo_none')}</option>${[0,1,2,3,4,5,6].map(i=>`<option value="${i}" ${i===0?'selected':''}>${WDN(i)}</option>`).join('')}</select></div><div><label>${t('wo_type')}</label><select class="inp" name="wot"><option value="F">${t('wo_full')}</option><option value="FH">${t('wo_fh')}</option><option value="SH">${t('wo_sh')}</option></select></div></div>
+  <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="repeat" checked> ${t('repeat_m')}</label>
+  <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Assign','असाइन करें')}</button></div>`,
+ (f,close,bgm)=>{const v=Object.fromEntries(new FormData(f)), ids=[...bgm.querySelectorAll('#asList input:checked')].map(x=>+x.value), sh=SHIFTS.find(s=>s.id==v.shift), er=m=>bgm.querySelector('#me').textContent=m;
+  if(!ids.length)return er(L('Select at least one employee','कम से कम एक कर्मचारी चुनें'));if(!sh||sh.off)return er(t('e_shift_off'));
+  const from=v.from, to=v.to||monthEnd(from);if(to<from)return er(t('e_dates'));
+  const skip=[];let n=0;
+  ids.forEach(emp=>{const e=empById(emp);
+   if(from<e.doj)return skip.push(`${e.code} ${e.name}: ${t('e_before_doj')}`);
+   if(ASSIGN.some(a=>a.emp===emp&&a.st==='Approved'&&overlap(a.from,a.to,from,to)))return skip.push(`${e.code} ${e.name}: ${t('e_overlap2')}`);
+   const a={id:++seq,emp,shift:sh.id,from,to,wo:+v.wo,wot:v.wot,repeat:!!v.repeat,st:'Approved',log:[]};ASSIGN.push(a);if(a.repeat)createRepeat(a);n++});
+  audit('Shift assignment','Bulk',`${sh.name} ${from} to ${to}`,`${n} assigned, ${skip.length} skipped`);close();toast(`${n} ${L('assigned','असाइन हुए')}`);
+  if(skip.length)listModal(`${L('Not assigned','असाइन नहीं हुए')}: ${skip.length}`,skip.map(esc));else render();if(skip.length)render()});
+ const $$=s=>bg.querySelector(s), codesEl=$$('[name=codes]');
+ const list=()=>{const f={...f0};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
+  const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
+  const rows=DATA.emps.filter(e=>e.active&&(codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||e[k]==f[k])));
+  $$('#asList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${$$('#asAll').checked?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${esc(nm('desigs',e.desig))}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
+ const cnt=()=>{const a=[...bg.querySelectorAll('#asList input')];$$('#asCnt').textContent=`${a.filter(x=>x.checked).length} / ${a.length}`};
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;
+ $$('#asAll').onchange=()=>{bg.querySelectorAll('#asList input').forEach(x=>x.checked=$$('#asAll').checked);cnt()};
+ $$('#asList').onchange=cnt;list()}
 
 /* ================= Batch 80: KPI-034 Refilling Completion %. A daily Refilling form (product range, quantity needed, quantity refilled) for whoever has the KPI, with a report that exports to Excel ================= */
 Object.assign(T.en,{pm_refill:'Refilling'});Object.assign(T.hi,{pm_refill:'रिफ़िलिंग'});
