@@ -209,6 +209,8 @@ function kpiPackPage(){
   <input class="inp" id="kpQ" placeholder="${L('Search KPI','KPI खोजें')}" value="${esc(KP.q)}" style="max-width:220px"><select class="inp" id="kpM" style="max-width:170px"><option value="">${L('All modules','सभी मॉड्यूल')}</option>${modsAll.map(m=>`<option ${m===KP.mod?'selected':''}>${m}</option>`).join('')}</select>
   <select class="inp" id="kpO" style="max-width:160px"><option value="">${L('All','सभी')}</option><option value="in" ${KP.only==='in'?'selected':''}>${L('In the pack','पैक में')}</option><option value="out" ${KP.only==='out'?'selected':''}>${L('Not in the pack','पैक में नहीं')}</option></select>
   <span class="pill p-teal">${inN} ${L('KPIs in the pack','KPI पैक में')}</span></div>
+  <div class="tools"><button class="btn btn-o btn-s" data-kpall="add">${L('Add all shown','दिख रही सब जोड़ें')}</button><button class="btn btn-o btn-s btn-d" data-kpall="del">${L('Remove all shown','दिख रही सब हटाएँ')}</button><span style="flex:1"></span>
+   <select class="inp" id="kpCopy" style="max-width:240px"><option value="">${L('Copy the pack of another client…','दूसरे क्लाइंट का पैक कॉपी करें…')}</option>${LIVE.kp.clients.filter(c=>c.id!==KP.client).map(c=>`<option value="${c.id}">${esc(c.name)} (${esc(c.code)})</option>`).join('')}</select><button class="btn btn-o btn-s" data-kpcopy>${L('Copy','कॉपी')}</button></div>
   <div class="card tw"><table class="tbl"><thead><tr><th>${L('In pack','पैक में')}</th><th>KPI</th><th>${L('Name','नाम')}</th><th>${L('Method','तरीका')}</th><th>${L('Module','मॉड्यूल')}</th><th>${L('Client max','क्लाइंट अधिकतम')}</th></tr></thead><tbody>${rows.slice(0,400).map(l=>{const p=LIVE.kp.pack[l.id], ok=mods.includes(l.module)&&(l.status==='released'||(l.status==='testing'&&cl.status==='test'));
     return `<tr style="${ok?'':'opacity:.55'}"><td><input type="checkbox" data-kpk="${l.id}" ${p?'checked':''} ${ok||p?'':'disabled'}></td><td><b>${esc(l.id)}</b></td><td>${esc(l.data.name||'')}<small style="display:block;color:var(--muted)">${esc(l.data.cat||'')}</small></td><td>${esc(l.data.method||'')}</td><td>${ok?esc(l.module):`<span class="pill p-bad">${esc(l.module)}: ${L('module not given','मॉड्यूल नहीं दिया')}</span>`}</td><td>${p?(p.max!=null?p.max:l.data.max):'—'}</td></tr>`}).join('')}</tbody></table></div>`}
 try{PAGEFN.kpipack=()=>kpiPackPage()}catch(e){}
@@ -218,6 +220,27 @@ bindExtra=function(){_bx.apply(this,arguments);if(state.page!=='kpipack')return;
   if(g('kpC'))g('kpC').onchange=async e=>{KP.client=e.target.value;await kpLoad();render()};
   if(g('kpQ'))g('kpQ').oninput=e=>{KP.q=e.target.value;clearTimeout(KP.t);KP.t=setTimeout(()=>{render();const x=g('kpQ');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},300)};
   if(g('kpM'))g('kpM').onchange=e=>{KP.mod=e.target.value;render()};if(g('kpO'))g('kpO').onchange=e=>{KP.only=e.target.value;render()};
+  /* the same rule as the single tick: the module must be given to the client, and the KPI must be released (testing only for a test client) */
+  const kpOk=(l,cl)=>(cl.modules||[]).includes(l.module)&&(l.status==='released'||(l.status==='testing'&&cl.status==='test'));
+  const kpShown=()=>{const qq=KP.q.toLowerCase();return LIVE.kp.lib.filter(l=>(!KP.mod||l.module===KP.mod)&&(!qq||(l.id+' '+(l.data.name||'')+' '+(l.data.cat||'')).toLowerCase().includes(qq))&&(!KP.only||(KP.only==='in'?LIVE.kp.pack[l.id]:!LIVE.kp.pack[l.id])))};
+  const kpDone=async(msg)=>{await kpLoad();toast(msg);render()};
+  document.querySelectorAll('[data-kpall]').forEach(b=>b.onclick=async()=>{const cl=LIVE.kp.clients.find(c=>c.id===KP.client)||{}, add=b.dataset.kpall==='add', rows=kpShown();
+    if(add){const todo=rows.filter(l=>kpOk(l,cl)&&!LIVE.kp.pack[l.id]);if(!todo.length)return toast(L('Nothing to add','जोड़ने को कुछ नहीं'));
+      if(!confirm(`${L('Add','जोड़ें')} ${todo.length} KPI → ${cl.name}?`))return;b.disabled=true;
+      const r=await sb.from('client_kpi_pack').insert(todo.map(l=>({client_id:KP.client,kpi_id:l.id,max:+(l.data.max)||10})));
+      if(r.error){b.disabled=false;return toast(r.error.message)}await kpDone(`${todo.length} ${L('added','जुड़ीं')}`)}
+    else{const todo=rows.filter(l=>LIVE.kp.pack[l.id]);if(!todo.length)return toast(L('Nothing to remove','हटाने को कुछ नहीं'));
+      if(!confirm(`${L('Remove','हटाएँ')} ${todo.length} KPI ← ${cl.name}?`))return;b.disabled=true;
+      const r=await sb.from('client_kpi_pack').delete().eq('client_id',KP.client).in('kpi_id',todo.map(l=>l.id));
+      if(r.error){b.disabled=false;return toast(r.error.message)}await kpDone(`${todo.length} ${L('removed','हटीं')}`)}});
+  document.querySelectorAll('[data-kpcopy]').forEach(b=>b.onclick=async()=>{const src=g('kpCopy').value, cl=LIVE.kp.clients.find(c=>c.id===KP.client)||{}, sc=LIVE.kp.clients.find(c=>c.id===src);if(!src)return toast(L('Choose the client to copy from','जिससे कॉपी करनी है वह क्लाइंट चुनें'));
+    const r0=await sb.from('client_kpi_pack').select('*').eq('client_id',src);if(r0.error)return toast(r0.error.message);
+    const have=new Set(Object.keys(LIVE.kp.pack)), lib=Object.fromEntries(LIVE.kp.lib.map(l=>[l.id,l]));
+    const todo=(r0.data||[]).filter(p=>!have.has(p.kpi_id)&&lib[p.kpi_id]&&kpOk(lib[p.kpi_id],cl)), skipped=(r0.data||[]).filter(p=>!have.has(p.kpi_id)).length-todo.length;
+    if(!todo.length)return toast(L('Nothing to copy','कॉपी करने को कुछ नहीं')+(skipped?` (${skipped} ${L('not allowed for this client','इस क्लाइंट के लिए नहीं')})`:''));
+    if(!confirm(`${L('Copy','कॉपी')} ${todo.length} KPI: ${sc?sc.name:''} → ${cl.name}${skipped?`\n(${skipped} ${L('skipped: module not given','छोड़ी: मॉड्यूल नहीं दिया')})`:''}`))return;b.disabled=true;
+    const r=await sb.from('client_kpi_pack').insert(todo.map(p=>({client_id:KP.client,kpi_id:p.kpi_id,max:p.max})));
+    if(r.error){b.disabled=false;return toast(r.error.message)}await kpDone(`${todo.length} ${L('copied','कॉपी हुईं')}${skipped?`, ${skipped} ${L('skipped','छोड़ी')}`:''}`)});
   document.querySelectorAll('[data-kpk]').forEach(c=>c.onchange=async()=>{const id=c.dataset.kpk;c.disabled=true;
     const r=c.checked?await sb.from('client_kpi_pack').insert({client_id:KP.client,kpi_id:id,max:+(LIVE.kp.lib.find(l=>l.id===id).data.max)||10}):await sb.from('client_kpi_pack').delete().eq('client_id',KP.client).eq('kpi_id',id);
     if(r.error){toast(r.error.message);c.checked=!c.checked}else{if(c.checked)LIVE.kp.pack[id]={kpi_id:id};else delete LIVE.kp.pack[id];toast(L('Saved','सेव हुआ'))}c.disabled=false;render()})};
