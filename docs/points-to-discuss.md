@@ -340,3 +340,15 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - Overtime arrear: late overtime of earlier locked months (window set in the rule, default 1 month) is paid in the month being processed.
 - Attendance allowance: rules (per day present, per night shift, attendance bonus) by scope (company, branch, division, department, designation, employee), with PF / ESIC / TDS switches; lines wait for a second approver in Additions & deductions.
 - Fixed: a month with no saved state showed "Processed" in Payroll run; it is now a draft.
+
+
+## Thirty-eighth List (6 Nov 2026) - Attendance holds days and hours; Payroll makes the amounts
+- Rule from the user: Attendance processes only days and hours. Every amount is made in Payroll.
+- Attendance now has 6 steps (allowance moved out): Check, This month's attendance, Comp-off and off-day work, Attendance correction (days), Overtime (hours), Overtime of earlier months (hours). No amount is stored or shown to approvers; overtime approval shows hours.
+- Payroll > Monthly payroll has 13 steps: 1 Check, 2 Attendance correction amount, 3 Salary revision arrear, 4 Overtime of earlier months, 5 Overtime of this month, 6 Weekly off / holiday extra pay, 7 Attendance allowance, 8 Process salary, 9 Verify, 10 Release, 11 Publish, 12 Release reimbursement, 13 Publish reimbursement.
+- Overtime and off-day amounts are made when the step is processed (hours x hourly rate x multiple; days x one day's pay), using the salary of the month the work was done.
+- Arrear and allowance lines wait for the approver set in workflow WF-029 (default HR Manager); no separate "late joining arrear". A line not approved by the time salary is processed moves to the next month.
+- Salary revision arrear: a revision that starts in an earlier paid month pays (what should have been paid minus what was paid).
+- Verify: only the holders of the new role "Salary Verifier" (ROL-009) can verify; if nobody is set the Admin can. Release: HR, Admin or Accounts make the bank file and enter the UTR; a payment cannot go to a bank file, be recorded or be published before verify.
+- Reimbursement: step 12 shows claims waiting for payment and opens the Accounts desk; step 13 only shows that employees were told (notification) when a claim was paid.
+- Month with no saved state is a draft (this was the cause of "November Processed").
