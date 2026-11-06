@@ -1247,9 +1247,9 @@ function stPill(e){
 function empRows(){
   const q=state.q.toLowerCase();
   const rows=baseEmps().filter(e=>(!state.fb||e.branch==state.fb)&&(!state.fd||e.dept==state.fd)&&(!q||(e.name+e.code+e.mobile).toLowerCase().includes(q)));
-  if(!rows.length)return `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">${t('no_rows')}</td></tr>`;
+  if(!rows.length)return `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">${t('no_rows')}</td></tr>`;
   return rows.map(e=>`<tr data-ev="${e.id}"><td><div class="cell"><div class="av">${esc(e.name[0])}</div><div><b>${esc(e.name)}</b><small>${e.code}</small></div></div></td>
-   <td>${esc(nm('branches',e.branch))}</td><td>${esc(nm('divisions',e.division))}</td><td>${esc(nm('depts',e.dept))}</td><td>${esc(nm('desigs',e.desig))}</td><td>${esc(nm('levels',e.level))}</td>
+   <td>${esc(nm('functions',e.func))}</td><td>${esc(nm('depts',e.dept))}</td><td>${esc(nm('branches',e.branch))}</td><td>${esc(nm('divisions',e.division))}</td><td>${esc(nm('subdivs',e.subdiv))}</td><td>${esc(nm('desigs',e.desig))}</td><td>${esc(nm('levels',e.level))}</td>
    <td>${stPill(e)}</td><td style="text-align:right"><button class="btn btn-o btn-s">${t('view')}</button></td></tr>`).join('');
 }
 function employeesPage(){
@@ -1262,7 +1262,7 @@ function employeesPage(){
    <div style="display:flex;gap:10px">${can('employees','X')?`<button class="btn btn-o" data-export>${t('export')}</button>`:''}${can('employees','A')?`<button class="btn btn-p" data-eadd>+ ${t('add_emp')}</button>`:''}</div></div>
   <div class="tools"><input class="inp grow" id="q" placeholder="${t('search')}" value="${esc(state.q)}">
    <select class="inp" id="fb">${opt('branches',state.fb,t('all_branches'))}</select><select class="inp" id="fd">${opt('depts',state.fd,t('all_depts'))}</select></div>
-  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('branch')}</th><th>${t('divisions')}</th><th>${t('dept')}</th><th>${t('desig')}</th><th>${t('career_level')}</th><th>${t('status')}</th><th></th></tr></thead><tbody id="empTbl">${empRows()}</tbody></table></div>`;
+  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('functions')}</th><th>${t('dept')}</th><th>${t('branch')}</th><th>${t('divisions')}</th><th>${t('subdivs')}</th><th>${t('desig')}</th><th>${t('career_level')}</th><th>${t('status')}</th><th></th></tr></thead><tbody id="empTbl">${empRows()}</tbody></table></div>`;
 }
 const RULES2={
  name:v=>v.trim()?'':'e_req', mobile:v=>/^[6-9]\d{9}$/.test(v)?'':'e_mobile', email:v=>/^\S+@\S+\.\S+$/.test(v)?'':'e_email',
@@ -8667,7 +8667,7 @@ function empRows(){
  const rows=baseEmps().filter(e=>(!state.fb||e.branch==state.fb)&&(!state.fd||e.dept==state.fd)&&(!q||(e.name+e.code+e.mobile).toLowerCase().includes(q)));
  if(!rows.length)return `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">${t('no_rows')}</td></tr>`;
  return rows.map(e=>`<tr data-ev="${e.id}"><td><div class="cell"><div class="av">${esc(e.name[0])}</div><div><b>${esc(e.name)}</b><small>${e.code}</small></div></div></td>
-  <td>${esc(nm('branches',e.branch))}</td><td>${esc(nm('divisions',e.division))}</td><td>${esc(nm('depts',e.dept))}</td><td>${esc(nm('desigs',e.desig))}</td><td>${esc(nm('levels',e.level))}</td>
+  <td>${esc(nm('functions',e.func))}</td><td>${esc(nm('depts',e.dept))}</td><td>${esc(nm('branches',e.branch))}</td><td>${esc(nm('divisions',e.division))}</td><td>${esc(nm('subdivs',e.subdiv))}</td><td>${esc(nm('desigs',e.desig))}</td><td>${esc(nm('levels',e.level))}</td>
   <td>${stPill(e)}</td><td style="text-align:right;white-space:nowrap">${can('cockpit','V')&&ckOk(e.id)?`<button class="btn btn-o btn-s" data-ckopenemp="${e.id}" data-fromemp="1" title="${L('Open in Cockpit','कॉकपिट में खोलें')}">${L('Cockpit','कॉकपिट')}</button> `:''}<button class="btn btn-o btn-s">${t('view')}</button></td></tr>`).join('')}
 function ckOpenEmp(id){state.page='cockpit';state.cktab='home';state.ckemp=id;state.ckt='ov';state.ckshow=0;state.ckrecentEmp=[id,...state.ckrecentEmp.filter(x=>x!==id)].slice(0,8);const q=(state.ckq||'').trim();if(q&&!state.ckrecent.includes(q))state.ckrecent=[q,...state.ckrecent].slice(0,6);resetViews();render()}
 document.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('[data-ckopenemp]');if(!b)return;ev.preventDefault();ev.stopPropagation();ckOpenEmp(+b.dataset.ckopenemp)},true);
