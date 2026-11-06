@@ -328,3 +328,15 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - Built: 50% wage rule check (warning only; wages = components marked "counts in PF"), minimum wage master by state / zone / skill (warning only), Bonus Act limits (eligibility 21,000 and calculation ceiling 7,000 or minimum wage, editable; warning only), deductions limit 50% (warning), statutory registers (employees, wages, muster roll, overtime, deductions, leave), leave type option "full quota from day one" or "as per labour law: after 180 days, 1 per 20 days worked", gratuity, Cockpit import for leave balance.
 - Plan agreed, not built: TDS (old/new regime choice, investment declaration and proofs, Form 16, Form 24Q data).
 - Set aside by the user (not needed now): 4 fixed-term employees, 5 final settlement within 2 working days, 6 notice pay, 9 salary payment date alert, 11 overtime quarterly limit, 12 night shift consent for women.
+
+
+## Thirty-seventh List (6 Nov 2026) - Attendance processing in 7 steps (Time Office > Attendance processing)
+- Reference: HROne screens (attendance 3 steps, salary 11 steps). Salary page with 11 steps comes next, after the user guides it.
+- Steps: 1 Check (mandatory), 2 This month's attendance (mandatory), 3 Comp-off and weekly off / holiday work, 4 Attendance correction arrear (earlier months), 5 Overtime, 6 Overtime arrear (earlier months), 7 Attendance allowance. Steps 3 to 7 are not mandatory.
+- Every step shows counts, a View list (search and CSV) and turns into a tick when nothing is pending; the button comes back by itself if someone becomes pending (for example a late joiner in a locked month).
+- Month list: any month up to the current one. The app looks at that month for a moment (withMonth) and comes back; no reload.
+- Step 1 blocks processing when: an employee has no shift, or the earlier month is not processed (first month of the client can be marked). Pending requests only hold that employee.
+- Comp-off: rule per weekly off and per holiday: comp-off, extra pay, both or none; lapse days (default 30); approved through the overtime workflow WF-016; comp-off added to leave type CO; leave is used from the oldest credit first.
+- Overtime arrear: late overtime of earlier locked months (window set in the rule, default 1 month) is paid in the month being processed.
+- Attendance allowance: rules (per day present, per night shift, attendance bonus) by scope (company, branch, division, department, designation, employee), with PF / ESIC / TDS switches; lines wait for a second approver in Additions & deductions.
+- Fixed: a month with no saved state showed "Processed" in Payroll run; it is now a draft.
