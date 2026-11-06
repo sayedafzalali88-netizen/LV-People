@@ -571,7 +571,7 @@ function setModal(id){
   bg.querySelector('form').onsubmit=e=>{e.preventDefault();
     const f=Object.fromEntries(new FormData(e.target));
     if(!f.name.trim()){bg.querySelector('#me').textContent=t('name')+': '+t('e_req');return}
-    if(id)Object.assign(r,f);else DATA[state.stab].push({id:Date.now(),...f});
+    if(id)Object.assign(r,f);else DATA[state.stab].push({id:Math.max(0,...DATA[state.stab].map(x=>+x.id||0))+1,...f});
     bg.remove();toast(t('saved'));render()};
 }
 function delSet(id){
@@ -641,7 +641,7 @@ function saveForm(form){
     const first=$('#main .inp.bad');if(first)first.focus();return}
   f.ctc=+f.ctc||0;
   if(id){Object.assign(DATA.emps.find(x=>x.id===id),f)}
-  else DATA.emps.push({id:Date.now(),code:takeEmpCode(),active:true,...f});
+  else DATA.emps.push({id:Math.max(0,...DATA.emps.map(x=>+x.id||0))+1,code:takeEmpCode(),active:true,...f});
   toast(t('saved'));state.view=null;render();
 }
 
@@ -1217,7 +1217,7 @@ function setModal(id){
     if(DATA[key].some(x=>x.id!==id&&x.name.toLowerCase()===v.name.toLowerCase()&&(key!=='subdivs'||(x.parents||[]).some(p=>(v.parents||[]).includes(p)))))return err('e_dup');
     if(id&&s.par&&JSON.stringify([...(r.parents||[])].sort())!==JSON.stringify([...v.parents].sort())){const old=r.parents;r.parents=v.parents;const broke=SRC.plan.some(p=>p.status!=='Inactive'&&!chainOk(p));r.parents=old;if(broke){close();return orgBlock(key,id,'change')||listModal(L('Cannot change the parent: a running plan row would lose its chain','पैरेंट नहीं बदल सकते: चल रही प्लान पंक्ति की चेन टूट जाएगी'),[])}}
     audit('Org Master',id?'Edit':'Add',`${t(key)}: ${v.name}`,id?diffTxt(r,v):'');
-    if(id)Object.assign(r,v);else DATA[key].push({id:Date.now(),...v});
+    if(id)Object.assign(r,v);else DATA[key].push({id:Math.max(0,...DATA[key].map(x=>+x.id||0))+1,...v});
     close();toast(t('saved'));render()});
 }
 function delSet(id){
@@ -1330,7 +1330,7 @@ function saveForm(form){
     audit('Employee','Edit',`${old.code} ${old.name}`,diffTxt(o,f));if(o.status!==old.status){try{rcAuto('leave')}catch(x){}}
   } else {
     if(seatsFull()){toast(seatMsg());return}
-    const e={id:Date.now(),code:takeEmpCode(),status:'Working',lwd:'',hist:[],...f};
+    const e={id:Math.max(0,...DATA.emps.map(x=>+x.id||0))+1,code:takeEmpCode(),status:'Working',lwd:'',hist:[],...f};
     if(SSTR[e.desig])e.lvlHist=[{from:'0000-00',lvl:e.level,desig:e.desig}];e.active=isActive(e);DATA.emps.push(e);audit('Employee','Add',`${e.code} ${e.name}`,'');
   }
   toast(t('saved'));state.view=null;render();
@@ -7314,7 +7314,7 @@ setModal=function(id){if(state.stab!=='branches')return _setModal42(id);const r=
  (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), n=(v.name||'').trim(), l=locRead(v,'b'), er=m=>bg.querySelector('#me').textContent=m;if(!n)return er(t('e_req'));if(!l.s||!l.d||!l.y)return er(L('Choose the state, district and city','राज्य, ज़िला और शहर चुनें'));if(v.pin&&!/^\d{6}$/.test(v.pin))return er(L('Pincode must be 6 digits','पिनकोड 6 अंक का होना चाहिए'));
   if(DATA.branches.some(x=>x.id!==id&&x.name.toLowerCase()===n.toLowerCase()))return er(t('e_dup'));
   const o={name:n,line:(v.line||'').trim(),pin:v.pin||'',ls:l.s,ld:l.d,ly:l.y,city:locName('y',l.y),state:locName('s',l.s)};
-  audit('Org Master',id?'Edit':'Add',`${t('branches')}: ${n}`,id?diffTxt(r,o):locText({s:l.s,d:l.d,y:l.y}));if(id)Object.assign(r,o);else DATA.branches.push({id:Date.now(),...o});branchSync();close();toast(t('saved'));render()})};
+  audit('Org Master',id?'Edit':'Add',`${t('branches')}: ${n}`,id?diffTxt(r,o):locText({s:l.s,d:l.d,y:l.y}));if(id)Object.assign(r,o);else DATA.branches.push({id:Math.max(0,...DATA.branches.map(x=>+x.id||0))+1,...o});branchSync();close();toast(t('saved'));render()})};
 /* Core Setting → General: the organisation's own state and city */
 /* places that want the list of states */
 const syncStates=()=>STATES.splice(0,STATES.length,...locSorted(LOC.s.filter(x=>x.active)).map(x=>x.name));

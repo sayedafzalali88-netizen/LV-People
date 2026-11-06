@@ -8,8 +8,8 @@
 if(!window.supabase){document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:16px;font-family:system-ui"><div style="max-width:380px;text-align:center"><h1 style="color:#1f3a5f">LV People</h1><p>Internet is not available, or it is very slow. Please check the connection and reload the page.</p><p>इंटरनेट उपलब्ध नहीं है या बहुत धीमा है। कनेक्शन जाँचें और पेज दोबारा खोलें।</p><button onclick="location.reload()" style="padding:8px 16px">Reload</button></div></div>';return}
 const sb=window.supabase.createClient('https://okhikmjugdytahgnddjm.supabase.co','sb_publishable_2rSs43HfAzKoTbqw5_AQkA_7XzAxMv0',{auth:{persistSession:true,autoRefreshToken:true}});
 const LIVE=window.LIVE={sb,on:false,profile:null,client:null,platform:false,map:{},rev:{},snap:{},busy:false,queued:false,err:''};
-const KINDS=['branches','divisions','depts','functions','desigs','emps'];
-const TBL={branches:'branches',divisions:'divisions',depts:'departments',functions:'job_functions',desigs:'designations',emps:'employees'};
+const KINDS=['functions','depts','branches','divisions','subdivs','desigs','emps'];
+const TBL={branches:'branches',subdivs:'sub_divisions',divisions:'divisions',depts:'departments',functions:'job_functions',desigs:'designations',emps:'employees'};
 KINDS.forEach(k=>{LIVE.map[k]={};LIVE.rev[k]={};LIVE.snap[k]={}});
 const nz=v=>v===''||v===undefined?null:v;
 const isHRrole=()=>['admin','hr'].includes(LIVE.profile&&LIVE.profile.role);
@@ -18,14 +18,17 @@ const isHRrole=()=>['admin','hr'].includes(LIVE.profile&&LIVE.profile.role);
 const P1=a=>(a&&a.length?a[0]:null);
 function toRow(kind,o){const r=toRow0(kind,o);r.num_id=+o.id||null;return r}
 function toRow0(kind,o){const M=LIVE.map, c=LIVE.profile.client_id;
-  if(kind==='branches')return{client_id:c,name:o.name,city:nz(o.city),state:nz(o.state),pin:nz(o.pin),address:nz(o.line),zone:nz(o.zone),active:o.off?false:true};
-  if(kind==='divisions')return{client_id:c,name:o.name,active:o.off?false:true};
-  if(kind==='depts')return{client_id:c,name:o.name,division_id:M.divisions[P1(o.parents)]||null,active:o.off?false:true};
-  if(kind==='functions')return{client_id:c,name:o.name,department_id:M.depts[P1(o.parents)]||null,active:o.off?false:true};
-  if(kind==='desigs')return{client_id:c,name:o.name,level:nz(o.level),function_id:M.functions[P1(o.parents)]||null,active:o.off?false:true};
+  const ids=(k,a)=>(a||[]).map(i=>M[k][i]).filter(Boolean), act=o.off?false:true;
+  /* Organization structure order: Function > Department > Branch > Division > Sub-division > Designation. Each level keeps the ids of the level above */
+  if(kind==='functions')return{client_id:c,name:o.name,active:act};
+  if(kind==='depts')return{client_id:c,name:o.name,parent_ids:ids('functions',o.parents),active:act};
+  if(kind==='branches')return{client_id:c,name:o.name,city:nz(o.city),state:nz(o.state),pin:nz(o.pin),address:nz(o.line),zone:nz(o.zone),parent_ids:ids('depts',o.parents),active:act};
+  if(kind==='divisions')return{client_id:c,name:o.name,parent_ids:ids('branches',o.parents),dept_ids:o.depts?ids('depts',o.depts):null,active:act};
+  if(kind==='subdivs')return{client_id:c,name:o.name,parent_ids:ids('divisions',o.parents),active:act};
+  if(kind==='desigs')return{client_id:c,name:o.name,level:nz(o.level),parent_ids:ids('subdivs',o.parents),function_ids:o.funcs?ids('functions',o.funcs):null,active:act};
   const em=[1,2].filter(i=>o['ec'+i+'_name']).map(i=>({name:o['ec'+i+'_name'],relation:o['ec'+i+'_rel']||'',mobile:o['ec'+i+'_mob']||''}));
   return{client_id:c,code:o.code,name:o.name,mobile:nz(o.mobile),email:nz(o.email),dob:nz(o.dob),gender:['M','F','O'].includes(o.gender)?o.gender:null,doj:nz(o.doj),
-    branch_id:M.branches[o.branch]||null,division_id:M.divisions[o.division]||null,department_id:M.depts[o.dept]||null,function_id:M.functions[o.func]||null,designation_id:M.desigs[o.desig]||null,
+    branch_id:M.branches[o.branch]||null,division_id:M.divisions[o.division]||null,sub_division_id:M.subdivs[o.subdiv]||null,department_id:M.depts[o.dept]||null,function_id:M.functions[o.func]||null,designation_id:M.desigs[o.desig]||null,
     manager_id:o.mgr?(M.emps[+o.mgr]||null):null,level:+o.level||1,status:o.status||'Working',lwd:nz(o.lwd),active:o.active!==false,caste:nz(o.caste),marital_status:nz(o.marital),weekly_off:nz(o.wo),emergency:em}}
 function toPriv(o){return{client_id:LIVE.profile.client_id,ctc:+o.ctc||0,pan:nz(o.pan),aadhaar:nz(o.aadhaar),uan:nz(o.uan),esi:nz(o.esi),bank_name:nz(o.bank),ifsc:nz(o.ifsc),account_no:nz(o.acc)}}
 const sig=(kind,o)=>JSON.stringify(kind==='emps'?[toRow(kind,o),isHRrole()?toPriv(o):null]:toRow(kind,o));
@@ -33,7 +36,7 @@ const sig=(kind,o)=>JSON.stringify(kind==='emps'?[toRow(kind,o),isHRrole()?toPri
 /* ---------- load ---------- */
 async function q(t,sel){const r=await sb.from(t).select(sel||'*');if(r.error)throw r.error;return r.data||[]}
 async function loadLive(){
-  const [br,dv,dp,fn,dg,em]=await Promise.all([q('branches'),q('divisions'),q('departments'),q('job_functions'),q('designations'),q('employees')]);
+  const [br,dv,dp,fn,dg,em,sd]=await Promise.all([q('branches'),q('divisions'),q('departments'),q('job_functions'),q('designations'),q('employees'),q('sub_divisions')]);
   let pv=[];try{pv=await q('employee_private')}catch(e){pv=[]}
   const pick=(kind,rows,keyOf,build)=>{const old=DATA[kind].slice(), used=new Set();let next=Math.max(0,...old.map(x=>+x.id||0),...rows.map(r=>+r.num_id||0))+1;const out=[];
     rows.sort((a,b)=>(a.num_id||1e9)-(b.num_id||1e9));
@@ -44,14 +47,17 @@ async function loadLive(){
     out.forEach(x=>build(x.o,x.r));DATA[kind].length=0;out.forEach(x=>DATA[kind].push(x.o))};
   LIVE.needNum=[];
   const nmKey=x=>String(x.name||'').trim().toLowerCase();
-  pick('branches',br,nmKey,(o,r)=>Object.assign(o,{name:r.name,city:r.city||'',state:r.state||'',pin:r.pin||'',line:r.address||'',zone:r.zone||'',off:!r.active}));
-  pick('divisions',dv,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:o.parents||[1],off:!r.active}));
-  pick('depts',dp,nmKey,(o,r)=>Object.assign(o,{name:r.name,head:o.head||'',parents:r.division_id?[LIVE.rev.divisions[r.division_id]]:[],off:!r.active}));
-  pick('functions',fn,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:r.department_id?[LIVE.rev.depts[r.department_id]]:[],off:!r.active}));
-  pick('desigs',dg,nmKey,(o,r)=>Object.assign(o,{name:r.name,level:r.level||o.level||'',parents:r.function_id?[LIVE.rev.functions[r.function_id]]:[],off:!r.active}));
+  /* the levels are loaded top down, because each one points to the level above it */
+  const up=(kind,a)=>(a||[]).map(u=>LIVE.rev[kind][u]).filter(Boolean);
+  pick('functions',fn,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:[],off:!r.active}));
+  pick('depts',dp,nmKey,(o,r)=>Object.assign(o,{name:r.name,head:o.head||'',parents:up('functions',r.parent_ids),off:!r.active}));
+  pick('branches',br,nmKey,(o,r)=>Object.assign(o,{name:r.name,city:r.city||'',state:r.state||'',pin:r.pin||'',line:r.address||'',zone:r.zone||'',parents:up('depts',r.parent_ids),off:!r.active}));
+  pick('divisions',dv,nmKey,(o,r)=>{Object.assign(o,{name:r.name,parents:up('branches',r.parent_ids),off:!r.active});if(r.dept_ids)o.depts=up('depts',r.dept_ids);else delete o.depts});
+  pick('subdivs',sd,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:up('divisions',r.parent_ids),off:!r.active}));
+  pick('desigs',dg,nmKey,(o,r)=>{Object.assign(o,{name:r.name,level:r.level||o.level||'',parents:up('subdivs',r.parent_ids),off:!r.active});if(r.function_ids)o.funcs=up('functions',r.function_ids);else delete o.funcs});
   const codeKey=x=>String(x.code||'').toUpperCase();
   pick('emps',em,codeKey,(o,r)=>{const p=pv.find(z=>z.employee_id===r.id)||{}, ec=r.emergency||[];
-    Object.assign(o,{code:r.code,name:r.name,mobile:r.mobile||'',email:r.email||'',dob:r.dob||'',gender:r.gender||'',doj:r.doj||'',branch:LIVE.rev.branches[r.branch_id]||'',division:LIVE.rev.divisions[r.division_id]||'',dept:LIVE.rev.depts[r.department_id]||'',func:LIVE.rev.functions[r.function_id]||'',desig:LIVE.rev.desigs[r.designation_id]||'',
+    Object.assign(o,{code:r.code,name:r.name,mobile:r.mobile||'',email:r.email||'',dob:r.dob||'',gender:r.gender||'',doj:r.doj||'',branch:LIVE.rev.branches[r.branch_id]||'',division:LIVE.rev.divisions[r.division_id]||'',subdiv:LIVE.rev.subdivs[r.sub_division_id]||'',dept:LIVE.rev.depts[r.department_id]||'',func:LIVE.rev.functions[r.function_id]||'',desig:LIVE.rev.desigs[r.designation_id]||'',
       level:r.level||1,status:r.status||'Working',lwd:r.lwd||'',active:r.active,caste:r.caste||o.caste||'',marital:r.marital_status||'',wo:r.weekly_off||'',
       ctc:+p.ctc||0,pan:p.pan||'',aadhaar:p.aadhaar||'',uan:p.uan||'',esi:p.esi||'',bank:p.bank_name||'',ifsc:p.ifsc||'',acc:p.account_no||'',
       ec1_name:(ec[0]||{}).name||'',ec1_rel:(ec[0]||{}).relation||'',ec1_mob:(ec[0]||{}).mobile||'',ec2_name:(ec[1]||{}).name||'',ec2_rel:(ec[1]||{}).relation||'',ec2_mob:(ec[1]||{}).mobile||'',
@@ -240,7 +246,7 @@ function clEditModal(id){const c=LIVE.cl.rows.find(x=>x.id===id);openModal(`<h3>
 try{const _ph2=placeholder;placeholder=function(P){return P==='lvclients'?clientsPage():_ph2.apply(this,arguments)}}catch(e){}
 const _bx2=bindExtra;
 bindExtra=function(){_bx2.apply(this,arguments);if(state.page!=='lvclients')return;const b=document.getElementById('clNew');if(b)b.onclick=clNewModal;document.querySelectorAll('[data-cled]').forEach(x=>x.onclick=()=>clEditModal(x.dataset.cled));document.querySelectorAll('[data-clbk]').forEach(x=>x.onclick=()=>clBackup(x.dataset.clbk,x))};
-const BK_TABLES=['branches','divisions','departments','job_functions','designations','employees','employee_private','employee_statutory','profiles','attendance','app_store','client_kpi_pack','statutory_settings','attendance_policy','payroll_policy','code_series','role_rights','shifts','leave_types','holidays','leave_requests','payroll_runs','payslips','pay_heads','pay_adjustments','salary_advances','final_settlements','audit_log'];
+const BK_TABLES=['branches','sub_divisions','divisions','departments','job_functions','designations','employees','employee_private','employee_statutory','profiles','attendance','app_store','client_kpi_pack','statutory_settings','attendance_policy','payroll_policy','code_series','role_rights','shifts','leave_types','holidays','leave_requests','payroll_runs','payslips','pay_heads','pay_adjustments','salary_advances','final_settlements','audit_log'];
 async function clBackup(id,btn){const c=LIVE.cl.rows.find(x=>x.id===id);btn.disabled=true;btn.textContent='…';const out={made:new Date().toISOString(),client:c,tables:{}};
   try{for(const tb of BK_TABLES){let rows=[],p=0;while(true){const r=await sb.from(tb).select('*').eq('client_id',id).range(p*1000,p*1000+999);if(r.error)throw new Error(tb+': '+r.error.message);rows=rows.concat(r.data||[]);if(!r.data||r.data.length<1000)break;p++}out.tables[tb]=rows}
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:'application/json'}));a.download='LV-People-backup-'+c.code+'-'+TODAY_S+'.json';document.body.appendChild(a);a.click();a.remove();toast(L('Backup downloaded','बैकअप डाउनलोड हुआ'))}
