@@ -1136,7 +1136,7 @@ const ORG={
 };
 const CHAIN={func:'functions',dept:'depts',branch:'branches',division:'divisions',subdiv:'subdivs',desig:'desigs'};
 const CHAIN_ORDER=['func','dept','branch','division','subdiv','desig'];
-Object.assign(T.en,{subdivs:'Sub-divisions'});Object.assign(T.hi,{subdivs:'सब-डिवीज़न'});
+Object.assign(T.en,{subdivs:'Sub-divisions',fn1:'Function',div1:'Division',sub1:'Sub-division'});Object.assign(T.hi,{subdivs:'सब-डिवीज़न',fn1:'फ़ंक्शन',div1:'डिवीज़न',sub1:'सब-डिवीज़न'});
 /* move the demo data to the new order. Ids of branch, division, department, function and designation stay the same (sales targets, KPI and reports use them) */
 DATA.subdivs=[];
 function orgMigrate(){const D=DATA, has=(x,id)=>(x.parents||[]).includes(id), T0=[];
@@ -1262,7 +1262,7 @@ function employeesPage(){
    <div style="display:flex;gap:10px">${can('employees','X')?`<button class="btn btn-o" data-export>${t('export')}</button>`:''}${can('employees','A')?`<button class="btn btn-p" data-eadd>+ ${t('add_emp')}</button>`:''}</div></div>
   <div class="tools"><input class="inp grow" id="q" placeholder="${t('search')}" value="${esc(state.q)}">
    <select class="inp" id="fb">${opt('branches',state.fb,t('all_branches'))}</select><select class="inp" id="fd">${opt('depts',state.fd,t('all_depts'))}</select></div>
-  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('functions')}</th><th>${t('dept')}</th><th>${t('branch')}</th><th>${t('divisions')}</th><th>${t('subdivs')}</th><th>${t('desig')}</th><th>${t('career_level')}</th><th>${t('status')}</th><th></th></tr></thead><tbody id="empTbl">${empRows()}</tbody></table></div>`;
+  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('fn1')}</th><th>${t('dept')}</th><th>${t('branch')}</th><th>${t('div1')}</th><th>${t('sub1')}</th><th>${t('desig')}</th><th>${t('career_level')}</th><th>${t('status')}</th><th></th></tr></thead><tbody id="empTbl">${empRows()}</tbody></table></div>`;
 }
 const RULES2={
  name:v=>v.trim()?'':'e_req', mobile:v=>/^[6-9]\d{9}$/.test(v)?'':'e_mobile', email:v=>/^\S+@\S+\.\S+$/.test(v)?'':'e_email',
@@ -1289,7 +1289,7 @@ function empForm(id,back,draft,errs){
     ${inp('name','name')}${inp('mobile','mobile','tel','maxlength="10"')}${inp('email','email','email')}${inp('dob','dob','date')}
     <div><label>${t('gender')}</label><select class="inp" name="gender"><option value="M" ${e.gender==='M'?'selected':''}>${t('male')}</option><option value="F" ${e.gender==='F'?'selected':''}>${t('female')}</option><option value="O" ${e.gender==='O'?'selected':''}>${t('other')}</option></select></div></div>
    <div class="sec-t">${t('sec_job')}</div><div class="fgrid">
-    ${inp('doj','doj','date')}${cas('func','functions')}${cas('dept','dept')}${cas('branch','branch')}${cas('division','divisions')}${cas('subdiv','subdivs')}${cas('desig','desig')}
+    ${inp('doj','doj','date')}${cas('func','fn1')}${cas('dept','dept')}${cas('branch','branch')}${cas('division','div1')}${cas('subdiv','sub1')}${cas('desig','desig')}
     <div><label>${t('career_level')} *</label><select class="inp ${errs.level?'bad':''}" name="level"><option value="">—</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select>${er('level')}</div>
     ${emp('mgr','manager')}${emp('fm','fm')}${inp('ctc','ctc','number','min="0" step="1000"')}${ctcHint(e)}</div>
    ${id?`<div class="sec-t">${t('emp_status')}</div><div class="fgrid">
@@ -11832,7 +11832,7 @@ assignTab=function(){return `<div class="tools"><span style="color:var(--muted);
 function bulkAssignModal(){
  const f0={func:'',dept:'',branch:'',division:'',desig:''}, opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk shift assignment','एक साथ शिफ़्ट असाइनमेंट')}</h3>
-  <div class="fgrid"><div><label>${t('functions')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('divisions')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div></div>
+  <div class="fgrid"><div><label>${t('fn1')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('div1')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div></div>
   <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005, E006"></textarea>
   <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="asAll" checked> <b>${L('Select all','सभी चुनें')}</b> <span id="asCnt" style="color:var(--muted)"></span></label>
   <div id="asList" class="card tw" style="padding:6px 10px;max-height:180px;overflow:auto"></div>
@@ -11884,7 +11884,7 @@ function bulkMgrModal(){
  const opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const emps=DATA.emps.filter(e=>e.active), pick=n=>`<select class="inp" name="${n}"><option value="">—</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk change of manager','मैनेजर एक साथ बदलें')}</h3>
-  <div class="fgrid"><div><label>${t('functions')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('divisions')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div><div><label>${L('Current reporting manager','अभी का रिपोर्टिंग मैनेजर')}</label><select class="inp" data-bf="mgr"><option value="">${L('All','सभी')}</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></div></div>
+  <div class="fgrid"><div><label>${t('fn1')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('div1')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div><div><label>${L('Current reporting manager','अभी का रिपोर्टिंग मैनेजर')}</label><select class="inp" data-bf="mgr"><option value="">${L('All','सभी')}</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></div></div>
   <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005"></textarea>
   <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mgAll" checked> <b>${L('Select all','सभी चुनें')}</b> <span id="mgCnt" style="color:var(--muted)"></span></label>
   <div id="mgList" class="card tw" style="padding:6px 10px;max-height:170px;overflow:auto"></div>
