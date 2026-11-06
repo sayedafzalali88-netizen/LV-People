@@ -2466,7 +2466,8 @@ function splitFor(desig,lvl,adj,extra){try{const st=SSTR[desig];if(!st||!st.lv[l
  if(adj){fixed+=adj;basic+=adj;const b=pl.find(x=>x.pf);if(b)b.full+=adj;else pl.push({id:'ADJ',name:'Basic adjustment',head:'Basic',method:'prorate',pf:true,full:adj})}
  return{lvl,desig,fixed,basic,vmax,pgp:vmax,pli:0,oth:0,vc,pl,total:fixed+vmax}}catch(x){return null}}
 function lvlHistAt(e,mk){try{if(!e||!e.lvlHist||!e.lvlHist.length)return null;mk=mk||curMk();return e.lvlHist.filter(x=>x.from<=mk).pop()||e.lvlHist[0]}catch(x){return null}}
-function lvlSplit(e,mk){try{const h=lvlHistAt(e,mk);if(!h)return null;const adj=(e.adj||[]).filter(x=>x.from<=(mk||curMk())).reduce((s,x)=>s+x.amt,0);return splitFor(h.desig||e.desig,h.lvl,adj,(e.vextra||[]).filter(x=>x.from<=(mk||curMk())))}catch(x){return null}}
+const adjOf=e=>SALREV.filter(s=>s.emp===e.id&&s.kind==='adj'&&s.status==='Approved').map(s=>({from:s.from,amt:s.inc})).concat(e.adj||[]);
+function lvlSplit(e,mk){try{const h=lvlHistAt(e,mk);if(!h)return null;const adj=adjOf(e).filter(x=>x.from<=(mk||curMk())).reduce((s,x)=>s+x.amt,0);return splitFor(h.desig||e.desig,h.lvl,adj,(e.vextra||[]).filter(x=>x.from<=(mk||curMk())))}catch(x){return null}}
 const lvlVar=(e,mk)=>{const s=lvlSplit(e,mk);return s?{pgp:s.vmax,pli:0,oth:0,comps:s.vc}:null};
 function vPay(kp,f,pct){if(!kp.comps)return{pgp:r0(kp.pgp*f),pli:r0(kp.pli*f),oth:r0((kp.oth||0)*f),pct};const comps={};let sum=0;Object.entries(kp.comps).forEach(([k,v])=>{comps[k]=r0(v*f);sum+=comps[k]});return{pgp:sum,pli:0,oth:0,comps,pct}}
 /* every demo employee starts on the level whose structure is closest to the old CTC */
@@ -2525,7 +2526,7 @@ function kpayModal(){
 function revTable(){
   if(!SALREV.length)return '';
   return `<div class="card tw" style="margin-top:14px"><h3 style="padding:18px 18px 0">${t('cr_rev')}</h3><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('rv_cur')}</th><th>${t('rv_new')}</th><th>${t('rv_from')}</th><th>${t('rv_active')}</th><th>${t('rv_status')}</th><th></th></tr></thead><tbody>${
-   SALREV.map((s,i)=>`<tr><td><b>${nmE(s.emp)}</b><small style="display:block;color:var(--muted)">${fmtY(s.at)} · ${nmE(s.by)}</small></td><td>${s.cur?inr(s.cur):'—'}</td><td>${s.ctc?`<b>${inr(s.ctc)}</b>`:'—'}</td><td>${s.from?mkP(s.from):'—'}</td><td>${s.letters}</td>
+   SALREV.map((s,i)=>`<tr><td><b>${nmE(s.emp)}</b><small style="display:block;color:var(--muted)">${fmtY(s.at)} · ${nmE(s.by)}</small></td><td>${s.cur?inr(s.cur):'—'}</td><td>${s.kind==='adj'?`<b>+${inr(s.inc)}</b> <small style="color:var(--muted)">${L('a month, in Basic','महीना, बेसिक में')}${s.reason?' · '+esc(s.reason):''}</small>`:s.ctc?`<b>${inr(s.ctc)}</b>`:'—'}</td><td>${s.from?mkP(s.from):'—'}</td><td>${s.letters}</td>
    <td><span class="pill ${s.status==='Approved'?'p-ok':s.status==='Rejected'?'p-bad':'p-warn'}">${t({Approved:'rv_approved',Rejected:'rv_rejected'}[s.status]||'rv_pending')}</span></td>
    <td style="text-align:right;white-space:nowrap">${s.status==='Requested'&&s.inst?`<span class="pill p-warn">${L('In approval workflow (Inbox)','अप्रूवल वर्कफ़्लो में (इनबॉक्स)')}</span>`:''}${s.status==='Requested'&&!s.inst&&state.role==='admin'?`<button class="btn btn-p btn-s" data-rvdo="${i}:Approved">${t('rv_appr')}</button> <button class="btn btn-o btn-s btn-d" data-rvdo="${i}:Rejected">${t('rv_rej')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
 }
@@ -2552,7 +2553,7 @@ bindExtra=function(){
   on('[data-vgen]',b=>b.onclick=()=>{genVars(state.paym);toast(t('vr_gen_done'));render()});
   on('[data-kpay]',b=>b.onclick=kpayModal);
   on('[data-rvdo]',b=>b.onclick=()=>{const [i,s]=b.dataset.rvdo.split(':'), r=SALREV[+i];if(state.role!=='admin'||r.status!=='Requested')return;
-    r.status=s;if(s==='Approved'){const e=empById(r.emp);e.revs=(e.revs||[]).concat({from:r.from,ctc:r.ctc})}
+    r.status=s;if(s==='Approved'&&r.kind!=='adj'){const e=empById(r.emp);e.revs=(e.revs||[]).concat({from:r.from,ctc:r.ctc})}
     audit('Salary revision',s,empById(r.emp).name,`${inr(r.cur)} → ${inr(r.ctc)} from ${r.from}`);toast(t('rv_done'));render()});
   on('[data-prun]',b=>b.onclick=()=>{
     const mk=state.paym;if(!ATTP[mk])return toast(L('Process attendance for this month first (Time Office)','पहले इस महीने की हाज़िरी प्रोसेस करें (Time Office)'));const v=VARS[mk]||(modOn('pms')?null:{r:{},ex:[]});if(!v)return toast(t('vr_first'));
@@ -3435,11 +3436,11 @@ Object.assign(AUTO2,{
  ['KPI-062','KPI-064','KPI-065','KPI-067','KPI-094','KPI-095','KPI-199'].forEach(x=>KRULES.push({id:++seq,kpi:x,scope:'Specific',value:11,from:'2026-04-01',until:'',st:'Active'}))}
 
 /* ---- screens ---- */
-function recruitTabs(){return canManage()?['dash','req','vac','cand','int','offer','recr','rep']:state.role==='manager'?['req','int','cand']:['refer','int']}
+function recruitTabs(){return canManage()?['dash','plan','req','vac','cand','int','offer','recr','rep']:state.role==='manager'?['req','int','cand']:['refer','int']}
 function recruitPage(){
   const tabs=recruitTabs(), tab=tabs.includes(state.rctab)?state.rctab:tabs[0];
-  const lbl={dash:['Overview','अवलोकन'],req:['Requisitions','माँग'],vac:['Vacancies','वैकेंसी'],cand:['Candidates','उम्मीदवार'],int:['Interviews','इंटरव्यू'],offer:['Offers','ऑफ़र'],recr:['Recruiters','रिक्रूटर'],rep:['Reports','रिपोर्ट'],refer:['Refer a candidate','उम्मीदवार सुझाएँ']};
-  const body={dash:rcDash,req:rcReq,vac:rcVac,cand:rcCand,int:rcInt,offer:rcOffer,recr:rcRecr,rep:rcRep,refer:rcRefer}[tab]();
+  const lbl={dash:['Overview','अवलोकन'],plan:['Manpower plan','मैनपावर प्लान'],req:['Requisitions','माँग'],vac:['Vacancies','वैकेंसी'],cand:['Candidates','उम्मीदवार'],int:['Interviews','इंटरव्यू'],offer:['Offers','ऑफ़र'],recr:['Recruiters','रिक्रूटर'],rep:['Reports','रिपोर्ट'],refer:['Refer a candidate','उम्मीदवार सुझाएँ']};
+  const body={dash:rcDash,plan:()=>wfPlan(),req:rcReq,vac:rcVac,cand:rcCand,int:rcInt,offer:rcOffer,recr:rcRecr,rep:rcRep,refer:rcRefer}[tab]();
   return `<div class="page-h"><div><h1>${t('recruit')}</h1><p>${t('recruit_sub')}</p></div></div><div class="tabs">${tabs.map(k=>`<button data-rctab="${k}" class="${tab===k?'on':''}">${L(...lbl[k])}</button>`).join('')}</div>${body}`;
 }
 function rcDash(){
@@ -3953,10 +3954,10 @@ PAGES.push('decision');
 ['admin','hr'].forEach(r=>RIGHTS[r].decision='VAEPX'.split(''));RIGHTS.manager.decision=['V','A','E'];RIGHTS.employee.decision=['V'];
 NAV.splice(NAV.findIndex(n=>n.id==='pms'),0,{id:'decision',ic:'M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11',roles:[],day:'—',built:true});
 Object.assign(state,{wfpb:'',wfps:'',unf:'',onbv:null,dtab:null,dsf:''});
-const WFT=[['dash','Manpower','मैनपावर'],['plan','Manpower plan','मैनपावर प्लान'],['attr','Attrition and retention','एट्रिशन और रिटेंशन'],['join','Joining to retention','जॉइनिंग से रिटेंशन'],['uniform','Uniform & ID card','यूनिफ़ॉर्म और ID कार्ड'],['onb','Onboarding & KYC','ऑनबोर्डिंग और KYC']];
+const WFT=[['attr','Attrition and retention','एट्रिशन और रिटेंशन'],['join','Joining to retention','जॉइनिंग से रिटेंशन'],['uniform','Uniform & ID card','यूनिफ़ॉर्म और ID कार्ड'],['onb','Onboarding & KYC','ऑनबोर्डिंग और KYC']];
 function workforcePage(){
-  const tab=WFT.some(x=>x[0]===state.wftab)?state.wftab:'dash';
-  const body={dash:wfDash,plan:wfPlan,attr:wfAttr,join:wfJoin,uniform:wfUni,onb:wfOnb}[tab]();
+  const tab=WFT.some(x=>x[0]===state.wftab)?state.wftab:'attr';
+  const body={attr:wfAttr,join:wfJoin,uniform:wfUni,onb:wfOnb}[tab]();
   return `<div class="page-h"><div><h1>${t('workforce')}</h1><p>${t('workforce_sub')}</p></div></div><div class="tabs">${WFT.map(([k,en,hi])=>`<button data-wftab="${k}" class="${tab===k?'on':''}">${L(en,hi)}</button>`).join('')}</div>${body}`;
 }
 
@@ -5670,7 +5671,7 @@ WF_ACTIONS.inc={
  approved:i=>{const a=INCASG.find(x=>x.id===i.payload.inc);if(a)a.st='Approved'},
  rejected:i=>{const a=INCASG.find(x=>x.id===i.payload.inc);if(a)a.st='Rejected'}};
 WF_ACTIONS.sal={
- approved:i=>{const r=SALREV[i.payload.rv];if(!r||r.status!=='Requested')return;r.status='Approved';const e=empById(r.emp);e.revs=(e.revs||[]).concat({from:r.from,ctc:r.ctc});audit('Salary revision','Approved',e.name,`${inr(r.cur)} → ${inr(r.ctc)} from ${r.from}`)},
+ approved:i=>{const r=SALREV[i.payload.rv];if(!r||r.status!=='Requested')return;r.status='Approved';const e=empById(r.emp);if(r.kind==='adj'){audit('Salary revision','Approved',e.name,`+${inr(r.inc)} a month from ${r.from}`);return}e.revs=(e.revs||[]).concat({from:r.from,ctc:r.ctc});audit('Salary revision','Approved',e.name,`${inr(r.cur)} → ${inr(r.ctc)} from ${r.from}`)},
  rejected:i=>{const r=SALREV[i.payload.rv];if(r)r.status='Rejected'}};
 /* ---------- Batch 24: career growth engine, level-wise salary structure screens, performance cases ---------- */
 Object.assign(T.en,{pm_mycareer:"My career growth",pm_cframe:"Career & salary structure",pm_pcase:"Performance cases"});
@@ -6091,7 +6092,7 @@ const nmP=r=>`${nm('desigs',r.desig)} · ${nm('branches',r.branch)}`;
 function planAdd(row,n,eff,lvl,how,approved){
  if(!splitFor(row.desig,lvl,0))return{err:L('Salary Structure Not Configured for this designation and level','इस पद और लेवल का सैलरी स्ट्रक्चर तय नहीं है')};
  const r={id:++seq,no:sysNo('MPM',SRC.plan.length+1),...row,required:n,lvl,effective:eff,status:approved?'Active':'Pending approval',hist:[{at:TODAY_S,by:USERS[state.role].name,act:how,note:`required ${n}, L${lvl}`}]};
- if(!approved){const i=wfStart({wf:'WF-012',type:'Manpower plan row',subject:me(),title:`${L('Manpower plan','मैनपावर प्लान')}: ${nmP(r)} × ${n}`,payload:{plan:r.id},action:'mplan',by:me(),opener:{page:'workforce',tab:'plan'}});if(!i)return{err:L('The approval workflow WF-012 is not active','अप्रूवल वर्कफ़्लो WF-012 चालू नहीं')};r.inst=i.id}
+ if(!approved){const i=wfStart({wf:'WF-012',type:'Manpower plan row',subject:me(),title:`${L('Manpower plan','मैनपावर प्लान')}: ${nmP(r)} × ${n}`,payload:{plan:r.id},action:'mplan',by:me(),opener:{page:'recruit',tab:'plan'}});if(!i)return{err:L('The approval workflow WF-012 is not active','अप्रूवल वर्कफ़्लो WF-012 चालू नहीं')};r.inst=i.id}
  SRC.plan.push(r);audit('Manpower plan',approved?'Add':'Add (for approval)',r.no,`${nmP(r)} x${n} L${lvl}`);if(approved)rcAuto();return{row:r}}
 WF_ACTIONS.mplan={approved:i=>{const r=SRC.plan.find(x=>x.id===i.payload.plan);if(!r)return;r.status='Active';r.hist.push({at:TODAY_S,by:'Workflow',act:'Approved',note:''});audit('Manpower plan','Approved',r.no,'');rcAuto()},
  rejected:i=>{const r=SRC.plan.find(x=>x.id===i.payload.plan);if(r){r.status='Rejected';r.hist.push({at:TODAY_S,by:'Workflow',act:'Rejected',note:''})}}};
@@ -6118,7 +6119,7 @@ function rcReqModal(planId){
   if(n>planNeed(p))return er(L('More than the shortage ('+planNeed(p)+')','कमी ('+planNeed(p)+') से ज़्यादा'));
   rcMake({plan:p,count:n,kind:hr?'Manual':'Manager',reason:v.reason,note:v.note.trim(),by:me()});close();toast(L('Requisition sent through the approval workflow','माँग अप्रूवल वर्कफ़्लो में भेजी गई'));render()});
  const bg=document.querySelector('.modal-bg'), c=bg.querySelector('[name=count]'), sel=bg.querySelector('[name=p]');if(c&&sel){const fillN=()=>{const p=rows.find(x=>x.id==sel.value);c.max=p?planNeed(p):1;c.value=p?planNeed(p):1};sel.onchange=fillN;fillN()}
- const go=bg.querySelector('[data-mpgo]');if(go)go.onclick=()=>{bg.remove();state.page='workforce';state.wftab='plan';render();mpNewModal()}}
+ const go=bg.querySelector('[data-mpgo]');if(go)go.onclick=()=>{bg.remove();state.page='recruit';state.rctab='plan';render();mpNewModal()}}
 function addReqModal(){const brs=canManage()?DATA.branches:DATA.branches.filter(b=>scope().some(e=>e.branch==b.id));
  openModal(`<h3>${L('Request additional manpower','अतिरिक्त मैनपावर माँगें')}</h3><p style="color:var(--muted);font-size:13px">${L('For manpower beyond the approved plan. It goes through the approval workflow to HR, and HR adds it to the manpower plan.','मंज़ूर प्लान से ज़्यादा मैनपावर के लिए। यह अप्रूवल वर्कफ़्लो से HR के पास जाती है, और HR इसे मैनपावर प्लान में जोड़ता है।')}</p>
   <label>${L('Branch','शाखा')}</label><select class="inp" name="b">${brs.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select><label>${t('desig')}</label><select class="inp" name="d">${DATA.desigs.filter(d=>!d.off&&SSTR[d.id]).map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select>
@@ -10800,8 +10801,22 @@ structure=function(e,mk){const s=_st73(e,mk), m=mk||'2026-10';
  return s};
 function structTab(){
  const rows=DATA.emps.filter(e=>e.active), mk='2026-10';
- return `<div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('ctc_a')}</th><th>${t('ctc_m')}</th><th>${t('ks_fixed')}</th><th>PGP</th><th>PLI</th><th>${t('ks_ret')}</th><th>${t('basic')}</th><th>${t('hra')}</th><th>${t('special')}</th><th>${L('Bonus','बोनस')}</th><th>${t('er_pf')}</th><th>${t('er_esi')}</th></tr></thead><tbody>${
-  rows.map(e=>{const s=structure(e,mk);return `<tr><td><b>${esc(e.name)}</b><small style="display:block;color:var(--muted)">${e.code}</small></td><td>${inr(ctcFor(e,mk))}</td><td>${inr(s.mc)}</td><td>${inr(s.fixed)}</td><td>${inr(s.pgp)}</td><td>${inr(s.pli)}</td><td>${inr(retentionFor(e,mk))}</td><td>${inr(s.basic)}</td><td>${inr(s.hra)}</td><td>${inr(s.special)}</td><td>${s.bonus?inr(s.bonus):'—'}</td><td>${inr(s.pfEr)}</td><td>${inr(s.esiEr)}</td></tr>`}).join('')}</tbody></table></div>`}
+ return `<div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('ctc_a')}</th><th>${t('ctc_m')}</th><th>${t('ks_fixed')}</th><th>PGP</th><th>PLI</th><th>${t('ks_ret')}</th><th>${t('basic')}</th><th>${t('hra')}</th><th>${t('special')}</th><th>${L('Bonus','बोनस')}</th><th>${t('er_pf')}</th><th>${t('er_esi')}</th><th></th></tr></thead><tbody>${
+  rows.map(e=>{const s=structure(e,mk);return `<tr><td><b>${esc(e.name)}</b><small style="display:block;color:var(--muted)">${e.code}</small></td><td>${inr(ctcFor(e,mk))}</td><td>${inr(s.mc)}</td><td>${inr(s.fixed)}</td><td>${inr(s.pgp)}</td><td>${inr(s.pli)}</td><td>${inr(retentionFor(e,mk))}</td><td>${inr(s.basic)}</td><td>${inr(s.hra)}</td><td>${inr(s.special)}</td><td>${s.bonus?inr(s.bonus):'—'}</td><td>${inr(s.pfEr)}</td><td>${inr(s.esiEr)}</td><td style="white-space:nowrap">${can('payroll','E')?`<button class="btn btn-o btn-s" data-srev="${e.id}">${L('Revise salary','वेतन संशोधन')}</button>`:''}</td></tr>`}).join('')}</tbody></table></div>${revTable()}`}
+function srevModal(id){const e=empById(id), s=structure(e,curMk());
+ const ms=[...new Set([...Object.keys(PMON),curMk()])].sort().slice(-6);
+ openModal(`<h3>${L('Revise salary','वेतन संशोधन')} · ${esc(e.name)}</h3>
+  <p style="color:var(--muted);font-size:13px">${L('Current Basic','अभी का बेसिक')}: <b>${inr(s.basic)}</b> · ${L('Monthly gross','मासिक ग्रॉस')}: <b>${inr(s.basic+s.hra+s.special)}</b></p>
+  <label>${L('Increase a month (added to Basic)','महीने की बढ़ोतरी (बेसिक में जुड़ेगी)')}</label><input class="inp" type="number" min="1" name="inc">
+  <label>${L('Effective from (a past month gives arrear in Payroll)','लागू महीना (पिछला महीना हो तो पेरोल में एरियर बनेगा)')}</label><select class="inp" name="from">${ms.map(m=>`<option value="${m}" ${m===curMk()?'selected':''}>${mkP(m)}</option>`).join('')}</select>
+  <label>${L('Reason','कारण')}</label><input class="inp" name="reason">
+  <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Send for approval','अप्रूवल के लिए भेजें')}</button></div>`,
+ (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), inc=Math.round(+v.inc);if(!(inc>0)){bg.querySelector('#me').textContent=L('Enter the increase','बढ़ोतरी लिखें');return}
+  const cur=r0(s.basic+s.hra+s.special);SALREV.push({emp:id,kind:'adj',at:TODAY_S,by:me(),letters:0,cur,inc,from:v.from,reason:(v.reason||'').trim(),status:'Requested'});
+  const r=SALREV[SALREV.length-1], i=wfStart({wf:'WF-008',type:'Salary revision',subject:id,title:`${L('Salary revision','वेतन संशोधन')}: ${e.name} +${inr(inc)} ${L('a month from','महीना, लागू')} ${mkP(v.from)}`,payload:{rv:SALREV.length-1},action:'sal',by:me(),opener:{page:'payroll',tab:'struct'}});
+  if(i)r.inst=i.id;audit('Salary revision','Requested',e.name,`+${inr(inc)} a month from ${v.from}`);close();toast(L('Sent for approval','अप्रूवल के लिए भेजा'));render()})}
+const _srb=bindExtra;
+bindExtra=function(){_srb();$('#main').querySelectorAll('[data-srev]').forEach(b=>b.onclick=()=>srevModal(+b.dataset.srev))};
 const _ss73=sstrTab;
 sstrTab=function(){let h=_ss73();const E=can('payroll','E'), i=h.indexOf('</tbody></table>', h.indexOf(L('Heads and components','हेड और कंपोनेंट')));
  if(i<0)return h;const row=`<tr style="background:var(--teal-l)"><td><b>Bonus</b></td><td>Bonus <small style="color:var(--muted)">BONUS</small></td><td>${L('% of Basic','बेसिक का %')}: <input class="inp" type="number" step="0.01" min="0" max="100" value="${STAT.bonusPct}" data-bonuspct style="width:90px;display:inline-block" ${E?'':'disabled'}> %</td><td>—</td><td><span class="pill p-teal">${L('Only when marked in Statutory assignment','सिर्फ़ Statutory असाइनमेंट में चुनने पर')}</span></td><td></td></tr>`;
@@ -11414,7 +11429,8 @@ function pslArrPlan(mk){return ATTARR.filter(x=>x.status==='Ready'&&x.forMk<mk).
 function pslArrCreate(mk){const ids=[];pslArrPlan(mk).forEach(({x,e,perDay,amt})=>{const a=pslLine({emp:e.id,mk,type:x.days<0?'A':'D',head:x.days<0?'Arrear':'Recovery',amount:amt,forMk:x.forMk,reason:L('Attendance correction of '+mkP(x.forMk)+': '+Math.abs(x.days)+' day(s) '+(x.days<0?'no longer loss of pay':'now loss of pay')+' at '+inr(perDay)+' a day',mkP(x.forMk)+' की हाज़िरी का करेक्शन: '+Math.abs(x.days)+' दिन '+(x.days<0?'अब LOP नहीं':'अब LOP')+', '+inr(perDay)+' प्रति दिन'),ref:'ATTC-'+x.forMk+'-'+x.id,atr:x.id});x.status='Sent';ids.push(a.id)});
  if(ids.length)pslSend(ids,L('Attendance correction','हाज़िरी करेक्शन')+' · '+mkP(mk)+' · '+ids.length+' '+L('line(s)','एंट्री'));return ids.length}
 /* step 3: a salary revision that starts in an earlier, already paid month: what should have been paid minus what was paid */
-function pslIncPlan(mk){const out=[];DATA.emps.filter(e=>e.active&&(e.revs||[]).length).forEach(e=>{const first=(e.revs||[]).map(r=>r.from).sort()[0], ms=[];let tot=0;
+const chgMks=e=>(e.revs||[]).map(r=>r.from).concat(adjOf(e).map(a=>a.from),(e.lvlHist||[]).map(h=>h.from).filter(f=>f&&f>'0000-00')).sort();
+function pslIncPlan(mk){const out=[];DATA.emps.filter(e=>e.active&&chgMks(e).length).forEach(e=>{const first=chgMks(e)[0], ms=[];let tot=0;
  Object.keys(PMON).filter(m=>m<mk&&m>=first&&m>=String(e.doj).slice(0,7)&&(PAYRUN[m]||'draft')!=='draft'&&SNAP[m]&&SNAP[m][e.id]).sort().forEach(m=>{if(ADJ.some(a=>a.emp===e.id&&a.status!=='Rejected'&&(a.incMks||[]).includes(m)))return;
   const sn=SNAP[m][e.id], s=structure(e,m), d=r0((s.basic+s.hra+s.special)*(sn.days?sn.paidDays/sn.days:1)-(sn.basic+sn.hra+sn.special));if(Math.abs(d)>=1){tot+=d;ms.push(m)}});
  if(ms.length)out.push({e,tot,ms})});return out}
