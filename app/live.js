@@ -60,7 +60,7 @@ async function loadLive(){
   KINDS.forEach(k=>DATA[k].forEach(o=>LIVE.snap[k][o.id]=sig(k,o)));
   if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
-  await loadAttendance();await loadStores();try{if(BIOP.length)bioProcess()}catch(e){console.warn('bio',e)}await loadKpis();await loadAccounts();
+  await loadAttendance();await loadStores();try{if(BIOP.length)bioProcess()}catch(e){console.warn('bio',e)}await loadKpis();await loadAccounts();try{await pullPortal()}catch(e){console.warn('portal',e)}
 }
 
 /* ---------- attendance punches: the attendance table <-> ATT ---------- */
@@ -393,6 +393,116 @@ async function syncNow(){
 }
 let syncT=null;const schedule=()=>{clearTimeout(syncT);syncT=setTimeout(syncNow,600)};
 
+/* ---------- public doors: career portal, candidate joining link, employee referral (server function "portal") ---------- */
+const PORTAL='https://okhikmjugdytahgnddjm.supabase.co/functions/v1/portal';
+async function portalCall(o,files,auth){const fd=new FormData();Object.keys(o).forEach(k=>{if(o[k]!=null)fd.append(k,o[k])});Object.keys(files||{}).forEach(k=>{if(files[k])fd.append(k,files[k])});
+  const h={};if(auth){const s=await sb.auth.getSession();if(s.data.session)h.Authorization='Bearer '+s.data.session.access_token}
+  let r;try{r=await fetch(PORTAL,{method:'POST',body:fd,headers:h})}catch(e){throw new Error(L('No internet. Please try again.','इंटरनेट नहीं है। फिर कोशिश करें।'))}
+  let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.message||L('Something went wrong. Please try again.','कुछ गड़बड़ हुई। फिर कोशिश करें।'));return j}
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+const pubTop=(org,right)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px"><h1 style="margin:0;flex:1;font-size:22px">${esc(org||'LV People')}</h1>${right||''}<a href="#" id="pubLang" style="font-size:13px">${lang==='hi'?'EN':'हिं'}</a></div>`;
+const pubLang=(el,again)=>{const a=el.querySelector('#pubLang');if(a)a.onclick=e=>{e.preventDefault();lang=lang==='hi'?'en':'hi';again()}};
+const pubShell=id=>{let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg,#f4f7f6)';document.body.appendChild(el)}return el};
+const pubMsg=(el,org,txt)=>{el.innerHTML=`<div style="max-width:620px;margin:0 auto;padding:24px 16px">${pubTop(org)}<div class="card"><p>${txt}</p></div></div>`;pubLang(el,()=>{})};
+/* the candidate's joining form: #join=<token> */
+function joinBoot(){const m=location.hash.match(/^#join=([a-f0-9]{64})/), el0=document.getElementById('joinPage');if(!m){if(el0)el0.remove();return}renderJoin(pubShell('joinPage'),m[1])}
+async function renderJoin(el,tok){el.innerHTML=`<div style="max-width:620px;margin:0 auto;padding:40px 16px;text-align:center;color:var(--muted)">…</div>`;
+  let d;try{d=await portalCall({action:'link',token:tok})}catch(e){return pubMsg(el,'LV People',esc(e.message))}
+  const I=d.info||{}, P=d.prev||{}, up=d.uploaded||{}, v=k=>esc(P[k]||'');
+  if(d.locked)return pubMsg(el,I.org,L('HR has already received your details. Thank you. Please contact HR if something must be changed.','HR को आपकी जानकारी मिल चुकी है। धन्यवाद। कुछ बदलना हो तो HR से संपर्क करें।'));
+  const docs=[['id',L('Aadhaar card (copy)','आधार कार्ड (प्रति)'),1],['pan',L('PAN card (copy)','पैन कार्ड (प्रति)'),1],['bank',L('Bank proof: cancelled cheque or passbook first page','बैंक का प्रमाण: कैंसिल चेक या पासबुक का पहला पन्ना'),1],['edu',L('Education certificate (highest)','शिक्षा प्रमाणपत्र (सबसे ऊँचा)'),1],['photo',L('Passport size photo','पासपोर्ट साइज़ फ़ोटो'),1],['rel',L('Relieving letter of your last job (if you have worked before)','पिछली नौकरी का रिलीविंग लेटर (पहले काम किया हो तो)'),0]];
+  el.innerHTML=`<div style="max-width:620px;margin:0 auto;padding:24px 16px">${pubTop(I.org)}
+   <div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">${L('Welcome','स्वागत है')}, ${esc(I.name||'')}</h3><p style="margin:0;font-size:14px">${esc(I.position||'')} · ${esc(I.branch||'')}${I.joinDate?' · '+L('Joining','जॉइनिंग')+' '+fmtY(I.joinDate):''}</p><p style="font-size:13px;color:var(--muted);margin-bottom:0">${L('Please fill your details and upload the documents before the day you join. Files: PDF or photo, up to 2 MB each. You can send the form again to change something, until HR has received it.','जॉइनिंग से पहले अपनी जानकारी भरें और दस्तावेज़ अपलोड करें। फ़ाइल: PDF या फ़ोटो, हर एक 2 MB तक। HR के लेने से पहले आप फ़ॉर्म दोबारा भेजकर कुछ बदल सकते हैं।')}</p>${d.submitted?`<p class="pill p-ok" style="margin-top:10px">${L('You have already sent the form. You may send it again to change something.','आप फ़ॉर्म भेज चुके हैं। कुछ बदलना हो तो दोबारा भेज सकते हैं।')}</p>`:''}</div>
+   <form class="card" id="jf" novalidate><h3 style="margin-top:0">${L('Personal details','निजी जानकारी')}</h3><div class="fgrid">
+    <div><label>${L('Father\'s name','पिता का नाम')} *</label><input class="inp" name="father" value="${v('father')}"></div><div><label>${L('Date of birth','जन्म तिथि')} *</label><input class="inp" type="date" name="dob" value="${v('dob')}"></div>
+    <div><label>${L('Gender','लिंग')} *</label><select class="inp" name="gender"><option value="">—</option><option value="M" ${P.gender==='M'?'selected':''}>${L('Male','पुरुष')}</option><option value="F" ${P.gender==='F'?'selected':''}>${L('Female','महिला')}</option><option value="O" ${P.gender==='O'?'selected':''}>${L('Other','अन्य')}</option></select></div><div><label>Email</label><input class="inp" name="email" value="${v('email')}"></div></div>
+   <label>${L('Address','पता')} *</label><textarea class="inp" name="address" rows="2">${v('address')}</textarea><div class="fgrid">${locPickHTML('j',{s:P.a_s,d:P.a_d,y:P.a_y},{req:true})}</div>
+   <h3>${L('Emergency contact','आपातकालीन संपर्क')}</h3><div class="fgrid"><div><label>${L('Name','नाम')} *</label><input class="inp" name="ec_name" value="${v('ec_name')}"></div><div><label>${L('Mobile','मोबाइल')} *</label><input class="inp" name="ec_mobile" inputmode="numeric" maxlength="10" value="${v('ec_mobile')}"></div></div>
+   <h3>${L('Identity and bank','पहचान और बैंक')}</h3><div class="fgrid"><div><label>PAN *</label><input class="inp" name="pan" maxlength="10" style="text-transform:uppercase" value="${v('pan')}"></div><div><label>Aadhaar ${L('number','नंबर')} *</label><input class="inp" name="aadhaar" inputmode="numeric" maxlength="12" value="${v('aadhaar')}"></div>
+    <div><label>UAN (${L('if you have one','अगर है')})</label><input class="inp" name="uan" inputmode="numeric" maxlength="12" value="${v('uan')}"></div><div><label>${L('Bank account holder name','बैंक खाताधारक का नाम')} *</label><input class="inp" name="bank_holder" value="${v('bank_holder')}"></div>
+    <div><label>${L('Bank account number','बैंक खाता नंबर')} *</label><input class="inp" name="acc" inputmode="numeric" maxlength="20" value="${v('acc')}"></div><div><label>IFSC *</label><input class="inp" name="ifsc" maxlength="11" style="text-transform:uppercase" value="${v('ifsc')}"></div></div>
+   <h3>${L('Documents','दस्तावेज़')}</h3>${docs.map(([k,l,req])=>`<label>${l}${req?' *':''}${up[k]?` <span class="pill p-ok" style="font-size:11px">${L('uploaded','अपलोड हो चुका')}</span>`:''}</label><input class="inp" type="file" name="f_${k}" accept=".pdf,image/*">`).join('')}
+   <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+   <div id="jfe" style="color:var(--bad);font-size:13px;margin-top:10px"></div><div class="acts"><button class="btn btn-p" id="jfb">${L('Send to HR','HR को भेजें')}</button></div></form></div>`;
+  pubLang(el,()=>renderJoin(el,tok));
+  const f=el.querySelector('#jf'), er=m=>{el.querySelector('#jfe').textContent=m};
+  f.onsubmit=async e=>{e.preventDefault();const x=Object.fromEntries(new FormData(f));er('');
+    if(!x.father.trim()||!x.dob||!x.gender||!x.address.trim())return er(L('Please fill father\'s name, date of birth, gender and address','पिता का नाम, जन्म तिथि, लिंग और पता भरें'));
+    if(!+x.j_s||!+x.j_d||!+x.j_y)return er(L('Choose your state, district and city','अपना राज्य, ज़िला और शहर चुनें'));
+    if(!x.ec_name.trim()||!/^[6-9]\d{9}$/.test(x.ec_mobile))return er(L('Enter the emergency contact name and a 10 digit mobile number','आपातकालीन संपर्क का नाम और 10 अंक का मोबाइल भरें'));
+    if(!/^[A-Za-z]{5}\d{4}[A-Za-z]$/.test(x.pan))return er(L('PAN looks wrong (like ABCDE1234F)','PAN सही नहीं लगता (जैसे ABCDE1234F)'));if(!/^\d{12}$/.test(x.aadhaar))return er(L('Aadhaar must be 12 digits','आधार 12 अंक का हो'));
+    if(!x.bank_holder.trim()||!/^\d{6,20}$/.test(x.acc)||!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(x.ifsc))return er(L('Check the bank holder name, account number and IFSC','बैंक खाताधारक का नाम, खाता नंबर और IFSC जाँचें'));
+    for(const [k,,req] of docs){const fl=f.elements['f_'+k].files[0];if(req&&!fl&&!up[k])return er(L('Please upload all the documents marked *','* वाले सारे दस्तावेज़ अपलोड करें'));if(fl&&fl.size>2*1024*1024)return er(L('A file is larger than 2 MB','कोई फ़ाइल 2 MB से बड़ी है'))}
+    const fields={action:'submit',token:tok,father:x.father,dob:x.dob,gender:x.gender,email:x.email,address:x.address,a_s:x.j_s,a_d:x.j_d,a_y:x.j_y,ec_name:x.ec_name,ec_mobile:x.ec_mobile,pan:x.pan,aadhaar:x.aadhaar,uan:x.uan,bank_holder:x.bank_holder,acc:x.acc,ifsc:x.ifsc,website:x.website}, files={};docs.forEach(([k])=>{files['f_'+k]=f.elements['f_'+k].files[0]});
+    const b=el.querySelector('#jfb');b.disabled=true;b.textContent=L('Sending…','भेज रहे हैं…');
+    try{await portalCall(fields,files);f.innerHTML=`<h3 style="margin-top:0">${L('Thank you','धन्यवाद')}, ${esc(I.name||'')}</h3><p>${L('HR has received your details and documents. See you on the joining day.','HR को आपकी जानकारी और दस्तावेज़ मिल गए। जॉइनिंग के दिन मिलते हैं।')}</p><p style="color:var(--muted);font-size:13px">${L('If something is wrong, you can open this link again and send the form once more until HR has received it.','कुछ गलत हो तो यही लिंक दोबारा खोलकर फ़ॉर्म फिर भेज सकते हैं, जब तक HR उसे न ले ले।')}</p>`}
+    catch(err){er(err.message);b.disabled=false;b.textContent=L('Send to HR','HR को भेजें')}}}
+/* the career portal on the real data: #careers=<company code> */
+const careerCode=()=>{const m=location.hash.match(/^#careers=([a-z0-9_-]{2,30})/);return m?m[1]:''};
+renderCareers=function(el){renderCareersLive(el)};
+async function renderCareersLive(el){const code=careerCode();
+  if(!code)return pubMsg(el,'LV People',L('This career link is not complete. Please ask the company for the right link.','यह करियर लिंक अधूरा है। कंपनी से सही लिंक माँगें।'));
+  el.innerHTML=`<div style="max-width:620px;margin:0 auto;padding:40px 16px;text-align:center;color:var(--muted)">…</div>`;
+  let d;try{d=await portalCall({action:'vacancies',code})}catch(e){return pubMsg(el,'LV People',esc(e.message))}
+  const pre=(location.hash.match(/vac=(\d+)/)||[])[1], open=d.vacancies||[];
+  el.innerHTML=`<div style="max-width:620px;margin:0 auto;padding:24px 16px">${pubTop(d.org+' · '+L('Careers','करियर'),'')}
+   ${open.length?`<div class="card" id="cpForm"><h3 style="margin-top:0">${L('Apply for a job','नौकरी के लिए आवेदन')}</h3><form id="cpf" novalidate>
+    <label>${L('Select vacancy','वैकेंसी चुनें')} *</label><select class="inp" name="vac">${open.map(v=>`<option value="${v.id}" ${String(v.id)===pre?'selected':''}>${esc(v.desig)} · ${esc(v.branch)}</option>`).join('')}</select>
+    <label>${L('Name','नाम')} *</label><input class="inp" name="name"><label>${L('Father\'s name','पिता का नाम')} *</label><input class="inp" name="father"><label>${L('Mobile number','मोबाइल नंबर')} *</label><input class="inp" name="mobile" inputmode="numeric" maxlength="10"><label>${L('Address','पता')} *</label><textarea class="inp" name="address" rows="2"></textarea><div class="fgrid">${locPickHTML('a',{},{req:true})}</div>
+    <label>${L('Years of experience','अनुभव (वर्ष)')} *</label><input class="inp" type="number" min="0" max="60" step="0.5" name="exp"><label>${L('Current salary (per month)','मौजूदा सैलरी (प्रति माह)')} *</label><input class="inp" type="number" min="0" name="cur"><label>${L('Expected salary (per month)','अपेक्षित सैलरी (प्रति माह)')} *</label><input class="inp" type="number" min="0" name="exp2">
+    <label>${L('Resume (PDF, Word or photo, up to 2 MB, optional)','रिज़्यूमे (PDF, Word या फ़ोटो, 2 MB तक, वैकल्पिक)')}</label><input class="inp" type="file" name="resume" accept=".pdf,.doc,.docx,image/*"><label>${L('Or a resume link (optional)','या रिज़्यूमे लिंक (वैकल्पिक)')}</label><input class="inp" name="resume_link">
+    <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <div id="cpe" style="color:var(--bad);font-size:13px;margin-top:8px"></div><div class="acts"><button class="btn btn-p" id="cpb">${L('Submit application','आवेदन भेजें')}</button></div></form></div>`:`<div class="card"><p>${L('There is no open vacancy right now. Please check again later.','अभी कोई वैकेंसी खुली नहीं है। कृपया बाद में देखें।')}</p></div>`}</div>`;
+  pubLang(el,()=>renderCareersLive(el));
+  const f=el.querySelector('#cpf');if(!f)return;
+  f.onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(f)), er=m=>{el.querySelector('#cpe').textContent=m};er('');
+    if(!v.name.trim()||!v.father.trim()||!v.address.trim())return er(L('Name, father\'s name and address are required','नाम, पिता का नाम और पता ज़रूरी हैं'));if(!/^[6-9]\d{9}$/.test(v.mobile))return er(L('Enter a 10 digit mobile number','10 अंक का मोबाइल नंबर भरें'));if(!+v.a_s||!+v.a_d||!+v.a_y)return er(L('Choose your state, district and city','अपना राज्य, ज़िला और शहर चुनें'));
+    if(v.exp===''||v.cur===''||v.exp2==='')return er(L('Enter experience and both salaries','अनुभव और दोनों सैलरी भरें'));const rf=f.elements.resume.files[0];if(rf&&rf.size>2*1024*1024)return er(L('The resume file is larger than 2 MB','रिज़्यूमे फ़ाइल 2 MB से बड़ी है'));
+    const b=el.querySelector('#cpb');b.disabled=true;b.textContent='…';
+    try{const r=await portalCall({action:'apply',code,vac:v.vac,name:v.name,father:v.father,mobile:v.mobile,address:v.address,a_s:v.a_s,a_d:v.a_d,a_y:v.a_y,exp:v.exp,cur:v.cur,exp2:v.exp2,resume_link:v.resume_link,website:v.website},{resume:rf});
+      el.querySelector('#cpForm').innerHTML=`<h3 style="margin-top:0">${L('Thank you','धन्यवाद')}, ${esc(v.name)}</h3><p>${L('Your application is received. Our HR team will call you.','आपका आवेदन मिल गया। हमारी HR टीम आपसे संपर्क करेगी।')}</p><p style="color:var(--muted);font-size:13px">${L('Reference','संदर्भ')}: ${esc(r.ref||'')}</p>`}
+    catch(err){er(err.message);b.disabled=false;b.textContent=L('Submit application','आवेदन भेजें')}}}
+/* an employee's referral goes to HR through the server (employees cannot write the recruitment records) */
+LIVE.isReferServer=()=>LIVE.on&&!isHRrole();
+LIVE.refer=(v,file)=>portalCall({action:'refer',vac:v.vac,name:v.name,mobile:v.mobile,email:v.email,resume_link:v.resume},{resume:file},true);
+/* HR: a joining link for a candidate (only the fingerprint of the link is kept; the link itself is shown once) */
+LIVE.joinLink=async cid=>{const c=candById(cid), v=vacById(c.vac), off=RC.offer.find(o=>o.cand===cid&&['Offered','Accepted'].includes(o.st));
+  const tok=[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,'0')).join('');
+  const jd=off?off.joinDate:addD(TODAY_S,7), exp=new Date(jd+'T23:59:59+05:30');exp.setDate(exp.getDate()+7);
+  const del=await sb.from('candidate_links').delete().eq('client_id',LIVE.profile.client_id).eq('cand_id',cid);if(del.error)throw del.error;
+  const r=await sb.from('candidate_links').insert({client_id:LIVE.profile.client_id,cand_id:cid,token_hash:await sha(tok),info:{name:c.name,position:nm('desigs',v.desig),branch:nm('branches',v.branch),org:ORGS.org,joinDate:jd},expires_at:exp.toISOString(),created_by:LIVE.profile.user_id});if(r.error)throw r.error;
+  return location.origin+location.pathname+'#join='+tok};
+window.joinLinkModal=async function(cid){if(!isHRrole())return toast(L('Only HR or Admin can do this','यह सिर्फ़ HR या एडमिन कर सकता है'));
+  let url;try{url=await LIVE.joinLink(cid)}catch(e){return toast(L('The link could not be made: ','लिंक नहीं बना: ')+(e.message||e))}
+  const c=candById(cid), txt=`${L('Hello','नमस्ते')} ${c.name}, ${L('please fill your joining details and upload your documents here','कृपया अपनी जॉइनिंग की जानकारी भरें और दस्तावेज़ यहाँ अपलोड करें')}: ${url}`;
+  openModal(`<h3>${L('Joining link','जॉइनिंग लिंक')} · ${esc(c.name)}</h3><p style="font-size:13px;color:var(--muted)">${L('Send this link to the candidate. It works only for this candidate and stops working 7 days after the joining date. It is shown only now; making a new link cancels this one.','यह लिंक उम्मीदवार को भेजें। यह सिर्फ़ इसी उम्मीदवार के लिए है और जॉइनिंग के 7 दिन बाद बंद हो जाता है। यह अभी ही दिखता है; नया लिंक बनाने पर यह रद्द हो जाता है।')}</p>
+   <textarea class="inp" id="jlTxt" rows="4" readonly style="font-size:12px">${esc(url)}</textarea><div class="acts" style="flex-wrap:wrap"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button type="button" class="btn btn-o" id="jlCopy">${L('Copy link','लिंक कॉपी करें')}</button><a class="btn btn-p" target="_blank" rel="noopener" href="https://wa.me/91${esc(c.mobile)}?text=${encodeURIComponent(txt)}">WhatsApp</a></div>`,(f,close)=>close());
+  const bg=document.querySelector('.modal-bg');bg.querySelector('#jlCopy').onclick=()=>{const ta=bg.querySelector('#jlTxt');ta.select();try{navigator.clipboard.writeText(url)}catch(e){document.execCommand('copy')}toast(L('Copied','कॉपी हुआ'))}};
+/* HR: what candidates sent through the portal becomes part of the recruitment records */
+const dayOf=ts=>String(ts||'').slice(0,10)||TODAY_S;
+function mergePortal(links,apps){const doneL=[],doneA=[],say=[];
+  links.forEach(row=>{const c=RC.cand.find(x=>x.id===row.cand_id), d=row.data;doneL.push(row.id);if(!c||!d)return;
+    const fl={}, nmf={};Object.keys(d.files||{}).forEach(k=>{fl[k]='sbfile:'+d.files[k].path;nmf[k]=d.files[k].name});
+    c.self={father:d.father,dob:d.dob,gender:d.gender,address:d.address,ec_name:d.ec_name,ec_mobile:d.ec_mobile,email:d.email,pan:d.pan,aadhaar:d.aadhaar,uan:d.uan,bank_holder:d.bank_holder,acc:d.acc,ifsc:d.ifsc,files:fl,fileNames:nmf,at:row.submitted_at};
+    c.father=d.father;c.address=d.address;c.loc=locRead(d,'a');if(!c.email&&d.email)c.email=d.email;
+    RC.docs[c.id]=RC.docs[c.id]||Object.fromEntries(DOCITEMS.map(x=>[x[0],{rec:'',ver:''}]));Object.keys(fl).forEach(k=>{const dd=RC.docs[c.id][k];if(dd&&!dd.rec)dd.rec=dayOf(row.submitted_at)});
+    c.hist.push({at:dayOf(row.submitted_at),from:c.stage,to:c.stage,by:0,note:L('The candidate filled the joining form','उम्मीदवार ने जॉइनिंग फ़ॉर्म भरा')});
+    try{notify([hrId()],`${L('Joining form received','जॉइनिंग फ़ॉर्म मिला')}: ${c.name}`,{page:'recruit',tab:'cand'},'JF|'+c.id+'|'+row.id)}catch(e){}say.push(c.name)});
+  apps.forEach(row=>{const d=row.data;doneA.push(row.id);if(!d||RC.cand.some(x=>x.mobile===row.mobile))return;const v=RC.vac.find(x=>x.id===+d.vac);if(!v)return;
+    const c={id:++seq,name:d.name,father:d.father||'',mobile:row.mobile,email:d.email||'',address:d.address||'',loc:d.a_s?locRead(d,'a'):undefined,exp:d.exp,curSal:d.cur,expSal:d.exp2,source:d.source||'Career portal',refBy:+d.refBy||0,resume:d.resumeLink||'',resumeData:d.resumeFile?'sbfile:'+d.resumeFile.path:'',resumeName:d.resumeFile?d.resumeFile.name:'',vac:v.id,recruiter:v.recruiter,created:dayOf(row.created_at),stage:'Applied',stageAt:dayOf(row.created_at),hist:[{at:dayOf(row.created_at),from:'',to:'Applied',by:0,note:d.source||'Career portal'}],reason:''};
+    RC.cand.push(c);audit('Recruitment','Candidate applied ('+(d.source||'Career portal')+')',c.name,vacName(v));say.push(c.name)});
+  return{doneL,doneA,say}}
+LIVE.mergePortal=mergePortal;
+async function pullPortal(){if(!isHRrole())return;
+  try{const [cl,ca]=await Promise.all([sb.from('candidate_links').select('id,cand_id,data,submitted_at').not('submitted_at','is',null).is('merged_at',null),sb.from('career_applications').select('id,mobile,data,created_at').is('merged_at',null)]);
+    if(cl.error||ca.error)throw (cl.error||ca.error);if(!(cl.data||[]).length&&!(ca.data||[]).length)return;
+    const r=mergePortal(cl.data||[],ca.data||[]), now=new Date().toISOString();
+    const roots=[];RC.cand.forEach(c=>{if(c.self)roots.push(c.self);if(typeof c.resumeData==='string'&&c.resumeData.startsWith('sbfile:'))roots.push(c)});try{await showFiles(roots)}catch(e){console.warn('portal files',e)}
+    if(r.doneL.length)await sb.from('candidate_links').update({merged_at:now}).in('id',r.doneL);if(r.doneA.length)await sb.from('career_applications').update({merged_at:now}).in('id',r.doneA);
+    if(r.say.length)try{toast(L('From the portal: ','पोर्टल से: ')+r.say.join(', '))}catch(e){}}
+  catch(e){console.warn('portal pull',e)}}
+LIVE.pullPortal=pullPortal;
+window.addEventListener('hashchange',joinBoot);
 /* ---------- the note at the top of each page ---------- */
 const LIVE_PAGES=['dashboard','employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox','recruit','expense','exits','training','marketing','crm','library','engage','bizdata','stock','import','analytics','reports','settings'];
 function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.platform)return;let n=document.getElementById('liveNote');
@@ -469,4 +579,5 @@ drawLogin();
 /* an open session from before */
 (async()=>{try{const res=await Promise.race([sb.auth.getSession(),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),6000))]);const s=res&&res.data&&res.data.session;if(s)await startSession(s.user)}
   catch(e){if(e&&e.message==='timeout')return;try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(x){}}})();
+try{joinBoot();careersBoot()}catch(e){console.warn('public pages',e)}
 })();
