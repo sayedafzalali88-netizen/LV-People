@@ -1124,16 +1124,41 @@ DATA.levels=Array.from({length:12},(_,i)=>({id:i+1,name:'L'+(i+1)}));
  DATA.emps.forEach(e=>{const x=ex[e.id];e.division=x[0];e.func=x[1];e.level=x[2];e.fm='';e.status='Working';e.lwd='';e.hist=[]});
  const p=DATA.emps.find(e=>e.id===8);p.dept=2;p.status='Relieved';p.lwd='2026-09-30';p.hist=[{at:'2026-09-30',from:'Working',to:'Relieved',lwd:'2026-09-30',reason:'Resigned',by:'Priya Verma'}];
  DATA.emps.find(e=>e.id===7).fm='3';}
+/* Organization structure order: Company > Function > Department > Branch > Division > Sub-Division > Designation */
 const ORG={
- branches:{par:null,used:'branch',cols:[['name','name'],['city','city'],['state','state_']]},
+ functions:{par:null,used:'func',cols:[['name','name']]},
+ depts:{par:'functions',used:'dept',cols:[['name','name'],['head','head']]},
+ branches:{par:'depts',used:'branch',cols:[['name','name'],['city','city'],['state','state_']]},
  divisions:{par:'branches',used:'division',cols:[['name','name']]},
- depts:{par:'divisions',used:'dept',cols:[['name','name'],['head','head']]},
- functions:{par:'depts',used:'func',cols:[['name','name']]},
- desigs:{par:'functions',used:'desig',cols:[['name','name'],['level','level']]},
+ subdivs:{par:'divisions',used:'subdiv',cols:[['name','name']]},
+ desigs:{par:'subdivs',used:'desig',cols:[['name','name'],['level','level']]},
  levels:{par:null,used:'level',cols:[['name','name']]}
 };
-const CHAIN={branch:'branches',division:'divisions',dept:'depts',func:'functions',desig:'desigs'};
-const CHAIN_ORDER=['branch','division','dept','func','desig'];
+const CHAIN={func:'functions',dept:'depts',branch:'branches',division:'divisions',subdiv:'subdivs',desig:'desigs'};
+const CHAIN_ORDER=['func','dept','branch','division','subdiv','desig'];
+Object.assign(T.en,{subdivs:'Sub-divisions'});Object.assign(T.hi,{subdivs:'सब-डिवीज़न'});
+/* move the demo data to the new order. Ids of branch, division, department, function and designation stay the same (sales targets, KPI and reports use them) */
+DATA.subdivs=[];
+function orgMigrate(){const D=DATA, has=(x,id)=>(x.parents||[]).includes(id), T0=[];
+ D.branches.forEach(b=>D.divisions.filter(v=>has(v,b.id)).forEach(v=>D.depts.filter(dp=>has(dp,v.id)).forEach(dp=>D.functions.filter(f=>has(f,dp.id)).forEach(f=>D.desigs.filter(d=>has(d,f.id)).forEach(d=>T0.push({b:b.id,v:v.id,dp:dp.id,f:f.id,d:d.id}))))));
+ D.subdivs=D.divisions.map((v,i)=>({id:i+1,name:'General',parents:[v.id]}));
+ const sub={};D.subdivs.forEach(s=>sub[s.parents[0]]=s.id);
+ const uniq=a=>[...new Set(a)];
+ const vDepts={}, dFuncs={}, nDept={}, nBr={}, nDes={};
+ D.divisions.forEach(v=>vDepts[v.id]=D.depts.filter(dp=>has(dp,v.id)).map(x=>x.id));
+ D.desigs.forEach(d=>{dFuncs[d.id]=(d.parents||[]).slice();nDes[d.id]=uniq(T0.filter(t=>t.d===d.id).map(t=>sub[t.v]))});
+ D.depts.forEach(dp=>nDept[dp.id]=uniq(T0.filter(t=>t.dp===dp.id).map(t=>t.f)));
+ D.branches.forEach(b=>nBr[b.id]=uniq(T0.filter(t=>t.b===b.id).map(t=>t.dp)));
+ D.functions.forEach(f=>f.parents=[]);D.depts.forEach(dp=>dp.parents=nDept[dp.id]);D.branches.forEach(b=>b.parents=nBr[b.id]);
+ D.divisions.forEach(v=>v.depts=vDepts[v.id]);D.desigs.forEach(d=>{d.funcs=dFuncs[d.id];d.parents=nDes[d.id]});
+ D.emps.forEach(e=>e.subdiv=sub[e.division]);SRC.plan.forEach(r=>r.subdiv=sub[r.division]);}
+const subOf=v=>((DATA.subdivs.find(s=>(s.parents||[]).includes(+v))||{}).id);
+/* allowed items of one level, given what is chosen above it */
+function orgOpts(k,c){const has=(x,id)=>(x.parents||[]).includes(+id), a=DATA[CHAIN[k]].filter(x=>!x.off);
+ if(k==='func')return a;if(k==='dept')return a.filter(x=>has(x,c.func));if(k==='branch')return a.filter(x=>has(x,c.dept));
+ if(k==='division')return a.filter(x=>has(x,c.branch)&&(!x.depts||x.depts.includes(+c.dept)));if(k==='subdiv')return a.filter(x=>has(x,c.division));
+ return a.filter(x=>has(x,c.subdiv)&&(!x.funcs||x.funcs.includes(+c.func)))}
+const orgOk=c=>CHAIN_ORDER.every(k=>c[k]&&orgOpts(k,c).some(x=>x.id==c[k]));
 
 /* audit log: append only */
 const AUDIT=[];
@@ -1188,8 +1213,8 @@ function setModal(id){
     const fd=new FormData(f), v=Object.fromEntries(s.cols.map(c=>[c[0],(fd.get(c[0])||'').trim()])), err=k=>{bg.querySelector('#me').textContent=t(k)};
     if(!v.name)return err('e_req');
     if(key==='desigs'&&!/^L([1-9]|1[0-2])$/.test(v.level))return err('e_req');
-    if(DATA[key].some(x=>x.id!==id&&x.name.toLowerCase()===v.name.toLowerCase()))return err('e_dup');
     if(s.par){v.parents=fd.getAll('par').map(Number);if(!v.parents.length)return err('e_parent')}
+    if(DATA[key].some(x=>x.id!==id&&x.name.toLowerCase()===v.name.toLowerCase()&&(key!=='subdivs'||(x.parents||[]).some(p=>(v.parents||[]).includes(p)))))return err('e_dup');
     if(id&&s.par&&JSON.stringify([...(r.parents||[])].sort())!==JSON.stringify([...v.parents].sort())){const old=r.parents;r.parents=v.parents;const broke=SRC.plan.some(p=>p.status!=='Inactive'&&!chainOk(p));r.parents=old;if(broke){close();return orgBlock(key,id,'change')||listModal(L('Cannot change the parent: a running plan row would lose its chain','पैरेंट नहीं बदल सकते: चल रही प्लान पंक्ति की चेन टूट जाएगी'),[])}}
     audit('Org Master',id?'Edit':'Add',`${t(key)}: ${v.name}`,id?diffTxt(r,v):'');
     if(id)Object.assign(r,v);else DATA[key].push({id:Date.now(),...v});
@@ -1241,7 +1266,7 @@ function employeesPage(){
 }
 const RULES2={
  name:v=>v.trim()?'':'e_req', mobile:v=>/^[6-9]\d{9}$/.test(v)?'':'e_mobile', email:v=>/^\S+@\S+\.\S+$/.test(v)?'':'e_email',
- doj:v=>v?'':'e_req', branch:v=>v?'':'e_req', division:v=>v?'':'e_req', dept:v=>v?'':'e_req', func:v=>v?'':'e_req', desig:v=>v?'':'e_req', level:v=>v?'':'e_req',
+ doj:v=>v?'':'e_req', branch:v=>v?'':'e_req', division:v=>v?'':'e_req', subdiv:v=>v?'':'e_req', dept:v=>v?'':'e_req', func:v=>v?'':'e_req', desig:v=>v?'':'e_req', level:v=>v?'':'e_req',
  pan:v=>!v||/^[A-Z]{5}\d{4}[A-Z]$/.test(v)?'':'e_pan', aadhaar:v=>!v||/^\d{12}$/.test(v)?'':'e_aadhaar', ifsc:v=>!v||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v)?'':'e_ifsc'
 };
 function empForm(id,back,draft,errs){
@@ -1253,7 +1278,7 @@ function empForm(id,back,draft,errs){
   const inp=(n,l,type='text',extra='')=>`<div><label>${t(l)}${RULES2[n]?' *':''}</label><input class="inp ${errs[n]?'bad':''}" name="${n}" type="${type}" value="${esc(e[n]??'')}" ${extra}>${er(n)}</div>`;
   const cas=(n,l)=>{
     const i=CHAIN_ORDER.indexOf(n), pk=i?CHAIN_ORDER[i-1]:null, pv=pk?+e[pk]:null;
-    const items=DATA[CHAIN[n]].filter(x=>!x.off&&(!pk||(pv&&x.parents.includes(pv))));
+    const items=(!pk||pv)?orgOpts(n,e):[];
     return `<div><label>${t(l)} *</label><select class="inp ${errs[n]?'bad':''}" name="${n}" data-cas ${pk&&!pv?'disabled':''}><option value="">${pk&&!pv?t('select_first'):'—'}</option>${items.map(x=>`<option value="${x.id}" ${e[n]==x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>${er(n)}</div>`;
   };
   const emp=(n,l)=>`<div><label>${t(l)}</label><select class="inp" name="${n}"><option value="">${t('none')}</option>${DATA.emps.filter(x=>x.id!==id&&x.active).map(x=>`<option value="${x.id}" ${e[n]==x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`;
@@ -1264,7 +1289,7 @@ function empForm(id,back,draft,errs){
     ${inp('name','name')}${inp('mobile','mobile','tel','maxlength="10"')}${inp('email','email','email')}${inp('dob','dob','date')}
     <div><label>${t('gender')}</label><select class="inp" name="gender"><option value="M" ${e.gender==='M'?'selected':''}>${t('male')}</option><option value="F" ${e.gender==='F'?'selected':''}>${t('female')}</option><option value="O" ${e.gender==='O'?'selected':''}>${t('other')}</option></select></div></div>
    <div class="sec-t">${t('sec_job')}</div><div class="fgrid">
-    ${inp('doj','doj','date')}${cas('branch','branch')}${cas('division','divisions')}${cas('dept','dept')}${cas('func','functions')}${cas('desig','desig')}
+    ${inp('doj','doj','date')}${cas('func','functions')}${cas('dept','dept')}${cas('branch','branch')}${cas('division','divisions')}${cas('subdiv','subdivs')}${cas('desig','desig')}
     <div><label>${t('career_level')} *</label><select class="inp ${errs.level?'bad':''}" name="level"><option value="">—</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select>${er('level')}</div>
     ${emp('mgr','manager')}${emp('fm','fm')}${inp('ctc','ctc','number','min="0" step="1000"')}${ctcHint(e)}</div>
    ${id?`<div class="sec-t">${t('emp_status')}</div><div class="fgrid">
@@ -1286,7 +1311,7 @@ function saveForm(form){
   let prev=null;
   CHAIN_ORDER.forEach(k=>{ if(errs[k]){prev=null;return}
     const it=DATA[CHAIN[k]].find(x=>x.id==f[k]);
-    if(prev&&it&&!it.parents.includes(+f[prev.k]))errs[k]=`${it.name} ${t('e_chain')} ${prev.n}`;
+    if(prev&&it&&!orgOpts(k,f).some(x=>x.id==it.id))errs[k]=`${it.name} ${t('e_chain')} ${prev.n}`;
     prev={k,n:it?it.name:''}; });
   if(old&&f.status!==old.status){
     if(!(f.sreason||'').trim())errs.sreason='e_reason';
@@ -1352,7 +1377,7 @@ bindExtra=function(){
   on('#empForm [data-cas]',s=>s.onchange=()=>{
     const f=$('#empForm'), d=Object.fromEntries(new FormData(f)), i=CHAIN_ORDER.indexOf(s.name);
     for(let j=i+1;j<CHAIN_ORDER.length;j++){const k=CHAIN_ORDER[j], pk=CHAIN_ORDER[j-1], it=DATA[CHAIN[k]].find(x=>x.id==d[k]);
-      if(!it||!d[pk]||!it.parents.includes(+d[pk]))d[k]=''}
+      if(!it||!d[pk]||!orgOpts(k,d).some(x=>x.id==it.id))d[k]=''}
     $('#main').innerHTML=empForm(+f.dataset.id||null,f.dataset.back,d);bind();
   });
 };
@@ -3576,7 +3601,7 @@ function rcJoinModal(cid){
     if(seatsFull())return bg.querySelector('#me').textContent=seatMsg();
     const mg=empById(x.mgr), id=Math.max(...DATA.emps.map(e=>e.id))+1, de=DATA.desigs.find(z=>z.id===v.desig);
     const e={id,code:takeEmpCode(),name:c.name,mobile:c.mobile,email:c.email,dob:x.dob,gender:x.gender,doj:x.jd,branch:v.branch,dept:+x.dept,desig:v.desig,mgr:String(mg.id),ctc:(splitFor(v.desig,off.lvl||1,0)||{total:off.ctc/12}).total*12,pan:(c.self&&c.self.pan)||'',aadhaar:(c.self&&c.self.aadhaar)||'',uan:(c.self&&c.self.uan)||'',esi:'',bank:'',ifsc:(c.self&&c.self.ifsc)||'',acc:(c.self&&c.self.acc)||'',active:true,division:mg.division,func:mg.func,level:off.lvl||1,lvlHist:[{from:'0000-00',lvl:off.lvl||1,desig:v.desig}],fm:'',status:'Working',lwd:'',hist:[],createdAt:TODAY_S,joinedBy:me(),cand:c.id,...locEmpFromJoin(x)};
-    e.active=isActive(e);DATA.emps.push(e);c.empId=id;cdMove(c,'Joined',e.code);SRC.uniform.push({id:++seq,emp:id,uniform:false,idcard:false});
+    e.subdiv=e.subdiv||subOf(e.division);e.active=isActive(e);DATA.emps.push(e);c.empId=id;cdMove(c,'Joined',e.code);SRC.uniform.push({id:++seq,emp:id,uniform:false,idcard:false});
     issueLetter('Appointment Letter',id,me(),'Appointment',`Welcome. Your joining date is ${x.jd}.`,x.jd);
     if(vacFilled(v)>=v.positions){v.status='Closed';v.closedOn=x.jd}audit('Recruitment','Joined → employee',e.name,e.code);close();toast(`${L('Employee created','कर्मचारी बन गया')}: ${e.code}`);render();cdModal(cid)});
 }
@@ -3970,22 +3995,19 @@ function wfOrg(){
  const st=`<style>.oct ul{display:flex;justify-content:center;padding-top:22px;position:relative;margin:0}.oct li{list-style:none;text-align:center;position:relative;padding:22px 6px 0}.oct li::before,.oct li::after{content:'';position:absolute;top:0;right:50%;width:50%;height:22px;border-top:1.5px solid ${C}}.oct li::after{right:auto;left:50%;border-left:1.5px solid ${C}}.oct li:only-child::before,.oct li:only-child::after{display:none}.oct li:only-child{padding-top:0}.oct li:first-child::before,.oct li:last-child::after{border:0 none}.oct li:last-child::before{border-right:1.5px solid ${C};border-radius:0 6px 0 0}.oct li:first-child::after{border-radius:6px 0 0 0}.oct ul ul::before{content:'';position:absolute;top:0;left:50%;border-left:1.5px solid ${C};height:22px}.oct .stk{display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:0;padding-top:22px;position:relative}.oct .stk::before{content:'';position:absolute;top:0;left:50%;height:22px;border-left:1.5px solid ${C}}</style>`;
  const box=(bg,bd,tx,title,sub)=>`<div style="display:inline-block;min-width:130px;max-width:190px;padding:8px 12px;border-radius:8px;background:${bg};border:1px solid ${bd};color:${tx};vertical-align:top"><div style="font-weight:500;font-size:14px">${title}</div>${sub?`<div style="font-size:12px;opacity:.85">${sub}</div>`:''}</div>`;
  const li=(inner,kids,raw)=>`<li>${inner}${kids?`<ul>${kids}</ul>`:''}${raw||''}</li>`;
- const cnt={fn:0,dp:0,br:new Set(),dv:0,ds:0};
- const fns=DATA.functions.filter(on), cn=(window.LIVE&&LIVE.client&&LIVE.client.name)||'Company';
- const tree=fns.map(fn=>{cnt.fn++;
-  const dps=DATA.depts.filter(d=>on(d)&&par(fn,d.id));
-  return li(box('#E6F1FB','#185FA5','#0C447C',esc(fn.name),L('Function','फ़ंक्शन')),dps.map(dp=>{cnt.dp++;
-   const brs=DATA.branches.filter(b=>on(b)&&DATA.divisions.some(v=>on(v)&&par(v,b.id)&&par(dp,v.id)));
-   return li(box('#E1F5EE','#0F6E56','#085041',esc(dp.name),L('Department','विभाग')),brs.map(b=>{cnt.br.add(b.id);
-    const dvs=DATA.divisions.filter(v=>on(v)&&par(v,b.id)&&par(dp,v.id));
-    return li(box('#FAEEDA','#854F0B','#633806',esc(b.name),L('Branch','शाखा')+(b.city?' · '+esc(b.city):'')),dvs.map(dv=>{cnt.dv++;
-     const ds=DATA.desigs.filter(d=>on(d)&&par(d,fn.id)), n=ds.length;cnt.ds+=n;
-     const stack=n?`<div class="stk">${ds.map(d=>{const p=SRC.plan.filter(r=>r.status!=='Inactive'&&r.branch==b.id&&r.desig==d.id).reduce((a,r)=>a+r.required,0), h=DATA.emps.filter(e=>e.active&&e.branch==b.id&&e.desig==d.id).length;
-      return box('#FAECE7','#993C1D','#712B13',esc(d.name),`${d.level||''} · ${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`)}).join('')}</div>`:'';
-     return li(box('#EEEDFE','#534AB7','#3C3489',esc(dv.name),L('Division','डिवीज़न')),'',stack)}).join(''))}).join(''))}).join(''))}).join('');
+ const cn=(window.LIVE&&LIVE.client&&LIVE.client.name)||'Company', canAdd=can('settings','A');
+ const add=(key,pid,en,hi)=>canAdd?`<div style="margin-top:6px"><button class="btn btn-o btn-s" data-ocadd="${key}:${pid}" style="background:#fff;color:#333">+ ${L(en,hi)}</button></div>`:'';
+ const tree=orgOpts('func',{}).map(fn=>li(box('#E6F1FB','#185FA5','#0C447C',esc(fn.name),L('Function','फ़ंक्शन')+add('depts',fn.id,'Department','विभाग')),
+  orgOpts('dept',{func:fn.id}).map(dp=>li(box('#E1F5EE','#0F6E56','#085041',esc(dp.name),L('Department','विभाग')+add('branches',dp.id,'Branch','शाखा')),
+   orgOpts('branch',{dept:dp.id}).map(b=>li(box('#FAEEDA','#854F0B','#633806',esc(b.name),L('Branch','शाखा')+(b.city?' · '+esc(b.city):'')+add('divisions',b.id,'Division','डिवीज़न')),
+    orgOpts('division',{branch:b.id,dept:dp.id}).map(dv=>li(box('#EEEDFE','#534AB7','#3C3489',esc(dv.name),L('Division','डिवीज़न')+add('subdivs',dv.id,'Sub-division','सब-डिवीज़न')),
+     orgOpts('subdiv',{division:dv.id}).map(sd=>{const ds=orgOpts('desig',{subdiv:sd.id,func:fn.id});
+      const stack=`<div class="stk">${ds.map(d=>{const p=SRC.plan.filter(r=>r.status!=='Inactive'&&r.branch==b.id&&r.desig==d.id).reduce((a,r)=>a+r.required,0), h=DATA.emps.filter(e=>e.active&&e.branch==b.id&&e.desig==d.id).length;
+       return box('#FAECE7','#993C1D','#712B13',esc(d.name),`${d.level||''} · ${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`)}).join('')}${add('desigs',sd.id,'Designation','पद')}</div>`;
+      return li(box('#F1EFE8','#5F5E5A','#444441',esc(sd.name),L('Sub-division','सब-डिवीज़न')),'',stack)}).join(''))).join(''))).join(''))).join(''))).join('');
  return `${st}<div class="tools"><div style="flex:1"></div>${can('settings','E')?`<button class="btn btn-o" data-ocset>${L('Edit structure in Settings','Settings में स्ट्रक्चर बदलें')}</button>`:''}</div>
  <p class="rule" style="font-size:13px;margin:6px 0 12px">${L('This is the base of the company. A designation can enter the Manpower plan, then Requisition, then Recruitment, only if it is here.','यह कंपनी का आधार है। कोई पद तभी Manpower plan, फिर Requisition और Recruitment में आ सकता है जब वह यहाँ हो।')}</p>
- <div class="card" style="overflow:auto"><div class="oct" style="min-width:max-content;padding:4px 12px 16px"><ul style="padding-top:0"><li style="padding-top:0">${box('#EAF3DE','#3B6D11','#27500A',esc(cn),L('Company','कंपनी'))}<ul>${tree}</ul></li></ul></div></div>`}
+ <div class="card" style="overflow:auto"><div class="oct" style="min-width:max-content;padding:4px 12px 16px"><ul style="padding-top:0"><li style="padding-top:0">${box('#EAF3DE','#3B6D11','#27500A',esc(cn),L('Company','कंपनी')+add('functions',0,'Function','फ़ंक्शन'))}<ul>${tree}</ul></li></ul></div></div>`}
 function wfOrgOld(){
  const brs=DATA.branches.filter(b=>!b.off), bsel=brs.find(b=>b.id==state.ocb)||brs[0];if(!bsel)return `<div class="card"><p>—</p></div>`;
  const kids=(k,pid)=>DATA[k].filter(x=>!x.off&&(x.parents||[]).includes(pid)), hc=(f,id)=>DATA.emps.filter(e=>e.active&&e[f]==id).length;
@@ -4010,9 +4032,10 @@ function wfOrgOld(){
 /* ---- manpower plan ---- */
 {const fb={4:{division:3,dept:2,func:3},3:{division:3,dept:2,func:3},1:{division:1,dept:1,func:1},2:{division:1,dept:1,func:1},5:{division:1,dept:4,func:2}};
  SRC.plan.forEach((r,i)=>{if(r.status)return;const e=DATA.emps.find(x=>x.branch==r.branch&&x.desig==r.desig)||DATA.emps.find(x=>x.desig==r.desig&&x.branch==r.branch)||fb[r.desig]||{division:1,dept:1,func:1};
-  Object.assign(r,{no:'MPM-'+pad4(i+1),division:e.division,dept:e.dept,func:e.func,effective:'2026-04-01',status:'Active',hist:[]})})}
-const planKey=r=>[r.branch,r.func,r.dept,r.division,r.desig].join('|');
-const chainOk=r=>{const p=(k,id)=>(DATA[k].find(x=>x.id==id)||{}).parents||[];return p('divisions',r.division).includes(+r.branch)&&p('depts',r.dept).includes(+r.division)&&p('functions',r.func).includes(+r.dept)&&p('desigs',r.desig).includes(+r.func)};
+  Object.assign(r,{no:'MPM-'+pad4(i+1),division:e.division,subdiv:subOf(e.division),dept:e.dept,func:e.func,effective:'2026-04-01',status:'Active',hist:[]})})}
+SRC.plan.forEach(r=>{if(!r.subdiv)r.subdiv=subOf(r.division)});
+const planKey=r=>[r.branch,r.func,r.dept,r.division,r.subdiv,r.desig].join('|');
+const chainOk=r=>orgOk({func:r.func,dept:r.dept,branch:r.branch,division:r.division,subdiv:r.subdiv,desig:r.desig});
 function wfPlan(){
   const rows=SRC.plan.filter(r=>(!state.wfpb||r.branch==state.wfpb)&&(!state.wfps||(r.status==='Active'&&r.effective>TODAY_S?'Scheduled':r.status)===state.wfps));
   const live=planRows(), filled=r=>DATA.emps.filter(e=>e.active&&matchRow(e,r)).length;
@@ -4021,27 +4044,27 @@ function wfPlan(){
   return `<div class="grid g4" style="margin-bottom:14px">${tile(L('Required','ज़रूरी'),sum(r=>r.required))}${tile(L('Filled (in planned positions)','भरे (प्लान के पदों में)'),sum(r=>Math.min(r.filled,r.required)))}${tile(L('Shortage','कमी'),sum(r=>gap(r).short))}${tile(L('Surplus','ज़्यादा'),sum(r=>gap(r).sur))}</div>
   <div class="tools"><select class="inp" id="wfpb"><option value="">${L('All branches','सभी शाखाएँ')}</option>${DATA.branches.map(b=>`<option value="${b.id}" ${state.wfpb==b.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select><select class="inp" id="wfps"><option value="">${L('All status','सभी स्थिति')}</option>${['Active','Scheduled','Inactive'].map(s=>`<option ${state.wfps===s?'selected':''}>${s}</option>`).join('')}</select><div style="flex:1"></div>
    <button class="btn btn-o" data-mpex>${L('Export','एक्सपोर्ट')}</button>${can('workforce','A')?`<button class="btn btn-o" data-mptpl>${L('Template','टेम्पलेट')}</button><label class="btn btn-o" style="margin:0;cursor:pointer">${L('Upload plan','प्लान अपलोड')}<input type="file" id="mpFile" accept=".csv,.txt" style="display:none"></label><button class="btn btn-p" data-mpnew>+ ${L('Add plan row','प्लान पंक्ति जोड़ें')}</button>`:''}</div>
-  <div class="card tw"><table class="tbl"><thead><tr><th>ID</th><th>${L('Branch','शाखा')}</th><th>${L('Division','डिवीज़न')}</th><th>${L('Department','विभाग')}</th><th>${L('Function','फ़ंक्शन')}</th><th>${t('desig')}</th><th>${L('Required','ज़रूरी')}</th><th>${L('Hiring level · CTC','भर्ती लेवल · CTC')}</th><th>${L('Active','चालू')}</th><th>${L('Gap','अंतर')}</th><th>${L('Effective','लागू')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+  <div class="card tw"><table class="tbl"><thead><tr><th>ID</th><th>${L('Function','फ़ंक्शन')}</th><th>${L('Department','विभाग')}</th><th>${L('Branch','शाखा')}</th><th>${L('Division','डिवीज़न')}</th><th>${L('Sub-division','सब-डिवीज़न')}</th><th>${t('desig')}</th><th>${L('Required','ज़रूरी')}</th><th>${L('Hiring level · CTC','भर्ती लेवल · CTC')}</th><th>${L('Active','चालू')}</th><th>${L('Gap','अंतर')}</th><th>${L('Effective','लागू')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>{const f=filled(r), g=gap({required:r.required,filled:f}), sched=r.status==='Active'&&r.effective>TODAY_S, stt=sched?'Scheduled':r.status;
-    return `<tr style="${r.status==='Active'?'':'opacity:.55'}"><td><b>${r.no}</b></td><td>${esc(nm('branches',r.branch))}</td><td>${esc(nm('divisions',r.division))}</td><td>${esc(nm('depts',r.dept))}</td><td>${esc(nm('functions',r.func))}</td><td>${esc(nm('desigs',r.desig))}</td><td>${r.required}</td><td>L${r.lvl||1} · ${inr(planCtc(r))}</td><td>${f}</td>
+    return `<tr style="${r.status==='Active'?'':'opacity:.55'}"><td><b>${r.no}</b></td><td>${esc(nm('functions',r.func))}</td><td>${esc(nm('depts',r.dept))}</td><td>${esc(nm('branches',r.branch))}</td><td>${esc(nm('divisions',r.division))}</td><td>${esc(nm('subdivs',r.subdiv))}</td><td>${esc(nm('desigs',r.desig))}</td><td>${r.required}</td><td>L${r.lvl||1} · ${inr(planCtc(r))}</td><td>${f}</td>
     <td>${g.short?`<span class="pill p-bad">${L('Short','कमी')} ${g.short}</span>`:g.sur?`<span class="pill p-warn">${L('Surplus','ज़्यादा')} ${g.sur}</span>`:`<span class="pill p-ok">${L('Matched','बराबर')}</span>`}</td><td>${fmtY(r.effective)}</td><td><span class="pill ${stt==='Active'?'p-ok':stt==='Scheduled'||stt==='Pending approval'?'p-warn':'p-bad'}">${stt}</span></td>
     <td style="text-align:right;white-space:nowrap">${can('workforce','E')&&r.status!=='Pending approval'&&r.status!=='Rejected'?`<button class="btn btn-o btn-s" data-mped="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${r.status==='Active'?'btn-d':''}" data-mptog="${r.id}">${r.status==='Active'?t('inactivate'):t('activate')}</button> `:''}<button class="btn btn-o btn-s" data-mphist="${r.id}">${L('History','इतिहास')}</button></td></tr>`}).join('')}</tbody></table></div>
   <p class="rule" style="font-size:13px;margin-top:10px">${L('One active row for each branch, function, department, division and designation. Shortage and surplus are worked out row by row and never netted.','हर शाखा, फ़ंक्शन, विभाग, डिवीज़न और पद की एक ही चालू पंक्ति। कमी और ज़्यादा हर पंक्ति के हिसाब से निकलते हैं, आपस में नहीं कटते।')}</p>`;
 }
 function mpNewModal(){
   const sel=(n,arr,v)=>`<select class="inp" name="${n}" id="mp_${n}">${arr.map(x=>`<option value="${x.id}" ${x.id==v?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
-  openModal(`<h3>${L('Add plan row','प्लान पंक्ति जोड़ें')}</h3><label>${L('Branch','शाखा')}</label>${sel('branch',DATA.branches.filter(x=>!x.off))}<label>${L('Division','डिवीज़न')}</label><select class="inp" name="division" id="mp_division"></select><label>${L('Department','विभाग')}</label><select class="inp" name="dept" id="mp_dept"></select>
-   <label>${L('Function','फ़ंक्शन')}</label><select class="inp" name="func" id="mp_func"></select><label>${t('desig')}</label><select class="inp" name="desig" id="mp_desig"></select><label>${L('Required headcount','ज़रूरी संख्या')}</label><input class="inp" type="number" min="0" max="9999" name="required" value="1">
+  openModal(`<h3>${L('Add plan row','प्लान पंक्ति जोड़ें')}</h3><label>${L('Function','फ़ंक्शन')}</label><select class="inp" name="func" id="mp_func"></select><label>${L('Department','विभाग')}</label><select class="inp" name="dept" id="mp_dept"></select><label>${L('Branch','शाखा')}</label><select class="inp" name="branch" id="mp_branch"></select><label>${L('Division','डिवीज़न')}</label><select class="inp" name="division" id="mp_division"></select><label>${L('Sub-division','सब-डिवीज़न')}</label><select class="inp" name="subdiv" id="mp_subdiv"></select>
+   <label>${t('desig')}</label><select class="inp" name="desig" id="mp_desig"></select><label>${L('Required headcount','ज़रूरी संख्या')}</label><input class="inp" type="number" min="0" max="9999" name="required" value="1">
    <label>${L('Hiring level','भर्ती का लेवल')}</label><select class="inp" name="lv">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}">${lvName(n)}</option>`).join('')}</select><div id="mpPrev" class="rule" style="font-size:12px"></div><p class="rule" style="font-size:12px;margin:6px 0">${L('Only items of the Organization structure are listed. For a new designation, add it in Settings > Designations first.','सिर्फ़ Organization structure के पद दिखते हैं। नया पद पहले Settings > Designations में जोड़ें।')}</p>
    <label>${L('Effective from','लागू होने की तारीख़')}</label><input class="inp" type="date" name="eff" value="${TODAY_S}"><div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=m=>bg.querySelector('#me').textContent=m, n=Math.round(+v.required);
-    if(!v.division||!v.dept||!v.func||!v.desig)return err(L('The chain is not complete','चेन पूरी नहीं है'));if(!(n>=0&&n<=9999))return err(L('Required must be 0 to 9999','ज़रूरी संख्या 0 से 9999'));
-    const row={branch:+v.branch,division:+v.division,dept:+v.dept,func:+v.func,desig:+v.desig};if(!chainOk(row))return err(L('This combination is not valid in the organization master','यह मेल ऑर्गनाइज़ेशन मास्टर में सही नहीं है'));
+    if(!v.division||!v.subdiv||!v.dept||!v.func||!v.branch||!v.desig)return err(L('The chain is not complete','चेन पूरी नहीं है'));if(!(n>=0&&n<=9999))return err(L('Required must be 0 to 9999','ज़रूरी संख्या 0 से 9999'));
+    const row={branch:+v.branch,division:+v.division,subdiv:+v.subdiv,dept:+v.dept,func:+v.func,desig:+v.desig};if(!chainOk(row))return err(L('This combination is not valid in the organization master','यह मेल ऑर्गनाइज़ेशन मास्टर में सही नहीं है'));
     if(SRC.plan.some(r=>r.status==='Active'&&planKey(r)===planKey(row)))return err(L('Already in the plan, edit that row','प्लान में पहले से है, वही पंक्ति बदलें'));
     const pr=planAdd(row,n,v.eff||TODAY_S,+v.lv||1,'Added',false);if(pr.err)return err(pr.err);close();toast(L('Plan row sent for approval','प्लान पंक्ति मंज़ूरी के लिए भेजी'));render()});
   const bg=document.querySelector('.modal-bg'), $$=id=>bg.querySelector('#mp_'+id), fill=(sel_,arr,keep)=>{sel_.innerHTML=arr.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')};
-  const chain=()=>{const b=+$$('branch').value;fill($$('division'),DATA.divisions.filter(x=>!x.off&&x.parents.includes(b)));const d=+$$('division').value;fill($$('dept'),DATA.depts.filter(x=>!x.off&&x.parents.includes(d)));const dp=+$$('dept').value;fill($$('func'),DATA.functions.filter(x=>!x.off&&x.parents.includes(dp)));const fn=+$$('func').value;fill($$('desig'),DATA.desigs.filter(x=>!x.off&&x.parents.includes(fn)))};
-  $$('branch').onchange=chain;$$('division').onchange=()=>{const d=+$$('division').value;fill($$('dept'),DATA.depts.filter(x=>!x.off&&x.parents.includes(d)));$$('dept').onchange()};$$('dept').onchange=()=>{const dp=+$$('dept').value;fill($$('func'),DATA.functions.filter(x=>!x.off&&x.parents.includes(dp)));$$('func').onchange()};$$('func').onchange=()=>{const fn=+$$('func').value;fill($$('desig'),DATA.desigs.filter(x=>!x.off&&x.parents.includes(fn)))};chain();
+  const cur={}, from=i=>{for(let j=i;j<CHAIN_ORDER.length;j++){const k=CHAIN_ORDER[j], el=$$(k), prevOk=j===0||cur[CHAIN_ORDER[j-1]], items=prevOk?orgOpts(k,cur):[];fill(el,items);if(!items.length)el.innerHTML=`<option value="">${L('None in the Organization structure','Organization structure में कोई नहीं')}</option>`;cur[k]=el.value}};
+  CHAIN_ORDER.forEach((k,i)=>{$$(k).onchange=()=>{cur[k]=$$(k).value;from(i+1)}});from(0);
   {const upPrev=()=>{bg.querySelector('#mpPrev').innerHTML=offerPrev(+(bg.querySelector('#mp_desig')||{}).value,+bg.querySelector('[name=lv]').value)};bg.querySelector('form').addEventListener('change',upPrev);upPrev()}
 }
 function mpEditModal(id){
@@ -4059,7 +4082,7 @@ function mpUpload(text){
   const find=(k,v)=>DATA[k].find(x=>x.name.toLowerCase()===String(v).toLowerCase()), seen=new Set();let add=0,upd=0,bad=[];
   rows.slice(1).forEach((r,i)=>{const line=i+2, o={branch:find('branches',r[0]),func:find('functions',r[1]),dept:find('depts',r[2]),division:find('divisions',r[3]),desig:find('desigs',r[4])}, n=Number(r[5]);
     if(Object.values(o).some(x=>!x))return bad.push(`${line}: ${L('unknown master name','मास्टर में नाम नहीं')}`);if(!Number.isInteger(n)||n<0||n>9999)return bad.push(`${line}: ${L('Required must be 0 to 9999','ज़रूरी 0 से 9999')}`);
-    const key={branch:o.branch.id,func:o.func.id,dept:o.dept.id,division:o.division.id,desig:o.desig.id};if(!chainOk(key))return bad.push(`${line}: ${L('invalid chain','चेन सही नहीं')}`);
+    const key={branch:o.branch.id,func:o.func.id,dept:o.dept.id,division:o.division.id,desig:o.desig.id};key.subdiv=(orgOpts('subdiv',{division:key.division}).find(s=>orgOk({...key,subdiv:s.id}))||{}).id;if(!chainOk(key))return bad.push(`${line}: ${L('invalid chain','चेन सही नहीं')}`);
     const k=planKey(key);if(seen.has(k))return bad.push(`${line}: ${t('e_dup')}`);seen.add(k);const eff=r[6]?impDate(r[6]):TODAY_S;if(!eff)return bad.push(`${line}: ${t('e_date')}`);
     const ex=SRC.plan.find(x=>x.status==='Active'&&planKey(x)===k);if(ex){if(ex.required!==n){ex.hist.push({at:TODAY_S,by:USERS[state.role].name,act:'Uploaded',note:`required ${ex.required}→${n}`});ex.required=n;upd++}}else{const pr=planAdd(key,n,eff,1,'Uploaded',false);if(pr.err)bad.push(`${line}: ${pr.err}`);else add++}});
   audit('Manpower plan','Uploaded',`${add} added, ${upd} updated`,`${bad.length} rejected`);listModal(`${L('Plan upload','प्लान अपलोड')}: ${add} ${L('added','जुड़ीं')}, ${upd} ${L('updated','अपडेट')}`,bad.map(esc));render();
@@ -6180,7 +6203,7 @@ WF_ACTIONS.addm={approved:i=>{const a=RC.add.find(x=>x.id===i.payload.add);if(!a
  rejected:i=>{const a=RC.add.find(x=>x.id===i.payload.add);if(a)a.st='Rejected'}};
 /* Organization structure is the only source of designations: plan, requisition and vacancy must follow it */
 [...RC.req,...RC.vac].forEach(x=>{if(!x.plan){const p=SRC.plan.find(q=>q.status!=='Inactive'&&q.branch==x.branch&&q.desig==x.desig);if(p)x.plan=p.id}});
-const ORGF={branches:'branch',divisions:'division',depts:'dept',functions:'func',desigs:'desig'};
+const ORGF={branches:'branch',divisions:'division',subdivs:'subdiv',depts:'dept',functions:'func',desigs:'desig'};
 function orgUse(key,id){const f=ORGF[key];if(!f)return[];const out=[], via=x=>key==='branches'?x.branch==id:key==='desigs'?x.desig==id:((SRC.plan.find(p=>p.id===x.plan)||{})[f]==id);
  SRC.plan.filter(r=>r.status!=='Inactive'&&r[f]==id).forEach(r=>out.push(r.no+' ('+L('Manpower plan','मैनपावर प्लान')+')'));
  RC.req.filter(r=>r.st==='Pending'&&via(r)).forEach(r=>out.push(r.no+' ('+L('Requisition','माँग')+')'));
@@ -6189,7 +6212,9 @@ function orgBlock(key,id,what){const u=orgUse(key,id);if(!u.length)return false;
  listModal(L(`Cannot ${what}: it is used in the plan or recruitment`,`${what==='inactivate'?'निष्क्रिय':'बदलाव'} नहीं हो सकता: यह प्लान या भर्ती में चल रहा है`),u.map(esc));return true}
 delSet=function(id){const r=DATA[state.stab].find(x=>x.id===id);if(!r)return;if(!r.off&&orgBlock(state.stab,id,'inactivate'))return;
  r.off=!r.off;audit('Org Master',r.off?'Inactivate':'Activate',`${t(state.stab)}: ${r.name}`,'');toast(t('saved'));render()};
-function planChainFor(branch,desig){const d=DATA.desigs.find(x=>x.id==desig);if(!d)return null;for(const fid of d.parents||[]){const fn=DATA.functions.find(x=>x.id===fid);if(!fn)continue;for(const did of fn.parents||[]){const dp=DATA.depts.find(x=>x.id===did);if(!dp)continue;for(const vid of dp.parents||[]){const dv=DATA.divisions.find(x=>x.id===vid);if(dv&&(dv.parents||[]).includes(+branch))return{branch:+branch,division:dv.id,dept:dp.id,func:fn.id,desig:+desig}}}}return null}
+function planChainFor(branch,desig){const d=DATA.desigs.find(x=>x.id==desig);if(!d||d.off)return null;
+ for(const f of DATA.functions.filter(x=>!x.off))for(const dp of orgOpts('dept',{func:f.id}))for(const b of orgOpts('branch',{dept:dp.id}))if(b.id==branch)for(const v of orgOpts('division',{branch:b.id,dept:dp.id}))for(const s of orgOpts('subdiv',{division:v.id})){const c={func:f.id,dept:dp.id,branch:b.id,division:v.id,subdiv:s.id,desig:+desig};if(orgOk(c))return c}
+ return null}
 function addPlanModal(id){const a=RC.add.find(x=>x.id===id), key=planChainFor(a.branch,a.desig);if(!key){toast(L('This designation has no valid chain in this branch in the organization master','इस शाखा में इस पद की सही चेन ऑर्गनाइज़ेशन मास्टर में नहीं'));return}
  const ex=SRC.plan.find(r=>r.status==='Active'&&planKey(r)===planKey(key));
  openModal(`<h3>${L('Add to manpower plan','मैनपावर प्लान में जोड़ें')} · ${a.no}</h3><p style="font-size:13px">${esc(nmP(a))} · ${a.count} ${L('extra','अतिरिक्त')}</p><p style="color:var(--muted);font-size:13px">${ex?L('The plan row '+ex.no+' has '+ex.required+' now; it will become '+(ex.required+a.count)+'.',ex.no+' में अभी '+ex.required+' हैं; ये '+(ex.required+a.count)+' हो जाएँगे।'):L('A new plan row is created. It counts as approved because the workflow already approved this request.','नई प्लान पंक्ति बनेगी। यह मंज़ूर मानी जाएगी क्योंकि वर्कफ़्लो इस माँग को मंज़ूर कर चुका है।')}</p>
@@ -7300,7 +7325,7 @@ const _render42=render;render=function(){branchSync();syncStates();_render42()};
 
 /* ---------- Batch 43: Core Setting shows one group at a time: the sidebar lists the groups, the top strip shows the tabs of the chosen group ---------- */
 const SGR=[
- {id:'org',en:'Organization',hi:'संगठन',tabs:['general','branches','divisions','depts','functions','desigs','levels']},
+ {id:'org',en:'Organization',hi:'संगठन',tabs:['general','functions','depts','branches','divisions','subdivs','desigs','levels']},
  {id:'loc',en:'Location',hi:'लोकेशन',tabs:['gregion','country','bregion','state','district','city','zone']},
  {id:'auto',en:'Automation',hi:'ऑटोमेशन',tabs:['roles','workflow','automation','rights']},
  {id:'rules',en:'Rules and numbering',hi:'नियम और नंबरिंग',tabs:['sla','series','close']},
@@ -8590,11 +8615,12 @@ function ckBulkParse(text){const lines=text.replace(/\r/g,'').split('\n').filter
   const g=(c[4]||'').toUpperCase();if(!['M','F','O'].includes(g))return er(L('Gender must be M, F or O','लिंग M, F या O हो'));
   const br=find('branches',c[6]), dv=find('divisions',c[7]), dp=find('depts',c[8]), fn=find('functions',c[9]), ds2=find('desigs',c[10]), lv=DATA.levels.find(x=>String(x.name).toLowerCase()===(c[11]||'').toLowerCase());
   if(!br)return er(L('Branch not found','शाखा नहीं मिली'));if(!dv)return er(L('Division not found','डिवीज़न नहीं मिला'));if(!dp)return er(L('Department not found','विभाग नहीं मिला'));if(!fn)return er(L('Function not found','फ़ंक्शन नहीं मिला'));if(!ds2)return er(L('Designation not found','पद नहीं मिला'));if(!lv)return er(L('Career level not found','करियर लेवल नहीं मिला'));
-  if(!(dv.parents||[]).includes(br.id)||!(dp.parents||[]).includes(dv.id)||!(fn.parents||[]).includes(dp.id)||!(ds2.parents||[]).includes(fn.id))return er(L('Branch, division, department, function and designation do not belong together','शाखा, डिवीज़न, विभाग, फ़ंक्शन और पद आपस में नहीं जुड़ते'));
+  const sdv=(orgOpts('subdiv',{division:dv.id}).find(s=>orgOk({func:fn.id,dept:dp.id,branch:br.id,division:dv.id,subdiv:s.id,desig:ds2.id}))||{}).id;
+  if(!sdv)return er(L('Branch, division, department, function and designation do not belong together','शाखा, डिवीज़न, विभाग, फ़ंक्शन और पद आपस में नहीं जुड़ते'));
   let mg='';if(c[12]){const m=DATA.emps.find(x=>x.code.toLowerCase()===c[12].toLowerCase());if(!m)return er(L('Manager code not found','मैनेजर कोड नहीं मिला'));mg=String(m.id)}
   const ctc=+c[13];if(!(ctc>=0)||c[13]==='')return er(L('CTC must be a number','CTC संख्या हो'));
   if(ok.some(x=>x.mobile===c[1]||x.email.toLowerCase()===c[2].toLowerCase()))return er(L('Repeated in this file','इस फ़ाइल में दोहराया'));
-  ok.push({name:c[0],mobile:c[1],email:c[2],dob,gender:g,doj,branch:br.id,division:dv.id,dept:dp.id,func:fn.id,desig:ds2.id,level:lv.id,mgr:mg,ctc})});
+  ok.push({name:c[0],mobile:c[1],email:c[2],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sdv,dept:dp.id,func:fn.id,desig:ds2.id,level:lv.id,mgr:mg,ctc})});
  return{ok,bad}}
 function ckImports(){const E=can('ck_imp','E'), r=CKB.res, last=(a)=>a&&a[0]?` · ${L('last','आख़िरी')}: ${a[0].at}`:'';
  const card=(ic,en,hi,desc,btn,go)=>`<div class="card"><h3>${ic} ${L(en,hi)}</h3><p style="font-size:13px;color:var(--muted);min-height:48px">${desc}</p>${E?`<button class="btn btn-o btn-s" data-ckimp="${go}">${btn}</button>`:''}</div>`;
@@ -12190,6 +12216,7 @@ $('#menuBtn').onclick=openSb;$('#scrim').onclick=closeSb;
 /* sign in, sign out and the forgot-password flows live in the Login and accounts block (initLogin) */
 $('#roleSel').onchange=e=>{state.role=e.target.value;state.page='dashboard';resetViews();render()};
 $('#bell').onclick=()=>{toast(`${state.approvals.length} ${t('pending').toLowerCase()}`)};
+orgMigrate();
 applyI18n();
 </script>
 <script src="live.js"></script>
