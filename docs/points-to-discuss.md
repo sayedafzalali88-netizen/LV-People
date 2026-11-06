@@ -352,3 +352,11 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - Verify: only the holders of the new role "Salary Verifier" (ROL-009) can verify; if nobody is set the Admin can. Release: HR, Admin or Accounts make the bank file and enter the UTR; a payment cannot go to a bank file, be recorded or be published before verify.
 - Reimbursement: step 12 shows claims waiting for payment and opens the Accounts desk; step 13 only shows that employees were told (notification) when a claim was paid.
 - Month with no saved state is a draft (this was the cause of "November Processed").
+
+
+## Thirty-ninth List (6 Nov 2026) - Recruitment: offer letter PDF, revoke, bring back, resume file
+- Offer letter PDF with the company letterhead (same PDF tool as other letters), signed by the HR who made the offer; from the candidate window and from the Offers list. English and Hindi text.
+- Revoke offer: only while the candidate has not joined; reason is needed and kept; the candidate goes to Selected (a new offer can be made) or Rejected. Revoked offers are left out of the acceptance rate and of KPI-065.
+- Bring back to the pipeline: a Rejected or Dropped candidate goes to Applied, Screening, Interview (if he had interviews) or Selected (if the last interview said Select); a reason is needed; the vacancy must be open; history keeps both moves.
+- Resume can be uploaded as a file (up to 2 MB) besides the link; in the real app it is kept in the private Storage bucket.
+- Not working in the real database yet (needs a public server function): the career portal (#careers) for people without a login, and an employee's referral (employees cannot write the recruitment store). The planned candidate joining link (candidate fills details and uploads documents on the joining day) needs the same server function.

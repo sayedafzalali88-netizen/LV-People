@@ -3419,7 +3419,7 @@ Object.assign(AUTO2,{
    const ok=j.filter(x=>x.createdAt&&x.createdAt<=addD(x.doj,SLA.empTat)).length;return kS(k,ok/j.length*k.max,`${L('Created within','बनाया गया')} ${SLA.empTat} ${L('day(s)','दिन में')}: ${ok} / ${j.length}`)},
  'KPI-064':(e,k,p)=>{const v=RC.iv.filter(x=>x.by===e.id&&x.st!=='Cancelled'&&inM(x.date,p)&&x.date<=TODAY_S);if(!v.length)return kN(L('No interview held this month','इस महीने कोई इंटरव्यू नहीं हुआ'));
    const ok=v.filter(x=>x.feedbackAt&&x.feedbackAt<=addD(x.date,SLA.intFbDays)).length;return kS(k,ok/v.length*k.max,`${L('Feedback in time','समय पर फ़ीडबैक')} ${ok} / ${v.length}`)},
- 'KPI-065':(e,k,p)=>{const os=RC.offer.filter(o=>o.st!=='Declined'&&inM(o.joinDate,p)&&candById(o.cand).recruiter===e.id);if(!os.length)return kN(L('No candidate joining this month','इस महीने कोई उम्मीदवार जॉइन नहीं कर रहा'));
+ 'KPI-065':(e,k,p)=>{const os=RC.offer.filter(o=>o.st!=='Declined'&&o.st!=='Revoked'&&inM(o.joinDate,p)&&candById(o.cand).recruiter===e.id);if(!os.length)return kN(L('No candidate joining this month','इस महीने कोई उम्मीदवार जॉइन नहीं कर रहा'));
    const req=DOCITEMS.filter(d=>d[3]).map(d=>d[0]);let ok=0,tot=0,wait=false;os.forEach(o=>{const d=RC.docs[o.cand]||{};req.forEach(i=>{tot++;if(d[i]&&d[i].ver&&d[i].ver<=o.joinDate)ok++;else if(o.joinDate>=TODAY_S)wait=true})});
    if(wait)return kP(L('A candidate has not reached the joining date yet','किसी उम्मीदवार की जॉइनिंग तारीख़ अभी नहीं आई'));return kS(k,ok/tot*k.max,`${L('Verified by joining date','जॉइनिंग तक सत्यापित')} ${ok} / ${tot}`)},
  'KPI-067':(e,k,p)=>{const v=RC.vac.filter(x=>x.recruiter===e.id&&inM(addD(x.opened,SLA.tth),p));if(!v.length)return kN(L('No vacancy target date falls in this month','इस महीने किसी वैकेंसी की लक्ष्य तारीख़ नहीं'));
@@ -3491,15 +3491,16 @@ function rcCandModal(referral){
   openModal(`<h3>${referral?L('Refer a candidate','उम्मीदवार सुझाएँ'):L('Add candidate','उम्मीदवार जोड़ें')}</h3><label>${L('Name','नाम')}</label><input class="inp" name="name"><label>${L('Mobile','मोबाइल')}</label><input class="inp" name="mobile" inputmode="numeric" maxlength="10">
    <label>Email</label><input class="inp" name="email"><label>${L('Vacancy','वैकेंसी')}</label><select class="inp" name="vac">${open.map(v=>`<option value="${v.id}">${esc(vacName(v))}</option>`).join('')}</select>
    ${referral?'':`<label>${L('Source','स्रोत')}</label><select class="inp" name="source">${SOURCES.map(s=>`<option>${s}</option>`).join('')}</select><label>${L('Referred by (if referral)','किसने सुझाया (रेफ़रल हो तो)')}</label><select class="inp" name="ref"><option value="">—</option>${DATA.emps.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select>`}
-   <label>${L('Resume link','रिज़्यूमे लिंक')}</label><input class="inp" name="resume"><div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+   <label>${L('Resume link','रिज़्यूमे लिंक')}</label><input class="inp" name="resume"><label>${L('Or upload the resume (PDF, Word or a photo, up to 2 MB)','या रिज़्यूमे अपलोड करें (PDF, Word या फ़ोटो, 2 MB तक)')}</label><input class="inp" type="file" name="rf" accept=".pdf,.doc,.docx,image/*"><div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=m=>bg.querySelector('#me').textContent=m;
     if(!v.name.trim())return err(L('Name is required','नाम ज़रूरी है'));if(!/^\d{10}$/.test(v.mobile))return err(t('cf_mobile_e'));if(!v.vac)return err(L('No open vacancy','कोई खुली वैकेंसी नहीं'));
     const dup=RC.cand.find(c=>c.mobile===v.mobile);if(dup)return err(`${L('This mobile is already in the system as','यह मोबाइल पहले से इस नाम से है')}: ${dup.name}`);
-    const vac=vacById(+v.vac), c={id:++seq,name:v.name.trim(),mobile:v.mobile,email:(v.email||'').trim(),source:referral?'Referral':v.source,refBy:referral?me():+v.ref||0,resume:(v.resume||'').trim(),vac:vac.id,recruiter:vac.recruiter,created:TODAY_S,stage:'Applied',stageAt:TODAY_S,hist:[{at:TODAY_S,from:'',to:'Applied',by:me(),note:''}],reason:''};
-    RC.cand.push(c);audit('Recruitment','Candidate added',c.name,vacName(vac));close();toast(L('Candidate added','उम्मीदवार जुड़ गया'));render()});
-}
-function cdModal(id){
-  const c=candById(id), hr=canManage(), v=vacById(c.vac), ivs=RC.iv.filter(x=>x.cand===id), off=RC.offer.find(o=>o.cand===id&&o.st!=='Declined')||RC.offer.find(o=>o.cand===id), docs=RC.docs[id];
+    const file=f.querySelector('[name=rf]').files[0];if(file&&file.size>2*1024*1024)return err(L('The resume file is larger than 2 MB','रिज़्यूमे फ़ाइल 2 MB से बड़ी है'));
+    const fin=data=>{const vac=vacById(+v.vac), c={id:++seq,name:v.name.trim(),mobile:v.mobile,email:(v.email||'').trim(),source:referral?'Referral':v.source,refBy:referral?me():+v.ref||0,resume:(v.resume||'').trim(),resumeData:data||'',resumeName:data&&file?file.name:'',vac:vac.id,recruiter:vac.recruiter,created:TODAY_S,stage:'Applied',stageAt:TODAY_S,hist:[{at:TODAY_S,from:'',to:'Applied',by:me(),note:''}],reason:''};
+      RC.cand.push(c);audit('Recruitment','Candidate added',c.name,vacName(vac));close();toast(L('Candidate added','उम्मीदवार जुड़ गया'));render()};
+    if(file){const r=new FileReader();r.onload=()=>fin(String(r.result));r.onerror=()=>err(L('The file could not be read','फ़ाइल पढ़ी नहीं गई'));r.readAsDataURL(file)}else fin('')});
+}function cdModal(id){
+  const c=candById(id), hr=canManage(), v=vacById(c.vac), ivs=RC.iv.filter(x=>x.cand===id), off=RC.offer.find(o=>o.cand===id&&o.st!=='Declined'&&o.st!=='Revoked')||RC.offer.find(o=>o.cand===id), docs=RC.docs[id];
   const lastIv=ivs.filter(x=>x.st==='Done').slice(-1)[0], pendIv=ivs.some(x=>x.st==='Scheduled');
   const act=(k,l,cls)=>`<button type="button" class="btn ${cls||'btn-p'} btn-s" data-cda="${k}">${l}</button>`;
   let acts='';
@@ -3510,13 +3511,15 @@ function cdModal(id){
     if(c.stage==='Selected')acts+=act('offer',L('Make offer','ऑफ़र दें'));
     if(c.stage==='Offered'&&off&&off.st==='Offered')acts+=act('acc',L('Offer accepted','ऑफ़र स्वीकार'))+act('dec',L('Offer declined','ऑफ़र अस्वीकार'),'btn-o');
     if(c.stage==='Offered'&&off&&off.st==='Accepted')acts+=act('join',L('Mark joined','जॉइन कराएँ'));
+    if(c.stage==='Offered'&&off&&['Offered','Accepted'].includes(off.st))acts+=act('offpdf',L('Offer letter (PDF)','ऑफ़र लेटर (PDF)'),'btn-o')+act('revoke',L('Revoke offer','ऑफ़र वापस लें'),'btn-o btn-d');
+    if(['Rejected','Dropped'].includes(c.stage))acts+=act('back',L('Bring back to the pipeline','पाइपलाइन में वापस लाएँ'));
     if(['Applied','Screening','Interview','Selected','Offered'].includes(c.stage))acts+=act('rej',L('Reject','अस्वीकार करें'),'btn-o btn-d');
   }
   const dbox=docs||['Selected','Offered'].includes(c.stage)?DOCITEMS.map(([k,en,hi,req])=>{const d=(docs||{})[k]||{rec:'',ver:''};return `<tr><td>${L(en,hi)}${req?'':` <small style="color:var(--muted)">(${L('optional','वैकल्पिक')})</small>`}</td><td>${d.rec?fmtS(d.rec):'—'}</td><td>${d.ver?fmtS(d.ver):'—'}</td><td style="text-align:right;white-space:nowrap">${hr&&can('recruit','E')&&c.stage!=='Joined'&&c.stage!=='Rejected'&&c.stage!=='Dropped'?(!d.rec?`<button type="button" class="btn btn-o btn-s" data-cdd="${k}:rec">${L('Received','मिला')}</button>`:!d.ver?`<button type="button" class="btn btn-p btn-s" data-cdd="${k}:ver">${L('Verify','सत्यापित करें')}</button>`:''):''}</td></tr>`}).join(''):'';
-  openModal(`<h3>${esc(c.name)} ${stgPill(c.stage)}</h3><p style="color:var(--muted);font-size:13px">${esc(vacName(v))} · ${c.source}${c.refBy?' · '+nmE(c.refBy):''} · ${c.mobile}${c.email?' · '+esc(c.email):''}${c.resume?` · <a href="${esc(c.resume)}" target="_blank" rel="noopener">${L('resume','रिज़्यूमे')}</a>`:''}</p>
+  openModal(`<h3>${esc(c.name)} ${stgPill(c.stage)}</h3><p style="color:var(--muted);font-size:13px">${esc(vacName(v))} · ${c.source}${c.refBy?' · '+nmE(c.refBy):''} · ${c.mobile}${c.email?' · '+esc(c.email):''}${c.resume?` · <a href="${esc(c.resume)}" target="_blank" rel="noopener">${L('resume','रिज़्यूमे')}</a>`:''}${c.resumeData?` · <a href="${esc(c.resumeData)}" target="_blank" rel="noopener" download="${esc(c.resumeName||'resume')}">${L('resume file','रिज़्यूमे फ़ाइल')}</a>`:''}</p>
    ${candApplyFields(c)}${c.reason?`<p class="pill p-bad">${esc(c.reason)}</p>`:''}${c.empId?`<p class="pill p-ok">${L('Employee','कर्मचारी')}: ${nmE(c.empId)}</p>`:''}
    <div class="sec-t" style="margin-top:12px">${L('Interviews','इंटरव्यू')}</div>${ivs.map(x=>`<div style="font-size:13px;margin:4px 0">${L('Round','राउंड')} ${x.round} · ${fmtS(x.date)} · ${nmE(x.interviewer)} · ${x.st==='Done'?`<b>${x.rating}/10 ${x.result}</b> ${esc(x.feedback)}`:`<span class="pill p-warn">${L(x.st,{Scheduled:'तय',Cancelled:'रद्द'}[x.st]||x.st)}</span>`}</div>`).join('')||'<small style="color:var(--muted)">—</small>'}
-   ${off?`<div class="sec-t" style="margin-top:12px">${L('Offer','ऑफ़र')}</div><div style="font-size:13px">${off.no} · ${off.lvl?'L'+off.lvl+' · ':''}${inr(off.ctc)} · ${L('joining','जॉइनिंग')} ${fmtY(off.joinDate)} · <span class="pill ${off.st==='Accepted'?'p-ok':off.st==='Declined'?'p-bad':'p-warn'}">${off.st}</span></div>`:''}
+   ${off?`<div class="sec-t" style="margin-top:12px">${L('Offer','ऑफ़र')}</div><div style="font-size:13px">${off.no} · ${off.lvl?'L'+off.lvl+' · ':''}${inr(off.ctc)} · ${L('joining','जॉइनिंग')} ${fmtY(off.joinDate)} · <span class="pill ${off.st==='Accepted'?'p-ok':off.st==='Declined'||off.st==='Revoked'?'p-bad':'p-warn'}">${off.st}</span>${off.st==='Revoked'&&off.revoked?`<small style="display:block;color:var(--muted)">${esc(off.revoked.reason)}</small>`:''}</div>`:''}
    ${dbox?`<div class="sec-t" style="margin-top:12px">${L('Pre-joining documents','जॉइनिंग से पहले के दस्तावेज़')}</div><table class="tbl"><thead><tr><th></th><th>${L('Received','मिला')}</th><th>${L('Verified','सत्यापित')}</th><th></th></tr></thead><tbody>${dbox}</tbody></table>`:''}
    <div class="sec-t" style="margin-top:12px">${L('History','इतिहास')}</div>${c.hist.map(h=>`<div style="font-size:12px;color:var(--muted)">${fmtS(h.at)} · ${h.from?stg(h.from)+' → ':''}${stg(h.to)} · ${nmE(h.by)}${h.note?' · '+esc(h.note):''}</div>`).join('')}
    <div class="acts" style="flex-wrap:wrap"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button>${acts}</div>`,(f,close)=>close());
@@ -3527,6 +3530,9 @@ function cdModal(id){
     if(a==='sched'){bg.remove();rcIvModal(id)}
     if(a==='select'){if(pendIv||!lastIv||lastIv.result!=='Select')return toast(L('The last interview must be done with the result Select','आख़िरी इंटरव्यू का नतीजा Select होना चाहिए'));cdMove(c,'Selected');RC.docs[id]=RC.docs[id]||Object.fromEntries(DOCITEMS.map(d=>[d[0],{rec:'',ver:''}]));re()}
     if(a==='offer'){bg.remove();rcOfferModal(id)}
+    if(a==='offpdf'){offerPdf(off)}
+    if(a==='revoke'){bg.remove();offerRevokeModal(id)}
+    if(a==='back'){bg.remove();candBackModal(id)}
     if(a==='acc'){off.st='Accepted';audit('Recruitment','Offer accepted',c.name,off.no);re()}
     if(a==='dec'){off.st='Declined';cdMove(c,'Dropped',L('Offer declined','ऑफ़र अस्वीकार'));c.reason=L('Offer declined','ऑफ़र अस्वीकार');re()}
     if(a==='join'){bg.remove();rcJoinModal(id)}
@@ -3547,7 +3553,7 @@ function rcOfferModal(cid){
   openModal(`<h3>${L('Make offer','ऑफ़र दें')} · ${esc(c.name)}</h3><p style="color:var(--muted);font-size:13px">${esc(vacName(v))}</p><label>${L('Career level','करियर लेवल')}</label><select class="inp" name="lv">${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===(v.lvl||1)?'selected':''}>${lvName(n)}</option>`).join('')}</select><div id="ctcPrev" class="rule" style="font-size:13px;margin-top:6px">${offerPrev(v.desig,v.lvl||1)}</div>
    <label>${L('Joining date','जॉइनिंग की तारीख़')}</label><input class="inp" type="date" name="jd" value="${addD(TODAY_S,7)}"><div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{const v2=Object.fromEntries(new FormData(f)), sp=splitFor(v.desig,+v2.lv||1,0), ctc=sp?sp.total*12:0;if(!(ctc>0))return bg.querySelector('#me').textContent=L('Salary Structure Not Configured for this designation and level','इस पद और लेवल का सैलरी स्ट्रक्चर तय नहीं है');if(!v2.jd||v2.jd<TODAY_S)return bg.querySelector('#me').textContent=L('Joining date cannot be in the past','जॉइनिंग की तारीख़ बीती नहीं हो सकती');
-    RC.offer.push({id:++seq,no:offerNo(),cand:cid,ctc,lvl:+v2.lv||1,joinDate:v2.jd,st:'Offered',date:TODAY_S,validTill:addD(TODAY_S,SLA.offerValid)});cdMove(c,'Offered',inr(ctc));close();toast(L('Offer made','ऑफ़र दिया गया'));render();cdModal(cid)});
+    RC.offer.push({id:++seq,no:offerNo(),cand:cid,ctc,lvl:+v2.lv||1,joinDate:v2.jd,st:'Offered',date:TODAY_S,validTill:addD(TODAY_S,SLA.offerValid),signer:me()});cdMove(c,'Offered',inr(ctc));close();toast(L('Offer made','ऑफ़र दिया गया'));render();cdModal(cid)});
   const bgO=document.querySelector('.modal-bg'), sel=bgO.querySelector('[name=lv]');sel.onchange=()=>{bgO.querySelector('#ctcPrev').innerHTML=offerPrev(v.desig,+sel.value)};
 }
 function offerPrev(desig,lv){const s=splitFor(desig,lv,0);return s?`${L('Salary from the structure','स्ट्रक्चर से सैलरी')}: ${L('Basic','बेसिक')} <b>${inr(s.basic)}</b> · ${L('Variable up to','वेरिएबल अधिकतम')} <b>${inr(s.vmax)}</b> · ${L('Monthly','मासिक')} <b>${inr(s.total)}</b> · ${L('Annual CTC','वार्षिक CTC')} <b>${inr(s.total*12)}</b>`:`<span class="pill p-bad">${L('Salary Structure Not Configured','सैलरी स्ट्रक्चर तय नहीं')}</span>`}
@@ -3583,10 +3589,63 @@ function rcFbModal(id){
   (f,close,bg)=>{const v=Object.fromEntries(new FormData(f));if(!v.fb.trim())return bg.querySelector('#me').textContent=L('Feedback is required','फ़ीडबैक ज़रूरी है');
     Object.assign(x,{st:'Done',rating:+v.r,result:v.res,feedback:v.fb.trim(),feedbackAt:TODAY_S});audit('Recruitment','Interview feedback',candById(x.cand).name,`${v.r}/10 ${v.res}`);close();toast(t('saved'));render()});
 }
-function rcOffer(){
-  return `<div class="card tw"><table class="tbl"><thead><tr><th>${L('Offer no.','ऑफ़र संख्या')}</th><th>${L('Candidate','उम्मीदवार')}</th><th>CTC</th><th>${L('Joining','जॉइनिंग')}</th><th>${L('Valid till','मान्य तक')}</th><th>${t('status')}</th></tr></thead><tbody>${
-   RC.offer.slice().reverse().map(o=>{const exp=o.st==='Offered'&&o.validTill<TODAY_S;return `<tr><td><b>${o.no}</b></td><td>${esc(candById(o.cand).name)}</td><td>${inr(o.ctc)}</td><td>${fmtY(o.joinDate)}</td><td>${fmtY(o.validTill)}${exp?` <span class="pill p-bad">${L('expired','समाप्त')}</span>`:''}</td><td><span class="pill ${o.st==='Accepted'?'p-ok':o.st==='Declined'?'p-bad':'p-warn'}">${o.st}</span></td></tr>`}).join('')||`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>`;
+function rcOffer(){const E=can('recruit','E');
+  return `<div class="card tw"><table class="tbl"><thead><tr><th>${L('Offer no.','ऑफ़र संख्या')}</th><th>${L('Candidate','उम्मीदवार')}</th><th>CTC</th><th>${L('Joining','जॉइनिंग')}</th><th>${L('Valid till','मान्य तक')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+   RC.offer.slice().reverse().map(o=>{const exp=o.st==='Offered'&&o.validTill<TODAY_S;return `<tr><td><b>${o.no}</b></td><td>${esc(candById(o.cand).name)}</td><td>${inr(o.ctc)}</td><td>${fmtY(o.joinDate)}</td><td>${fmtY(o.validTill)}${exp?` <span class="pill p-bad">${L('expired','समाप्त')}</span>`:''}</td><td><span class="pill ${o.st==='Accepted'?'p-ok':o.st==='Declined'||o.st==='Revoked'?'p-bad':'p-warn'}">${o.st}</span>${o.st==='Revoked'&&o.revoked?`<small style="display:block;color:var(--muted)">${esc(o.revoked.reason)}</small>`:''}</td><td style="text-align:right;white-space:nowrap">${E&&['Offered','Accepted'].includes(o.st)?`<button class="btn btn-o btn-s" data-rcoffpdf="${o.id}">PDF</button>${candById(o.cand).stage==='Offered'?` <button class="btn btn-o btn-d btn-s" data-rcoffrev="${o.id}">${L('Revoke','वापस लें')}</button>`:''}`:''}</td></tr>`}).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>`;
 }
+/* offer letter as a PDF with the company letterhead; the HR who made the offer signs */
+function offerText(o){const c=candById(o.cand), v=vacById(c.vac), sp=splitFor(v.desig,o.lvl||1,0), dn=nm('desigs',v.desig), br=nm('branches',v.branch);
+ return L(`Dear ${c.name},
+
+We are pleased to offer you the position of ${dn} at our ${br} branch.
+
+Career level: ${o.lvl?lvName(o.lvl):'—'}
+Annual CTC: ${inr(o.ctc)}${sp?`  (monthly ${inr(sp.total)}: basic ${inr(sp.basic)}, variable up to ${inr(sp.vmax)})`:''}
+Date of joining: ${fmtY(o.joinDate)}
+
+This offer is valid till ${fmtY(o.validTill)}. Please confirm your acceptance before that date.
+
+On the day of joining please bring the originals and a copy of: ${DOCITEMS.map(d=>d[1]).join(', ')}.
+
+This offer is subject to the verification of your documents and details. Your appointment letter will be issued when you join.
+
+We look forward to welcoming you.`,`प्रिय ${c.name},
+
+हमें आपको हमारी ${br} शाखा में ${dn} के पद का प्रस्ताव देते हुए ख़ुशी है।
+
+करियर लेवल: ${o.lvl?lvName(o.lvl):'—'}
+वार्षिक CTC: ${inr(o.ctc)}${sp?`  (मासिक ${inr(sp.total)}: बेसिक ${inr(sp.basic)}, वेरिएबल अधिकतम ${inr(sp.vmax)})`:''}
+जॉइनिंग की तारीख़: ${fmtY(o.joinDate)}
+
+यह प्रस्ताव ${fmtY(o.validTill)} तक मान्य है। कृपया उस तारीख़ से पहले स्वीकृति की पुष्टि करें।
+
+जॉइनिंग के दिन इन दस्तावेज़ों की मूल और एक प्रति लाएँ: ${DOCITEMS.map(d=>d[2]).join(', ')}।
+
+यह प्रस्ताव आपके दस्तावेज़ों और जानकारी के सत्यापन पर निर्भर है। नियुक्ति पत्र जॉइनिंग पर जारी होगा।
+
+आपका स्वागत करने के लिए हम उत्सुक हैं।`)}
+function offerDocX(o){const c=candById(o.cand), v=vacById(c.vac), sg=o.signer||hrId();
+ return{r:{sign:sg},no:o.no,type:'Offer Letter',subject:L('Offer of employment','रोज़गार का प्रस्ताव')+' · '+nm('desigs',v.desig),body:offerText(o),to:c.name+(c.father?' ('+L('child of ','पुत्र/पुत्री ')+c.father+')':'')+(c.address?', '+c.address:'')+' · '+c.mobile,date:o.date,by:sg,st:'Issued'}}
+function offerPdf(o){if(!o)return;ltPdf(offerDocX(o));audit('Recruitment','Offer letter PDF',candById(o.cand).name,o.no)}
+function offerRevokeModal(cid){const c=candById(cid), off=RC.offer.find(o=>o.cand===cid&&['Offered','Accepted'].includes(o.st));if(!off)return toast(L('There is no open offer','कोई खुला ऑफ़र नहीं'));
+ openModal(`<h3>${L('Revoke the offer','ऑफ़र वापस लें')} · ${esc(c.name)}</h3><p style="font-size:13px;color:var(--muted)">${off.no} · ${inr(off.ctc)} · ${L('joining','जॉइनिंग')} ${fmtY(off.joinDate)}${off.st==='Accepted'?' · '+L('the candidate had already accepted','उम्मीदवार स्वीकार कर चुका था'):''}</p>
+  <label>${L('Reason (kept in the record)','कारण (रिकॉर्ड में रहेगा)')} *</label><textarea class="inp" name="r" rows="3"></textarea>
+  <label>${L('After revoking, the candidate goes to','वापस लेने के बाद उम्मीदवार जाएगा')}</label><select class="inp" name="to"><option value="Selected">${L('Selected (a new offer can be made)','चयनित (नया ऑफ़र दे सकते हैं)')}</option><option value="Rejected">${L('Rejected','अस्वीकृत')}</option></select>
+  <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p btn-d">${L('Revoke','वापस लें')}</button></div>`,
+ (f,close,bg)=>{const v=Object.fromEntries(new FormData(f));if(!v.r.trim())return bg.querySelector('#me').textContent=t('e_req');
+  off.st='Revoked';off.revoked={at:TODAY_S,by:me(),reason:v.r.trim()};c.reason=v.to==='Rejected'?v.r.trim():'';cdMove(c,v.to,L('Offer revoked: ','ऑफ़र वापस लिया: ')+v.r.trim());audit('Recruitment','Offer revoked',c.name,off.no+' · '+v.r.trim());close();toast(L('Offer revoked','ऑफ़र वापस लिया गया'));render();cdModal(cid)})}
+/* a rejected or dropped candidate can come back; the history keeps both moves */
+function candBackModal(cid){const c=candById(cid), v=vacById(c.vac), ivs=RC.iv.filter(x=>x.cand===cid&&x.st!=='Cancelled'), last=ivs.filter(x=>x.st==='Done').slice(-1)[0], to=[['Applied',L('Applied (start again)','आवेदन (फिर से शुरू)')],['Screening',L('Screening','स्क्रीनिंग')]];
+ if(ivs.length)to.push(['Interview',L('Interview','इंटरव्यू')]);if(last&&last.result==='Select')to.push(['Selected',L('Selected (make a new offer)','चयनित (नया ऑफ़र दें)')]);
+ openModal(`<h3>${L('Bring back to the pipeline','पाइपलाइन में वापस लाएँ')} · ${esc(c.name)}</h3><p style="font-size:13px;color:var(--muted)">${esc(vacName(v))} · ${stg(c.stage)}${c.reason?' · '+esc(c.reason):''}</p>
+  ${v.status==='Closed'?`<p class="pill p-bad">${L('This vacancy is closed. Reopen it in Vacancies first, or the candidate cannot come back.','यह वैकेंसी बंद है। पहले Vacancies में उसे फिर खोलें, वरना उम्मीदवार वापस नहीं आ सकता।')}</p>`:''}
+  <label>${L('Move to','कहाँ भेजें')}</label><select class="inp" name="to">${to.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>
+  <label>${L('Reason for bringing back','वापस लाने का कारण')} *</label><textarea class="inp" name="r" rows="3"></textarea>
+  <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Bring back','वापस लाएँ')}</button></div>`,
+ (f,close,bg)=>{const x=Object.fromEntries(new FormData(f));if(!x.r.trim())return bg.querySelector('#me').textContent=t('e_req');if(v.status==='Closed')return bg.querySelector('#me').textContent=L('Reopen the vacancy first','पहले वैकेंसी फिर खोलें');
+  c.reason='';cdMove(c,x.to,L('Brought back: ','वापस लाया गया: ')+x.r.trim());close();toast(L('The candidate is back in the pipeline','उम्मीदवार पाइपलाइन में वापस है'));render();cdModal(cid)})}
+{const _beOF=bindExtra;bindExtra=function(){_beOF();const m=$('#main');if(!m)return;const on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
+ on('[data-rcoffpdf]',b=>b.onclick=()=>offerPdf(RC.offer.find(o=>o.id==b.dataset.rcoffpdf)));on('[data-rcoffrev]',b=>b.onclick=()=>offerRevokeModal(RC.offer.find(o=>o.id==b.dataset.rcoffrev).cand))}}
 function rcRecr(){
   const noRec=[...new Set(SRC.plan.map(r=>+r.branch))].filter(b=>!recruiterFor(b));
   return `<div class="tools"><span class="pill ${noRec.length?'p-warn':'p-ok'}">${noRec.length?L('No recruiter for','इनका कोई रिक्रूटर नहीं')+': '+noRec.map(b=>esc(nm('branches',b))).join(', '):L('Every branch has a recruiter','हर शाखा का रिक्रूटर है')}</span><div style="flex:1"></div>${can('recruit','A')?`<button class="btn btn-p" data-rcrnew>+ ${L('Assign recruiter','रिक्रूटर तय करें')}</button>`:''}</div>
@@ -3602,7 +3661,7 @@ function rcRecrModal(eid){
     RECR[id]=brs;RC.vac.filter(x=>x.status!=='Closed').forEach(x=>{if(!x.recruiter||x.recruiter===id)x.recruiter=recruiterFor(x.branch)});audit('Recruitment','Recruiter branches',empById(id).name,brs.map(b=>nm('branches',b)).join(', '));close();toast(t('saved'));render()});
 }
 function rcRep(){
-  const closed=RC.vac.filter(v=>v.closedOn), tth=closed.length?closed.reduce((a,v)=>a+(Date.parse(v.closedOn)-Date.parse(v.opened))/864e5,0)/closed.length:null, offs=RC.offer.filter(o=>o.st!=='Offered'), acc=offs.length?offs.filter(o=>o.st==='Accepted').length/offs.length*100:null;
+  const closed=RC.vac.filter(v=>v.closedOn), tth=closed.length?closed.reduce((a,v)=>a+(Date.parse(v.closedOn)-Date.parse(v.opened))/864e5,0)/closed.length:null, offs=RC.offer.filter(o=>o.st!=='Offered'&&o.st!=='Revoked'), acc=offs.length?offs.filter(o=>o.st==='Accepted').length/offs.length*100:null;
   const srcs=SOURCES.map(s=>({s,n:RC.cand.filter(c=>c.source===s).length,j:RC.cand.filter(c=>c.source===s&&c.stage==='Joined').length})).filter(x=>x.n);
   const rec=Object.keys(RECR).map(id=>({id,j:DATA.emps.filter(e=>e.joinedBy==id).length,v:RC.vac.filter(v=>v.recruiter==id).length}));
   const refs=RC.cand.filter(c=>c.refBy);
