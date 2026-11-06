@@ -3964,7 +3964,29 @@ function workforcePage(){
 
 /* ---- organization structure chart (the base for plan, requisition and recruitment) ---- */
 Object.assign(state,{ocb:'',ocd:''});
+/* top-down chart: Company > Function > Department > Branch > Division > Sub-Division > Designation (Sub-Division has no data yet, so it is skipped) */
 function wfOrg(){
+ const on=x=>!x.off, par=(x,id)=>(x.parents||[]).includes(id), C='var(--border-strong,#999)';
+ const st=`<style>.oct ul{display:flex;justify-content:center;padding-top:22px;position:relative;margin:0}.oct li{list-style:none;text-align:center;position:relative;padding:22px 6px 0}.oct li::before,.oct li::after{content:'';position:absolute;top:0;right:50%;width:50%;height:22px;border-top:1.5px solid ${C}}.oct li::after{right:auto;left:50%;border-left:1.5px solid ${C}}.oct li:only-child::before,.oct li:only-child::after{display:none}.oct li:only-child{padding-top:0}.oct li:first-child::before,.oct li:last-child::after{border:0 none}.oct li:last-child::before{border-right:1.5px solid ${C};border-radius:0 6px 0 0}.oct li:first-child::after{border-radius:6px 0 0 0}.oct ul ul::before{content:'';position:absolute;top:0;left:50%;border-left:1.5px solid ${C};height:22px}.oct .stk{display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:0;padding-top:22px;position:relative}.oct .stk::before{content:'';position:absolute;top:0;left:50%;height:22px;border-left:1.5px solid ${C}}</style>`;
+ const box=(bg,bd,tx,title,sub)=>`<div style="display:inline-block;min-width:130px;max-width:190px;padding:8px 12px;border-radius:8px;background:${bg};border:1px solid ${bd};color:${tx};vertical-align:top"><div style="font-weight:500;font-size:14px">${title}</div>${sub?`<div style="font-size:12px;opacity:.85">${sub}</div>`:''}</div>`;
+ const li=(inner,kids,raw)=>`<li>${inner}${kids?`<ul>${kids}</ul>`:''}${raw||''}</li>`;
+ const cnt={fn:0,dp:0,br:new Set(),dv:0,ds:0};
+ const fns=DATA.functions.filter(on), cn=(window.LIVE&&LIVE.client&&LIVE.client.name)||'Company';
+ const tree=fns.map(fn=>{cnt.fn++;
+  const dps=DATA.depts.filter(d=>on(d)&&par(fn,d.id));
+  return li(box('#E6F1FB','#185FA5','#0C447C',esc(fn.name),L('Function','फ़ंक्शन')),dps.map(dp=>{cnt.dp++;
+   const brs=DATA.branches.filter(b=>on(b)&&DATA.divisions.some(v=>on(v)&&par(v,b.id)&&par(dp,v.id)));
+   return li(box('#E1F5EE','#0F6E56','#085041',esc(dp.name),L('Department','विभाग')),brs.map(b=>{cnt.br.add(b.id);
+    const dvs=DATA.divisions.filter(v=>on(v)&&par(v,b.id)&&par(dp,v.id));
+    return li(box('#FAEEDA','#854F0B','#633806',esc(b.name),L('Branch','शाखा')+(b.city?' · '+esc(b.city):'')),dvs.map(dv=>{cnt.dv++;
+     const ds=DATA.desigs.filter(d=>on(d)&&par(d,fn.id)), n=ds.length;cnt.ds+=n;
+     const stack=n?`<div class="stk">${ds.map(d=>{const p=SRC.plan.filter(r=>r.status!=='Inactive'&&r.branch==b.id&&r.desig==d.id).reduce((a,r)=>a+r.required,0), h=DATA.emps.filter(e=>e.active&&e.branch==b.id&&e.desig==d.id).length;
+      return box('#FAECE7','#993C1D','#712B13',esc(d.name),`${d.level||''} · ${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`)}).join('')}</div>`:'';
+     return li(box('#EEEDFE','#534AB7','#3C3489',esc(dv.name),L('Division','डिवीज़न')),'',stack)}).join(''))}).join(''))}).join(''))}).join('');
+ return `${st}<div class="tools"><div style="flex:1"></div>${can('settings','E')?`<button class="btn btn-o" data-ocset>${L('Edit structure in Settings','Settings में स्ट्रक्चर बदलें')}</button>`:''}</div>
+ <p class="rule" style="font-size:13px;margin:6px 0 12px">${L('This is the base of the company. A designation can enter the Manpower plan, then Requisition, then Recruitment, only if it is here.','यह कंपनी का आधार है। कोई पद तभी Manpower plan, फिर Requisition और Recruitment में आ सकता है जब वह यहाँ हो।')}</p>
+ <div class="card" style="overflow:auto"><div class="oct" style="min-width:max-content;padding:4px 12px 16px"><ul style="padding-top:0"><li style="padding-top:0">${box('#EAF3DE','#3B6D11','#27500A',esc(cn),L('Company','कंपनी'))}<ul>${tree}</ul></li></ul></div></div>`}
+function wfOrgOld(){
  const brs=DATA.branches.filter(b=>!b.off), bsel=brs.find(b=>b.id==state.ocb)||brs[0];if(!bsel)return `<div class="card"><p>—</p></div>`;
  const kids=(k,pid)=>DATA[k].filter(x=>!x.off&&(x.parents||[]).includes(pid)), hc=(f,id)=>DATA.emps.filter(e=>e.active&&e[f]==id).length;
  const plan=d=>SRC.plan.filter(r=>r.status!=='Inactive'&&r.branch==bsel.id&&r.desig==d.id).reduce((a,r)=>a+r.required,0);
