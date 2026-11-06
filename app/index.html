@@ -12310,6 +12310,12 @@ $('#menuBtn').onclick=openSb;$('#scrim').onclick=closeSb;
 $('#roleSel').onchange=e=>{state.role=e.target.value;state.page='dashboard';resetViews();render()};
 $('#bell').onclick=()=>{toast(`${state.approvals.length} ${t('pending').toLowerCase()}`)};
 orgMigrate();
+/* module names, menu items, tabs and page titles are written with a capital first letter in every word (KPI Dashboard, Growth and Discipline) */
+{const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
+ const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
+ const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
+ let busy=false;const run=()=>{busy=false;try{const sb=document.getElementById('sb');if(sb)fix(sb);document.querySelectorAll('.tabs, .page-h h1').forEach(fix)}catch(e){}};
+ new MutationObserver(()=>{if(!busy){busy=true;setTimeout(run,30)}}).observe(document.body,{childList:true,subtree:true});run()}
 applyI18n();
 </script>
 <script src="live.js"></script>
