@@ -1,6 +1,6 @@
 # User Guide: how it is kept up to date
 
-The guide is written in **one place**: the files `g0.js` to `g6.js` in this folder. Every text is a pair `[English, Hindi]`.
+The guide is written in **one place**: the files `g0.js` to `g8.js` in this folder. Every text is a pair `[English, Hindi]`.
 
 - The **Guide page in the app** (book icon next to the bell) reads these files.
 - The **PDFs** (`LV-People-User-Guide-EN.pdf` and `-HI.pdf`) are built from the same files.

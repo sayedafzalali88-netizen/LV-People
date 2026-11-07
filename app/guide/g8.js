@@ -1,0 +1,107 @@
+/* Step-by-step entries for PMS, and the modules of the platform owner and Location requests */
+(function () {
+  var MN = { pms: ['PMS', 'पीएमएस'] };
+  function E(m, id, nEn, nHi, what, why, who, steps, notes) {
+    var mod = window.GUIDE.filter(function (x) { return x.id === m; })[0];
+    if (!mod || mod.entries.some(function (e) { return e.id === id; })) return;
+    var o = { id: id, n: [nEn, nHi], path: [MN[m][0] + ' > ' + nEn, MN[m][1] + ' > ' + nHi], what: what, why: why, who: who, steps: steps };
+    if (notes) o.notes = notes;
+    mod.entries.push(o);
+  }
+  var ALL = ['Every employee.', 'हर कर्मचारी।'], HR = ['HR and Admin.', 'HR और Admin।'], MGR = ['Managers, HR and Admin.', 'मैनेजर, HR और Admin।'];
+
+  E('pms', 'dash', 'KPI dashboard', 'KPI डैशबोर्ड',
+    ['The state of the month for all KPIs by category: how many are assigned, scored and pending.', 'सभी KPI की महीने की स्थिति श्रेणी के अनुसार: कितने असाइन, स्कोर हुए और बाक़ी हैं।'],
+    ['So that HR sees at a glance what is left before the month can be closed.', 'ताकि HR एक नज़र में देखे कि महीना बंद होने से पहले क्या बाक़ी है।'], HR,
+    [['Open PMS > KPI dashboard.', 'PMS > KPI dashboard खोलें।'], ['Read each category row: KPIs, assigned to, scored and pending.', 'हर श्रेणी की लाइन पढ़ें: KPI, किसे असाइन, स्कोर हुए और बाक़ी।'], ['Go to the tab of the pending KPI (Evaluation, Data sources, Audits) and finish it.', 'बाक़ी KPI के टैब (Evaluation, Data sources, Audits) में जाकर उसे पूरा करें।']]);
+  E('pms', 'master', 'KPI master', 'KPI मास्टर',
+    ['The list of all KPIs: the name, the category, the maximum score, the frequency, the method and to how many people each is assigned.', 'सभी KPI की लिस्ट: नाम, श्रेणी, अधिकतम स्कोर, आवृत्ति, तरीक़ा और हर KPI कितने लोगों को असाइन है।'],
+    ['So that there is one list of what is measured and how.', 'ताकि क्या और कैसे मापा जाता है इसकी एक लिस्ट हो।'], HR,
+    [['Open PMS > KPI master.', 'PMS > KPI master खोलें।'], ['Use the search and the filters to find a KPI. The method is Auto, Manager Scoring, Team Average or an audit.', 'KPI खोजने के लिए सर्च और फ़िल्टर लगाएँ। तरीक़ा Auto, Manager Scoring, Team Average या ऑडिट होता है।'], ['Open a KPI to see its rule. A KPI of a module that is switched off is not counted.', 'KPI खोलकर उसका नियम देखें। बंद मॉड्यूल का KPI गिना नहीं जाता।']]);
+  E('pms', 'assign', 'KPI assignment', 'KPI असाइनमेंट',
+    ['The rules that decide who has which KPI: for the whole organization, a designation, a level, a function, a department, a division, a branch or a specific person.', 'वे नियम जो तय करते हैं किसे कौन सा KPI मिलेगा: पूरी कंपनी, पद, लेवल, फ़ंक्शन, विभाग, डिवीज़न, ब्रांच या कोई ख़ास व्यक्ति।'],
+    ['So that a KPI reaches exactly the people it is meant for.', 'ताकि KPI ठीक उन्हीं तक पहुँचे जिनके लिए है।'], HR,
+    [['Open PMS > KPI assignment and add a rule: choose the KPI, the scope and the value, and the from and until dates.', 'PMS > KPI assignment खोलें और नियम जोड़ें: KPI, स्कोप और मान, और से व अंतिम तारीख़ चुनें।'], ['Save. The table shows how many employees the rule reaches.', 'सेव करें। टेबल में दिखता है नियम कितने कर्मचारियों तक पहुँचता है।'], ['To stop a rule, make it Inactive. If two rules give the same KPI, the narrower scope wins.', 'नियम रोकने के लिए उसे Inactive करें। दो नियम एक ही KPI दें तो छोटा स्कोप जीतता है।']],
+    [['KPI-277 (follower growth) and KPI-267 (website traffic growth) are given here. After that the person gets the opening and closing tasks of Marketing > Audience.', 'KPI-277 (फ़ॉलोअर ग्रोथ) और KPI-267 (वेबसाइट ट्रैफ़िक ग्रोथ) यहीं से दिए जाते हैं। उसके बाद व्यक्ति को Marketing > Audience के ओपनिंग और क्लोज़िंग के टास्क मिलते हैं।']]);
+  E('pms', 'formula', 'Formula & mapping', 'फ़ॉर्मूला और मैपिंग',
+    ['For each KPI: the method of scoring, and whether the data it needs is ready.', 'हर KPI के लिए: स्कोर का तरीक़ा, और जिस डेटा की ज़रूरत है वह तैयार है या नहीं।'],
+    ['So that no KPI is assigned without a source for its numbers.', 'ताकि बिना आँकड़ों के स्रोत के कोई KPI असाइन न हो।'], HR,
+    [['Open PMS > Formula & mapping.', 'PMS > Formula & mapping खोलें।'], ['Look at the “Source ready” column of each KPI.', 'हर KPI का “Source ready” कॉलम देखें।'], ['Where it is not ready, set up the source in Data sources or enter the data in Business data.', 'जहाँ तैयार नहीं, वहाँ Data sources में स्रोत बनाएँ या Business data में डेटा भरें।']]);
+  E('pms', 'dsr', 'Data sources', 'डेटा सोर्स',
+    ['For each KPI: where its numbers come from (a module, a report or a manual entry), who owns it and how often it is updated.', 'हर KPI के लिए: आँकड़े कहाँ से आते हैं (मॉड्यूल, रिपोर्ट या हाथ की एंट्री), किसकी ज़िम्मेदारी है और कितनी बार अपडेट होते हैं।'],
+    ['So that every number has an owner.', 'ताकि हर आँकड़े का एक ज़िम्मेदार हो।'], HR,
+    [['Open PMS > Data sources.', 'PMS > Data sources खोलें।'], ['Press Setup on a KPI row and choose the source type, the source or report and the owner.', 'KPI की लाइन पर Setup दबाएँ और स्रोत का प्रकार, स्रोत या रिपोर्ट और ज़िम्मेदार चुनें।'], ['Save. The status shows if the source is ready.', 'सेव करें। स्थिति बताती है कि स्रोत तैयार है या नहीं।']]);
+  E('pms', 'eval', 'Evaluation', 'इवैल्यूएशन',
+    ['The manager’s rating of the KPIs that are scored by judgement, from 1 to 10, with a comment.', 'जो KPI निर्णय से स्कोर होते हैं उनकी मैनेजर की रेटिंग, 1 से 10, टिप्पणी के साथ।'],
+    ['So that the manager rates each person for the month.', 'ताकि मैनेजर महीने के लिए हर व्यक्ति को रेट करे।'], MGR,
+    [['Open PMS > Evaluation. Each row is one employee and one KPI.', 'PMS > Evaluation खोलें। हर लाइन एक कर्मचारी और एक KPI है।'], ['Choose the rating from 1 to 10 and write a comment where needed.', 'ज़रूरत हो तो 1 से 10 की रेटिंग चुनें और टिप्पणी लिखें।'], ['Save. The score is the rating divided by 10 times the maximum score of the KPI. You cannot rate yourself.', 'सेव करें। स्कोर = रेटिंग ÷ 10 × KPI का अधिकतम स्कोर। आप ख़ुद को रेट नहीं कर सकते।']]);
+  E('pms', 'audit', 'Audits', 'ऑडिट',
+    ['The KPIs that are scored by an auditor against a checklist, with the result and the score.', 'वे KPI जिन्हें ऑडिटर चेकलिस्ट के आधार पर स्कोर करता है, नतीजे और स्कोर के साथ।'],
+    ['So that a score is based on a fixed checklist, not on opinion.', 'ताकि स्कोर तय चेकलिस्ट पर आधारित हो, राय पर नहीं।'], ['Auditors, managers and HR.', 'ऑडिटर, मैनेजर और HR।'],
+    [['Open PMS > Audits.', 'PMS > Audits खोलें।'], ['Open the audit of an employee and tick each point of the checklist.', 'कर्मचारी का ऑडिट खोलकर चेकलिस्ट का हर बिंदु टिक करें।'], ['Save. The score is worked out from the ticks.', 'सेव करें। स्कोर टिक से बनता है।']]);
+  E('pms', 'chk', 'Checklists', 'चेकलिस्ट',
+    ['The checklists that the audits use, with their versions and the KPIs that use them.', 'ऑडिट में इस्तेमाल होने वाली चेकलिस्ट, उनके वर्ज़न और उन्हें इस्तेमाल करने वाले KPI।'],
+    ['So that every audit uses the same questions.', 'ताकि हर ऑडिट में वही सवाल हों।'], HR,
+    [['Open PMS > Checklists.', 'PMS > Checklists खोलें।'], ['Make a checklist and add its points. Publish it.', 'चेकलिस्ट बनाएँ और बिंदु जोड़ें। प्रकाशित करें।'], ['Link it to the KPI in the lower table. A change makes a new version; old audits keep the old one.', 'नीचे की टेबल में इसे KPI से जोड़ें। बदलाव से नया वर्ज़न बनता है; पुराने ऑडिट पुराने पर रहते हैं।']]);
+  E('pms', 'survey', 'Surveys & polls', 'सर्वे और पोल',
+    ['A survey of the team about a manager, with how many were invited, how many answered and the average.', 'मैनेजर के बारे में टीम का सर्वे: कितनों को बुलाया, कितनों ने जवाब दिया और औसत।'],
+    ['So that the team’s view counts in the manager’s KPI.', 'ताकि टीम की राय मैनेजर के KPI में गिनी जाए।'], MGR,
+    [['Open PMS > Surveys & polls.', 'PMS > Surveys & polls खोलें।'], ['HR starts the survey of the month. Each team member answers in the Inbox, without a name being shown.', 'HR महीने का सर्वे शुरू करता है। हर टीम सदस्य Inbox में बिना नाम दिखाए जवाब देता है।'], ['The average is shown here and used in the KPI.', 'औसत यहाँ दिखता है और KPI में इस्तेमाल होता है।']]);
+  E('pms', 'perf', 'KPI performance', 'KPI परफ़ॉर्मेंस',
+    ['The monthly score of each employee for the whole year, side by side.', 'हर कर्मचारी का पूरे साल का महीने-वार स्कोर, साथ-साथ।'], ['So that a trend is easy to see.', 'ताकि रुझान आसानी से दिखे।'], MGR,
+    [['Open PMS > KPI performance.', 'PMS > KPI performance खोलें।'], ['Read the row of the employee from April to the current month.', 'कर्मचारी की लाइन अप्रैल से इस महीने तक पढ़ें।'], ['Open a month to see the KPIs behind the score.', 'स्कोर के पीछे के KPI देखने के लिए महीना खोलें।']]);
+  E('pms', 'close', 'Month close', 'मंथ क्लोज़',
+    ['The last step of the month: for each person it shows the KPIs assigned, those with a result, those pending, the computed score and the final score. Closing locks the month.', 'महीने का आख़िरी चरण: हर व्यक्ति के असाइन KPI, नतीजे वाले, बाक़ी, गणित से बना स्कोर और अंतिम स्कोर। क्लोज़ करने से महीना लॉक होता है।'],
+    ['So that the final score of the month is fixed once and used for pay and review.', 'ताकि महीने का अंतिम स्कोर एक बार तय हो और पे और रिव्यू में इस्तेमाल हो।'], HR,
+    [['Open PMS > Month close.', 'PMS > Month close खोलें।'], ['Check the “Pending” column. It must be zero, or you accept the pending as not counted.', '“Pending” कॉलम देखें। यह शून्य होना चाहिए, या बाक़ी को आप “गिना नहीं” मानते हैं।'], ['Close the month. The follower and visit KPIs (Marketing > Audience) need their closing figure before this.', 'महीना क्लोज़ करें। फ़ॉलोअर और विज़िट के KPI (Marketing > Audience) में इससे पहले क्लोज़िंग का आँकड़ा चाहिए।']]);
+  E('pms', 'counsel', 'Counselling', 'काउंसलिंग',
+    ['A counselling started for an employee whose score is low, with the reasons, the manager and the due date.', 'कम स्कोर वाले कर्मचारी के लिए शुरू की गई काउंसलिंग: कारण, मैनेजर और तारीख़।'], ['So that a low score leads to help, not only a mark.', 'ताकि कम स्कोर से मदद मिले, सिर्फ़ निशान नहीं।'], MGR,
+    [['Open PMS > Counselling.', 'PMS > Counselling खोलें।'], ['Open a case, talk to the employee and write what was agreed.', 'केस खोलें, कर्मचारी से बात करें और तय बात लिखें।'], ['Mark it done by the due date.', 'तारीख़ तक done करें।']]);
+  E('pms', 'career', 'Career growth', 'करियर ग्रोथ',
+    ['The quarter-wise review of each employee’s growth, with its status and the review.', 'हर कर्मचारी की ग्रोथ का तिमाही रिव्यू, स्थिति और रिव्यू के साथ।'], ['So that growth is discussed regularly.', 'ताकि ग्रोथ पर नियमित बात हो।'], MGR,
+    [['Open PMS > Career growth.', 'PMS > Career growth खोलें।'], ['Find the employee and the quarter.', 'कर्मचारी और तिमाही खोजें।'], ['Open it, write the review and save.', 'खोलकर रिव्यू लिखें और सेव करें।']]);
+  E('pms', 'cframe', 'Career & salary structure', 'करियर और सैलरी स्ट्रक्चर',
+    ['The levels of the company and what each level means.', 'कंपनी के लेवल और हर लेवल का मतलब।'], ['So that every person knows the next step.', 'ताकि हर व्यक्ति को अगला क़दम पता हो।'], HR,
+    [['Open PMS > Career & salary structure.', 'PMS > Career & salary structure खोलें।'], ['Read the level, the career stage and what it means.', 'लेवल, करियर स्टेज और उसका मतलब पढ़ें।'], ['HR edits the text when the structure changes.', 'स्ट्रक्चर बदलने पर HR टेक्स्ट बदलता है।']]);
+  E('pms', 'pcase', 'Performance cases', 'परफ़ॉर्मेंस केस',
+    ['A case for an employee whose performance is a concern, moving through stages, with the score, the next due date and the documents.', 'उस कर्मचारी का केस जिसकी परफ़ॉर्मेंस चिंता का विषय है, स्टेज से आगे बढ़ता है, स्कोर, अगली तारीख़ और दस्तावेज़ के साथ।'],
+    ['So that every step is fair and written.', 'ताकि हर क़दम निष्पक्ष और लिखित हो।'], HR,
+    [['Open PMS > Performance cases and open a case.', 'PMS > Performance cases खोलें और केस खोलें।'], ['Do the work of the stage and add the documents.', 'स्टेज का काम करें और दस्तावेज़ जोड़ें।'], ['Move it to the next stage. A task for each due date comes in the Inbox.', 'अगली स्टेज में ले जाएँ। हर तारीख़ का टास्क Inbox में आता है।']]);
+  E('pms', 'recog', 'Recognition', 'सराहना',
+    ['Appreciation given to an employee, with the type, the title, the points and who gave it.', 'कर्मचारी को दी गई सराहना: प्रकार, शीर्षक, अंक और किसने दी।'], ['So that good work is seen.', 'ताकि अच्छा काम दिखे।'], ALL,
+    [['Open PMS > Recognition.', 'PMS > Recognition खोलें।'], ['Press to give recognition, choose the person, the type and write the reason.', 'सराहना देने के लिए दबाएँ, व्यक्ति और प्रकार चुनें और कारण लिखें।'], ['It shows in the list and in the person’s profile.', 'यह लिस्ट और व्यक्ति की प्रोफ़ाइल में दिखती है।']]);
+  E('pms', 'mycareer', 'My career growth', 'मेरी करियर ग्रोथ',
+    ['Your own growth: your level, your stage and your reviews.', 'आपकी अपनी ग्रोथ: आपका लेवल, स्टेज और रिव्यू।'], ['So that you know where you stand and what next.', 'ताकि आपको पता रहे आप कहाँ हैं और आगे क्या।'], ALL,
+    [['Open PMS > My career growth.', 'PMS > My career growth खोलें।'], ['Read your level and the reviews of each quarter.', 'अपना लेवल और हर तिमाही के रिव्यू पढ़ें।'], ['Talk to your manager about the next step.', 'अगले क़दम के बारे में मैनेजर से बात करें।']]);
+  E('pms', 'mine', 'My KPIs', 'मेरे KPI',
+    ['Your own KPIs for the month: the method, the maximum score, the result and the score with the detail.', 'महीने के आपके अपने KPI: तरीक़ा, अधिकतम स्कोर, नतीजा और विस्तार के साथ स्कोर।'], ['So that you know your score before the month closes.', 'ताकि महीना बंद होने से पहले आपको अपना स्कोर पता रहे।'], ALL,
+    [['Open PMS > My KPIs.', 'PMS > My KPIs खोलें।'], ['Read each KPI. “Pending” means the number or the rating is not in yet.', 'हर KPI पढ़ें। “Pending” का मतलब आँकड़ा या रेटिंग अभी नहीं आई।'], ['The Detail column shows how the score was worked out.', 'Detail कॉलम बताता है कि स्कोर कैसे बना।']]);
+
+  /* ---------- modules ---------- */
+  function M(id, nEn, nHi, whatEn, whatHi, whyEn, whyHi, whoEn, whoHi, steps) {
+    if (window.GUIDE.some(function (m) { return m.id === id; })) return;
+    G(id, [nEn, nHi], [whatEn, whatHi], [{
+      id: 'overview', n: [nEn + ': overview', nHi + ': ओवरव्यू'], path: [nEn, nHi], what: [whatEn, whatHi], why: [whyEn, whyHi], who: [whoEn, whoHi], steps: steps
+    }]);
+  }
+  M('locreq', 'Location requests', 'लोकेशन रिक्वेस्ट',
+    'A request to mark attendance from outside the branch, for example on a client or field visit, for given dates.', 'ब्रांच के बाहर से, जैसे क्लाइंट या फ़ील्ड विज़िट पर, तय तारीख़ों के लिए हाज़िरी लगाने की माँग।',
+    'So that field work is allowed on record and not by a phone call.', 'ताकि फ़ील्ड का काम रिकॉर्ड में अनुमत हो, फ़ोन कॉल से नहीं।', 'Every employee asks. Managers and HR approve.', 'हर कर्मचारी माँगता है। मैनेजर और HR मंज़ूर करते हैं।',
+    [['Open Location requests and press + New request.', 'Location requests खोलें और + New request दबाएँ।'], ['Choose the dates and write the place and the purpose. Send it.', 'तारीख़ें चुनें और जगह और मक़सद लिखें। भेजें।'], ['After approval you can mark attendance from outside the branch on those dates. The check of the place itself needs the mobile app.', 'मंज़ूरी के बाद आप उन तारीख़ों में ब्रांच के बाहर से हाज़िरी लगा सकते हैं। जगह की जाँच के लिए मोबाइल ऐप चाहिए।']]);
+  M('kpilib', 'KPI library', 'KPI लाइब्रेरी',
+    'The one master library of all KPIs of LV People. Every client’s KPI pack is made from it.', 'LV People के सभी KPI की एक मास्टर लाइब्रेरी। हर क्लाइंट का KPI पैक इसी से बनता है।',
+    'So that a KPI is written once and used for every client.', 'ताकि KPI एक बार लिखा जाए और हर क्लाइंट के लिए इस्तेमाल हो।', 'Only the LV platform team.', 'सिर्फ़ LV प्लेटफ़ॉर्म टीम।',
+    [['Open KPI library from the platform menu.', 'प्लेटफ़ॉर्म मेनू से KPI library खोलें।'], ['Search a KPI, or add one with its category, maximum score, method and rule.', 'KPI खोजें, या श्रेणी, अधिकतम स्कोर, तरीक़ा और नियम के साथ नया जोड़ें।'], ['A KPI that belongs to a module is shown to a client only when that module is on for the client.', 'किसी मॉड्यूल का KPI क्लाइंट को तभी दिखता है जब उसके लिए वह मॉड्यूल चालू हो।']]);
+  M('kpipack', 'KPI packs', 'KPI पैक',
+    'The set of KPIs chosen for one client, copied from the KPI library. There is no starter pack; each pack is built by the LV team for the client.', 'एक क्लाइंट के लिए चुने KPI का सेट, KPI लाइब्रेरी से कॉपी किया हुआ। कोई स्टार्टर पैक नहीं है; हर पैक LV टीम क्लाइंट के लिए बनाती है।',
+    'So that each client gets only the KPIs that fit the business.', 'ताकि हर क्लाइंट को सिर्फ़ वही KPI मिलें जो उसके बिज़नेस के हैं।', 'Only the LV platform team.', 'सिर्फ़ LV प्लेटफ़ॉर्म टीम।',
+    [['Open KPI packs and choose the client.', 'KPI packs खोलें और क्लाइंट चुनें।'], ['Choose the KPIs to add: one by one, or all of a category. You can copy the pack of another client and then change it.', 'जोड़ने के KPI चुनें: एक-एक करके, या किसी श्रेणी के सभी। दूसरे क्लाइंट का पैक कॉपी करके फिर बदल सकते हैं।'], ['Remove a KPI that does not fit. The client sees the pack in PMS > KPI master.', 'जो KPI फ़िट न हो उसे हटाएँ। क्लाइंट पैक को PMS > KPI master में देखता है।']]);
+  M('lvclients', 'Clients (live)', 'क्लाइंट (लाइव)',
+    'The companies that use LV People, with the status, the employee limit and the modules each one has.', 'LV People इस्तेमाल करने वाली कंपनियाँ, हर एक की स्थिति, कर्मचारी सीमा और मॉड्यूल।',
+    'So that LV can start, pause and set up a client without touching the database.', 'ताकि LV डेटाबेस को छुए बिना क्लाइंट शुरू, रोक और सेट कर सके।', 'Only the LV platform team.', 'सिर्फ़ LV प्लेटफ़ॉर्म टीम।',
+    [['Open Clients (live) and press to create a client: the company code (small letters, digits or -), the name, the employee limit and the modules.', 'Clients (live) खोलें और क्लाइंट बनाने के लिए दबाएँ: कंपनी कोड (छोटे अक्षर, अंक या -), नाम, कर्मचारी सीमा और मॉड्यूल।'], ['Write the first admin: the name, the employee code, the mobile and a password of at least 8 characters. The admin must change it at the first login.', 'पहला एडमिन लिखें: नाम, कर्मचारी कोड, मोबाइल और कम से कम 8 अक्षर का पासवर्ड। एडमिन को पहले लॉगिन पर इसे बदलना होता है।'], ['To change a client later, set the status (active, test or suspended), the limit and the modules. A suspended client cannot sign in.', 'बाद में क्लाइंट बदलने के लिए स्थिति (active, test या suspended), सीमा और मॉड्यूल तय करें। suspended क्लाइंट साइन इन नहीं कर सकता।']]);
+  M('licensing', 'Licensing console', 'लाइसेंस कंसोल',
+    'The place where the LV team sets which modules and how many employees a client may use.', 'वह जगह जहाँ LV टीम तय करती है कि क्लाइंट कौन से मॉड्यूल और कितने कर्मचारी इस्तेमाल कर सकता है।',
+    'So that a client uses only what it has paid for.', 'ताकि क्लाइंट सिर्फ़ वही इस्तेमाल करे जिसका उसने भुगतान किया है।', 'Only the LV platform team.', 'सिर्फ़ LV प्लेटफ़ॉर्म टीम।',
+    [['Open Licensing console and choose the client.', 'Licensing console खोलें और क्लाइंट चुनें।'], ['Switch the modules on or off and set the employee limit.', 'मॉड्यूल चालू या बंद करें और कर्मचारी सीमा तय करें।'], ['Save. The change shows in the left menu of the client at the next sign-in.', 'सेव करें। बदलाव क्लाइंट के बाएँ मेन्यू में अगले साइन-इन पर दिखता है।']]);
+})();
