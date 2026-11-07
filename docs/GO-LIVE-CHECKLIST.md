@@ -2,7 +2,7 @@
 
 ## Before the client
 - [ ] Payroll rates (PF, ESIC, PT, TDS) checked by the CA (Payroll > Statutory rules).
-- [ ] Hosting decided: Netlify credits are low; Cloudflare Pages is free for commercial use.
+- [x] Hosting decided: Cloudflare Pages (free), live at https://lv-people.pages.dev since 2026-11-07. Netlify project disabled.
 - [ ] Demo passwords changed (E001–E004, E018 and the platform admin).
 - [ ] Supabase: turn on "Leaked password protection" (Authentication > Passwords).
 - [ ] Decide SMS/WhatsApp for first passwords and "forgot password" (provider + DLT registration in India).
