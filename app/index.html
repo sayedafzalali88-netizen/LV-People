@@ -4552,7 +4552,7 @@ function payTab(){
    all.map(p=>`<tr><td><b>${nmE(p.emp)}</b></td><td>${p.cat==='payroll'?L('Salary','सैलरी')+' '+monthLbl(p.mk):p.cat==='adv'?L('Advance','एडवांस'):L('Final settlement','फ़ाइनल सेटलमेंट')}</td><td>${inr(p.amount)}</td><td>${inr(p.paid)}</td><td>${inr(payOut(p))}</td>
    <td><span class="pill ${p.status==='Paid'?'p-ok':p.status==='Failed'?'p-bad':p.status==='Held'?'p-bad':'p-warn'}">${L(...payLabel[p.status])}</span>${p.status==='Held'?`<small style="display:block;color:var(--muted)">${L('bank details not verified','बैंक विवरण सत्यापित नहीं')}</small>`:''}</td><td style="font-size:12px">${esc(p.utr||'—')}</td>
    <td style="text-align:right;white-space:nowrap">${E?payActs(p):''}<button class="btn btn-o btn-s" data-payhist="${p.id}">${L('History','इतिहास')}</button></td></tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>
-  <p class="rule" style="font-size:13px;margin-top:10px">${L('A bank file never makes a payment Paid. Paid needs a confirmed UTR, date and proof.','बैंक फ़ाइल से भुगतान "हुआ" नहीं होता। भुगतान तभी हुआ जब UTR, तारीख़ और प्रमाण पक्के हों।')}</p>`;
+  <p class="rule" style="font-size:13px;margin-top:10px">${L('A bank file never makes a payment Paid. Paid needs a confirmed UTR and date.','बैंक फ़ाइल से भुगतान "हुआ" नहीं होता। भुगतान तभी हुआ जब UTR और तारीख़ पक्के हों।')}</p>`;
 }
 function payActs(p){
   const b=(a,l,c)=>`<button class="btn ${c||'btn-o'} btn-s" data-payact="${p.id}:${a}">${l}</button> `;
@@ -4566,14 +4566,14 @@ function payActs(p){
 function payRecModal(id){{const q=PAY.find(x=>x.id===id);if(q&&q.cat==='payroll'&&salNeedVer(q.mk)&&!salVer(q.mk,q.emp))return toast(L('Verify the salary first (Payroll › Monthly payroll)','पहले सैलरी वेरिफ़ाई करें (Payroll › Monthly payroll)'))}
   const p=PAY.find(x=>x.id===id);
   openModal(`<h3>${L('Record payment','भुगतान दर्ज करें')} · ${nmE(p.emp)}</h3><p style="color:var(--muted);font-size:13px">${L('Outstanding','बाकी')}: <b>${inr(payOut(p))}</b></p><label>${L('Method','तरीका')}</label><select class="inp" name="m"><option>Manual</option><option>Bank file</option></select><label>${L('Amount paid','दी गई राशि')}</label><input class="inp" type="number" min="1" max="${payOut(p)}" name="a" value="${payOut(p)}">
-   <label>UTR</label><input class="inp" name="u"><label>${L('Payment date','भुगतान की तारीख़')}</label><input class="inp" type="date" name="d" value="${TODAY_S}" max="${TODAY_S}"><label>${L('Proof (upload file)','प्रमाण (फ़ाइल अपलोड करें)')}</label><input class="inp" type="file" name="pr" accept="image/*,.pdf">
+   <label>UTR</label><input class="inp" name="u"><label>${L('Payment date','भुगतान की तारीख़')}</label><input class="inp" type="date" name="d" value="${TODAY_S}" max="${TODAY_S}">
    <div id="dupBox" style="display:none"><label>${L('This UTR already exists. Reason to continue','यह UTR पहले से है। जारी रखने का कारण')}</label><input class="inp" name="why"></div><div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=m=>bg.querySelector('#me').textContent=m, a=Math.round(+v.a);if(!bankOk(p.emp))return err(L('Bank details are not verified','बैंक विवरण सत्यापित नहीं'));
-    if(!(a>=1&&a<=payOut(p)))return err(L('Amount must be between 1 and the outstanding','राशि 1 से बाकी के बीच हो'));if(!v.u.trim()||!v.d||!(v.pr&&v.pr.name))return err(L('UTR, date and proof are required','UTR, तारीख़ और प्रमाण ज़रूरी हैं'));if(v.d>TODAY_S)return err(L('Date cannot be in the future','तारीख़ आगे की नहीं हो सकती'));if(v.pr.size>5e6)return err(L('File is larger than 5 MB','फ़ाइल 5 MB से बड़ी है'));
+    if(!(a>=1&&a<=payOut(p)))return err(L('Amount must be between 1 and the outstanding','राशि 1 से बाकी के बीच हो'));if(!v.u.trim()||!v.d)return err(L('UTR and date are required','UTR और तारीख़ ज़रूरी हैं'));if(v.d>TODAY_S)return err(L('Date cannot be in the future','तारीख़ आगे की नहीं हो सकती'));
     const dup=PAY.find(x=>x.id!==p.id&&x.utr&&x.utr.toLowerCase()===v.u.trim().toLowerCase());
     if(dup&&!v.why.trim()){bg.querySelector('#dupBox').style.display='block';return err(L('Duplicate UTR','UTR दोहराया गया')+': '+nmE(dup.emp)+'. '+L('Enter a reason to override.','आगे बढ़ने के लिए कारण लिखें।'))}
     if(dup)audit('Payment','Duplicate UTR override',v.u.trim(),v.why.trim());
-    p.paid+=a;p.method=v.m;p.utr=v.u.trim();p.date=v.d;p.proof=v.pr.name;p.proofUrl=URL.createObjectURL(v.pr);p.by=USERS[state.role].name;p.status=p.paid>=p.amount?'Paid':'Partially Paid';payHist(p,p.status,`${inr(a)} · UTR ${p.utr}${dup?' · duplicate override: '+v.why:''}`);audit('Payment',p.status,nmE(p.emp).replace(/<[^>]+>/g,''),`${inr(a)} UTR ${p.utr}`);
+    p.paid+=a;p.method=v.m;p.utr=v.u.trim();p.date=v.d;p.by=USERS[state.role].name;p.status=p.paid>=p.amount?'Paid':'Partially Paid';payHist(p,p.status,`${inr(a)} · UTR ${p.utr}${dup?' · duplicate override: '+v.why:''}`);audit('Payment',p.status,nmE(p.emp).replace(/<[^>]+>/g,''),`${inr(a)} UTR ${p.utr}`);
     paySync(p);close();toast(t('saved'));render()});
 }
 function payOther(id,a){
