@@ -6714,7 +6714,9 @@ function navHTML(){
  return out}
 /* module headings open the first section; section buttons set the tab */
 const _render34=render;
-render=function(){NAVSEC_CHK();_render34();$('#nav').querySelectorAll('[data-sub]').forEach(h=>h.onclick=()=>{const p=h.dataset.sp, cur=state.page===p?navCur(p,navSections(p)):null;state.navSub={p,t:cur,o:h.dataset.sopen==='1'?'-':h.dataset.sub};render()});const P=state.page;if(P!=='settings'&&navSections(P).length){const t0=$('#main .page-h + .tabs');if(t0)t0.style.display='none'}};
+render=function(){NAVSEC_CHK();_render34();$('#nav').querySelectorAll('[data-sub]').forEach(h=>h.onclick=()=>{const p=h.dataset.sp, cur=state.page===p?navCur(p,navSections(p)):null;state.navSub={p,t:cur,o:h.dataset.sopen==='1'?'-':h.dataset.sub};render()});const P=state.page;if(P!=='settings'&&navListed(P)&&navSections(P).length){const t0=$('#main .page-h + .tabs');if(t0)t0.style.display='none'}};
+/* the tab strip of a page is hidden only when the sidebar really lists its sections (a page in the plain top group, like Support Hub, keeps its own tabs) */
+function navListed(P){const g=NAVMODS.find(x=>x.ids.includes(P));return !!g&&(!!g.h||g.ids.length===1)}
 let _navLic=null;function NAVSEC_CHK(){const k=JSON.stringify(LIC.mods)+LIC.status;if(_navLic!==k){Object.keys(NAVSEC).forEach(x=>delete NAVSEC[x]);_navLic=k}}
 /* ---------- Batch 35: Employee induction (template in Settings, plan per employee, tasks, confirmation) and KPI-200 ---------- */
 Object.assign(SLA,{indDays:7});
@@ -7533,6 +7535,9 @@ function supportPage(){const tabs=SPTABS.filter(x=>spTabOn(x[0])), tab=tabs.some
  const body={raise:spRaise,mine:spMine,track:spTrack,hr:()=>spDesk('hr'),it:()=>spDesk('it'),admin:()=>spDesk('admin'),grv:()=>spDesk('grv'),kb:spKb,fb:spFb}[tab]();
  return `<div class="page-h"><div><h1>${t('support')}</h1><p>${L('Raise a ticket, follow it, and find answers.','टिकट बनाएँ, उसे ट्रैक करें और जवाब खोजें।')}</p></div></div><div class="tabs">${tabs.map(([k,en,hi])=>`<button data-sptab="${k}" class="${tab===k?'on':''}">${L(en,hi)}</button>`).join('')}</div>${body}`}
 const _ph45=placeholder;placeholder=function(P){return P==='support'?supportPage():_ph45(P)};
+/* a Raise ticket button at the top of every Support Hub tab */
+{const _sp=supportPage;supportPage=function(){const h=_sp();if(h.includes('data-sptab="raise" class="on"'))return h;
+ return h.replace('</p></div></div>',`</p></div><button class="btn btn-p" data-sptab="raise">+ ${L('Raise ticket','टिकट बनाएँ')}</button></div>`)}}
 const spStat=t=>`<span class="pill ${t.status==='Closed'||t.status==='Cancelled'?'p-gray':t.status==='Resolved'?'p-ok':t.status==='Waiting for requester'?'p-teal':'p-warn'}">${esc(t.status)}</span>${t.esc.length&&supOpenSt(t)?` <span class="pill p-bad">${L('Level','लेवल')} ${t.lvl+1}</span>`:''}`;
 function spRaise(){const d=state.spd, subs=SUPSUB.filter(x=>x.active&&(!d.desk||x.desk===d.desk)), s=supSub(+d.sub), kb=KBA.filter(a=>a.active&&d.desk&&a.desk===d.desk&&(!s||!s.tag||!a.tag||a.tag===s.tag)).slice(0,3), canBehalf=scope().length>0||canManage();
  return `<div class="card" style="max-width:720px"><form id="spForm"><div class="fgrid"><div><label>${L('What is it about','किस बारे में')} *</label><select class="inp" name="desk" data-spd><option value="">—</option>${SUPDESK.map(x=>`<option value="${x.id}" ${d.desk===x.id?'selected':''}>${L(x.en,x.hi)}</option>`).join('')}</select></div>
