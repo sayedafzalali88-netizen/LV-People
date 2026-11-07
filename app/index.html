@@ -28,6 +28,8 @@ select,input{font:inherit;color:inherit}
 .login-art h1{font-size:34px;line-height:1.2;max-width:420px}
 .login-art p{opacity:.85;max-width:400px;margin-top:14px}
 .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+.lv-name{display:flex;flex-direction:column;line-height:1.15}.lv-sub{font-size:11px;font-weight:500;letter-spacing:.04em;color:#F7D77A;margin-top:2px}
+.lv-tag{margin-top:26px;padding-top:16px;border-top:1px solid rgba(255,255,255,.25);max-width:420px}.lv-tag b{display:block;font-size:17px;font-weight:600}.lv-tag span{display:block;margin-top:4px;font-size:14px;opacity:.85}
 .logo i.lv-mark{background:none;width:34px;height:34px;display:block;line-height:0}.logo i{width:34px;height:34px;border-radius:9px;background:var(--gold);display:grid;place-items:center;color:#2b2200;font-style:normal;font-weight:800}
 .login-form{display:flex;align-items:center;justify-content:center;padding:32px}
 .login-box{width:100%;max-width:360px}
@@ -202,10 +204,11 @@ main{padding:24px;max-width:1200px}
 <!-- LOGIN -->
 <section id="login">
   <div class="login-art">
-    <div class="logo"><i class="lv-mark"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><defs><linearGradient id="lvg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7C24B"/><stop offset="1" stop-color="#E0761C"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lvg1)"/><path d="M9 11v18h8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 17l5.5 12.5 5.5-12.5" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="11.3" r="2.6" fill="#fff"/><circle cx="31.5" cy="11.3" r="2.6" fill="#fff"/></svg></i><span><b style="font-weight:800">LV</b> People</span></div>
+    <div class="logo"><i class="lv-mark"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><defs><linearGradient id="lvg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7C24B"/><stop offset="1" stop-color="#E0761C"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lvg1)"/><path d="M9 11v18h8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 17l5.5 12.5 5.5-12.5" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="11.3" r="2.6" fill="#fff"/><circle cx="31.5" cy="11.3" r="2.6" fill="#fff"/></svg></i><span class="lv-name"><span><b style="font-weight:800">LV</b> People</span><small class="lv-sub">Leadership &amp; Values</small></span></div>
     <div>
       <h1 data-i="art_h">Sab kuch ek jagah: attendance, leave aur payroll.</h1>
       <p data-i="art_p">Employees, managers aur HR ke liye ek simple, tez aur Hindi-English dono mein chalne wala HR system.</p>
+      <div class="lv-tag"><b>Empowering People, Building Values.</b><span>कर्मचारी, लीडरशिप और संगठन की संस्कृति</span></div>
     </div>
     <small style="opacity:.7">LV People · a product of Welcome Enterprises<br>Version 1.0</small>
   </div>
@@ -231,7 +234,7 @@ main{padding:24px;max-width:1200px}
 <!-- APP -->
 <div id="app" class="hidden">
   <aside id="sb">
-    <div class="logo"><i class="lv-mark"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><defs><linearGradient id="lvg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7C24B"/><stop offset="1" stop-color="#E0761C"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lvg2)"/><path d="M9 11v18h8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 17l5.5 12.5 5.5-12.5" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="11.3" r="2.6" fill="#fff"/><circle cx="31.5" cy="11.3" r="2.6" fill="#fff"/></svg></i><span><b style="font-weight:800">LV</b> People</span></div>
+    <div class="logo"><i class="lv-mark"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><defs><linearGradient id="lvg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7C24B"/><stop offset="1" stop-color="#E0761C"/></linearGradient></defs><rect width="40" height="40" rx="10" fill="url(#lvg2)"/><path d="M9 11v18h8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 17l5.5 12.5 5.5-12.5" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="11.3" r="2.6" fill="#fff"/><circle cx="31.5" cy="11.3" r="2.6" fill="#fff"/></svg></i><span class="lv-name"><span><b style="font-weight:800">LV</b> People</span><small class="lv-sub">Leadership &amp; Values</small></span></div>
     <nav id="nav"></nav>
   </aside>
   <div class="scrim" id="scrim"></div>
