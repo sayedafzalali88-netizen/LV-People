@@ -248,7 +248,7 @@ bindExtra=function(){_bx.apply(this,arguments);if(state.page!=='kpipack')return;
 function applyModules(){try{const mods=(LIVE.client&&LIVE.client.modules)||[];if(typeof LIC==='object'&&LIC&&LIC.mods){Object.keys(LIC.mods).forEach(k=>LIC.mods[k]=mods.includes(k))}
   if(typeof LIC==='object'&&LIC&&LIVE.client){LIC.name=LIVE.client.name}}catch(e){}}
 /* ---------- platform: clients (create a client, its modules and status) ---------- */
-const MODLIST=['timeoffice','payroll','pms','recruit','workforce','decision','training','crm','stock','marketing','library','support','cockpit','expense','requests','assets','analytics','engage'];
+const MODLIST=['timeoffice','payroll','pms','recruit','workforce','decision','training','crm','stock','marketing','library','support','cockpit','expense','requests','assets','analytics','engage','policy'];
 try{PAGES.push('lvclients');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].lvclients=r==='platform'?['V','E']:[]);NAV.push({id:'lvclients',ic:'M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1',roles:[],day:'—',built:true});
   Object.assign(T.en,{lvclients:'Clients (live)'});Object.assign(T.hi,{lvclients:'क्लाइंट (लाइव)'})}catch(e){}
 LIVE.cl={rows:[],loaded:false,counts:{}};
@@ -534,7 +534,7 @@ async function pullPortal(){if(!isHRrole())return;
 LIVE.pullPortal=pullPortal;
 window.addEventListener('hashchange',joinBoot);
 /* ---------- the note at the top of each page ---------- */
-const LIVE_PAGES=['dashboard','employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox','recruit','expense','exits','training','marketing','crm','library','engage','bizdata','stock','import','analytics','reports','settings'];
+const LIVE_PAGES=['dashboard','employees','profile','setup','org','workforce','cockpit','attendance','attreq','leave','timeoffice','payroll','myreq','team','pms','decision','assets','myasset','support','inbox','recruit','expense','exits','training','marketing','crm','library','engage','bizdata','stock','import','analytics','reports','settings','policies'];
 function note(){const m=document.getElementById('main');if(!m||!LIVE.on||LIVE.platform)return;let n=document.getElementById('liveNote');
   const live=LIVE_PAGES.includes(state.page);
   const txt=live?L('Live: the data on this page is saved in the database.','लाइव: इस पेज का डेटा डेटाबेस में सेव होता है।')
