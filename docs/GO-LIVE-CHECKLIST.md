@@ -6,6 +6,7 @@
 - [ ] Demo passwords changed (E001–E004, E018 and the platform admin).
 - [ ] Supabase: turn on "Leaked password protection" (Authentication > Passwords).
 - [ ] Decide SMS/WhatsApp for first passwords and "forgot password" (provider + DLT registration in India).
+- [ ] Policy Assistant (if sold): run `server/policy_assistant.sql`, add the Vault secret and the function secrets, deploy `policy-assistant` (steps in `docs/POLICY-ASSISTANT.md`), then tick the `policy` module for the client.
 
 ## Create the client (platform admin)
 1. Clients (live) > New client: name, company code, employee limit, modules, first admin.

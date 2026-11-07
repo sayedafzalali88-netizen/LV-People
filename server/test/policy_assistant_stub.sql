@@ -1,0 +1,20 @@
+-- Local test only (NOT for Supabase): the few Supabase objects that server/policy_assistant.sql needs, so it can run on a plain PostgreSQL with pgvector.
+do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
+do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$;
+do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;
+create schema extensions; create schema auth; create schema app_private; create schema storage; create schema vault; create schema cron; create schema net;
+grant usage on schema public, extensions, auth, app_private to anon, authenticated, service_role;
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.sub', true),'')::uuid $$;
+create table public.clients(id uuid primary key default gen_random_uuid(), code text, name text, status text default 'active', modules text[] default '{}');
+create table public.profiles(user_id uuid primary key, client_id uuid references public.clients(id), employee_id uuid, role text, active boolean default true);
+create table public.employees(id uuid primary key default gen_random_uuid(), client_id uuid, name text, code text, department_id uuid);
+create function app_private.my_client() returns uuid language sql stable security definer set search_path='' as $$ select client_id from public.profiles where user_id = auth.uid() $$;
+create function app_private.my_role() returns text language sql stable security definer set search_path='' as $$ select role from public.profiles where user_id = auth.uid() $$;
+create function app_private.is_hr() returns boolean language sql stable security definer set search_path='' as $$ select coalesce((select role in ('admin','hr') from public.profiles where user_id = auth.uid()), false) $$;
+create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint);
+create view vault.decrypted_secrets as select 'policy_cron_secret'::text as name, 'x'::text as decrypted_secret;
+create table cron.jobs(name text, sched text, cmd text);
+create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.jobs values (n,s,c); select 1::bigint $$;
+create function net.http_post(url text, headers jsonb, body jsonb) returns bigint language sql as $$ select 1::bigint $$;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated, service_role;
