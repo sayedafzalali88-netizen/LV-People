@@ -3867,7 +3867,9 @@ const WFD=[{id:'WF-001',name:'PIP letter: HR Manager initiates, Floor Manager ac
  {id:'WF-007',name:'Incentive structure: Reporting Manager approval',type:'Incentive Structure Assignment',st:'Active',steps:[{k:'rm',role:'',multi:''}]}];
 const TAR=[['TA-01','Survey / Poll tasks','survey','','Task goes directly to the Inbox of each selected employee.'],['TA-02','Warning Letter','letter','','Issued immediately unless a workflow is selected.'],['TA-03','PIP Letter','letter','WF-001','Issued immediately unless a workflow is selected.'],['TA-04','Show Cause Notice','letter','','Issued immediately unless a workflow is selected.'],['TA-05','Counselling Letter','letter','','Issued immediately unless a workflow is selected.'],['TA-06','Performance Review Letter','letter','','Issued immediately unless a workflow is selected.'],['TA-07','Appreciation Letter','letter','','Issued immediately unless a workflow is selected.'],['TA-08','Other HR Letter','letter','','Issued immediately unless a workflow is selected.'],
  ['TA-09','Salary Mapping & Revision','onb','WF-002','Approval workflow is required. Nothing becomes effective before the last step approves.'],['TA-10','Incentive Structure Assignment','incasg','WF-007','Final approval is mandatory; a pending assignment is never used in payroll.'],['TA-11','Salary Advance','adv','WF-003','Goes first to the Reporting Manager, then through the role steps.'],['TA-SA1','Stock Ageing Review (month end)','stock','','Goes directly to the Inbox of the reviewers chosen for each employee.'],['TA-DR1','Decision Register approval','decision','WF-005','Every attendee also gets an acknowledgement task once approved.'],['TA-MK1','Marketing content review','content','WF-006','Number of review stages is set in the workflow.']].map(r=>({id:r[0],name:r[1],type:r[2],wf:r[3],note:r[4],st:'Active'}));
-const stepTxt=s=>s.k==='init'?L('Initiator','शुरू करने वाला')+(s.role?' ('+(ROLES.find(r=>r.id===s.role)||{}).name+')':''):s.k==='rm'?L('Reporting Manager','रिपोर्टिंग मैनेजर'):(ROLES.find(r=>r.id===s.role)||{name:'?'}).name+(s.multi==='first'?' ('+L('first available','पहला उपलब्ध')+')':s.multi==='all'?' ('+L('all','सब')+')':'');
+/* a step can name one employee. If that person has left or is not working, nobody holds the step and it goes to HR */
+const empHolder=id=>{const e=empById(+id);return e&&e.active!==false&&(!e.lwd||e.lwd>=TODAY_S)&&(!e.status||e.status==='Working')?[+id]:[]};
+const stepTxt=s=>s.k==='emp'?L('Employee','कर्मचारी')+': '+(s.emp?nm_(+s.emp):'?'):s.k==='init'?L('Initiator','शुरू करने वाला')+(s.role?' ('+(ROLES.find(r=>r.id===s.role)||{}).name+')':''):s.k==='rm'?L('Reporting Manager','रिपोर्टिंग मैनेजर'):(ROLES.find(r=>r.id===s.role)||{name:'?'}).name+(s.multi==='first'?' ('+L('first available','पहला उपलब्ध')+')':s.multi==='all'?' ('+L('all','सब')+')':'');
 function rolesTab(){
   return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('A role finds the right person from the subject employee’s branch, division, department or designation. Changing a person changes nothing in the workflow.','रोल, संबंधित कर्मचारी की शाखा, डिवीज़न, विभाग या पद से सही व्यक्ति ढूँढता है। व्यक्ति बदलने से वर्कफ़्लो नहीं बदलता।')}</span><div style="flex:1"></div>${can('settings','A')?`<button class="btn btn-p" data-rolenew>+ ${L('New role','नया रोल')}</button>`:''}</div>
   <div class="card tw"><table class="tbl"><thead><tr><th>ID</th><th>${L('Role','रोल')}</th><th>${L('Mapping (condition → holder)','मैपिंग (शर्त → धारक)')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
@@ -3898,22 +3900,23 @@ function workflowTab(){
    WFD.map(w=>`<tr style="${w.st==='Active'?'':'opacity:.55'}"><td><b>${w.id}</b></td><td>${esc(w.name)}</td><td>${w.type}</td><td style="font-size:13px">${w.steps.map((s,i)=>`${i+1}. ${esc(stepTxt(s))}`).join('<br>')}</td><td><span class="pill ${w.st==='Active'?'p-ok':'p-bad'}">${w.st==='Active'?t('active'):t('inactive_i')}</span></td>
    <td style="text-align:right;white-space:nowrap">${can('settings','E')?`<button class="btn btn-o btn-s" data-wfed="${w.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${w.st==='Active'?'btn-d':''}" data-wftog="${w.id}">${w.st==='Active'?t('inactivate'):t('activate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
   <div class="card"><h3>${L('Who would approve? Pick the subject employee','कौन मंज़ूर करेगा? संबंधित कर्मचारी चुनें')}</h3><select class="inp" id="wfsub" style="max-width:300px">${DATA.emps.filter(e=>e.active).map(e=>`<option value="${e.id}" ${e.id===subj.id?'selected':''}>${esc(e.name)}</option>`).join('')}</select>
-   ${WFD.filter(w=>w.st==='Active').map(w=>`<div style="margin-top:12px"><b>${w.id}</b> <span style="color:var(--muted);font-size:13px">${esc(w.name)}</span>${w.steps.map((s,i)=>{const hs=s.k==='rm'?(subj.mgr?[+subj.mgr]:[]):s.k==='init'?(s.role?roleHolders(s.role,subj):[me()]):roleHolders(s.role,subj), shown=s.multi==='first'?hs.slice(0,1):hs;
+   ${WFD.filter(w=>w.st==='Active').map(w=>`<div style="margin-top:12px"><b>${w.id}</b> <span style="color:var(--muted);font-size:13px">${esc(w.name)}</span>${w.steps.map((s,i)=>{const hs=s.k==='emp'?empHolder(s.emp):s.k==='rm'?(subj.mgr?[+subj.mgr]:[]):s.k==='init'?(s.role?roleHolders(s.role,subj):[me()]):roleHolders(s.role,subj), shown=s.multi==='first'?hs.slice(0,1):hs;
     return `<div style="font-size:13px;margin:3px 0 0 14px">${i+1}. ${esc(stepTxt(s))} → ${shown.length?shown.map(nmE).join(', '):`<span class="pill p-warn">${s.k==='rm'?L('No reporting manager','रिपोर्टिंग मैनेजर नहीं'):L('No holder','कोई धारक नहीं')}</span>`}</div>`}).join('')}</div>`).join('')}</div>`;
 }
 function wfModal(id){
   const w=id?WFD.find(x=>x.id===id):{name:'',type:'Other',st:'Active',steps:[{k:'rm',role:'',multi:''}]};
-  const rowH=s=>`<div class="srow" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select class="inp sk" style="width:140px"><option value="init" ${s.k==='init'?'selected':''}>${L('Initiator','शुरू करने वाला')}</option><option value="rm" ${s.k==='rm'?'selected':''}>${L('Reporting Manager','रिपोर्टिंग मैनेजर')}</option><option value="role" ${s.k==='role'?'selected':''}>${L('Role','रोल')}</option></select>
-   <select class="inp sr" style="flex:1;min-width:130px"><option value="">—</option>${ROLES.filter(r=>r.st==='Active'||r.id===s.role).map(r=>`<option value="${r.id}" ${s.role===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select><select class="inp sm" style="width:120px"><option value="" ${!s.multi?'selected':''}>—</option><option value="first" ${s.multi==='first'?'selected':''}>${L('first available','पहला उपलब्ध')}</option><option value="all" ${s.multi==='all'?'selected':''}>${L('all','सब')}</option></select><button type="button" class="btn btn-o btn-s btn-d srm">×</button></div>`;
+  const rowH=s=>`<div class="srow" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select class="inp sk" style="width:140px"><option value="init" ${s.k==='init'?'selected':''}>${L('Initiator','शुरू करने वाला')}</option><option value="rm" ${s.k==='rm'?'selected':''}>${L('Reporting Manager','रिपोर्टिंग मैनेजर')}</option><option value="role" ${s.k==='role'?'selected':''}>${L('Role','रोल')}</option><option value="emp" ${s.k==='emp'?'selected':''}>${L('Specific employee','तय कर्मचारी')}</option></select>
+   <select class="inp sr" style="flex:1;min-width:130px"><option value="">—</option>${ROLES.filter(r=>r.st==='Active'||r.id===s.role).map(r=>`<option value="${r.id}" ${s.role===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select><select class="inp sm" style="width:120px"><option value="" ${!s.multi?'selected':''}>—</option><option value="first" ${s.multi==='first'?'selected':''}>${L('first available','पहला उपलब्ध')}</option><option value="all" ${s.multi==='all'?'selected':''}>${L('all','सब')}</option></select><select class="inp se" style="flex:1;min-width:150px"><option value="">${L('Choose the employee','कर्मचारी चुनें')}</option>${DATA.emps.filter(e=>e.active||e.id==s.emp).map(e=>`<option value="${e.id}" ${+s.emp===e.id?'selected':''}>${esc(e.name)} · ${esc(nm('desigs',e.desig))}</option>`).join('')}</select><button type="button" class="btn btn-o btn-s btn-d srm">×</button></div>`;
   openModal(`<h3>${id?t('edit')+' · '+w.id:L('New workflow','नया वर्कफ़्लो')}</h3><label>${L('Name','नाम')}</label><input class="inp" name="name" value="${esc(w.name)}"><label>${L('Document type','दस्तावेज़ का प्रकार')}</label><select class="inp" name="type">${WF_TYPES.map(x=>`<option ${w.type===x?'selected':''}>${x}</option>`).join('')}</select>
    <label>${L('Steps in order','स्टेप क्रम से')}</label><div id="srows">${w.steps.map(rowH).join('')}</div><button type="button" class="btn btn-o btn-s" id="sadd" style="margin-top:8px">+ ${L('Add step','स्टेप जोड़ें')}</button>
    <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=m=>bg.querySelector('#me').textContent=m;if(!v.name.trim())return err(t('e_req'));
-    const steps=[...bg.querySelectorAll('.srow')].map(r=>({k:r.querySelector('.sk').value,role:r.querySelector('.sr').value,multi:r.querySelector('.sm').value}));
+    const steps=[...bg.querySelectorAll('.srow')].map(r=>({k:r.querySelector('.sk').value,role:r.querySelector('.sr').value,multi:r.querySelector('.sm').value,emp:+r.querySelector('.se').value||0}));
+    if(steps.some(s=>s.k==='emp'&&!s.emp))return err(L('Choose the employee for each “Specific employee” step','हर “तय कर्मचारी” स्टेप के लिए कर्मचारी चुनें'));
     if(!steps.length)return err(L('Add at least one step','कम से कम एक स्टेप जोड़ें'));if(steps.some((s,i)=>s.k==='init'&&i>0))return err(L('Only the first step can be the initiator','सिर्फ़ पहला स्टेप शुरू करने वाला हो सकता है'));
-    if(steps.some(s=>s.k==='role'&&!s.role))return err(L('Choose a role for each role step','हर रोल स्टेप के लिए रोल चुनें'));steps.forEach(s=>{if(s.k==='rm')Object.assign(s,{role:'',multi:''});if(s.k==='role'&&!s.multi)s.multi='first'});
+    if(steps.some(s=>s.k==='role'&&!s.role))return err(L('Choose a role for each role step','हर रोल स्टेप के लिए रोल चुनें'));steps.forEach(s=>{if(s.k==='rm'||s.k==='emp')Object.assign(s,{role:'',multi:''});if(s.k!=='emp')delete s.emp;if(s.k==='role'&&!s.multi)s.multi='first'});
     if(id){audit('Workflow','Edit',w.id,steps.map(stepTxt).join(' → '));Object.assign(w,{name:v.name.trim(),type:v.type,steps})}else{const n={id:'WF-'+String(WFD.length+1).padStart(3,'0'),name:v.name.trim(),type:v.type,st:'Active',steps};WFD.push(n);audit('Workflow','Add',n.id,n.name)}close();toast(t('saved'));render()});
-  const bg=document.querySelector('.modal-bg'), wire=r=>r.querySelector('.srm').onclick=()=>r.remove();bg.querySelectorAll('.srow').forEach(wire);
+  const bg=document.querySelector('.modal-bg'), wire=r=>{r.querySelector('.srm').onclick=()=>r.remove();const tg=()=>{const k=r.querySelector('.sk').value;r.querySelector('.sr').style.display=k==='role'||k==='init'?'':'none';r.querySelector('.sm').style.display=k==='role'?'':'none';r.querySelector('.se').style.display=k==='emp'?'':'none'};r.querySelector('.sk').onchange=tg;tg()};bg.querySelectorAll('.srow').forEach(wire);
   bg.querySelector('#sadd').onclick=()=>{const d=document.createElement('div');d.innerHTML=rowH({k:'role',role:'',multi:'first'});const r=d.firstChild;bg.querySelector('#srows').appendChild(r);wire(r)};
 }
 function automationTab(){
@@ -4156,7 +4159,7 @@ AUTO2['KPI-079']=(e,k,p)=>{const d=DEC.filter(x=>x.owner==e.id&&x.status!=='Supe
   let ok=0,wait=0;d.forEach(x=>{const m=mtgOf(x), c=[[x.created,addD(m.date,SLA.decRec)],[x.decided,x.created?addD(x.created,SLA.decAppr):null],[x.actdone,x.due]];let bad=false,open=false;c.forEach(([done,lim])=>{if(done){if(lim&&done>lim)bad=true}else if(lim&&lim<TODAY_S)bad=true;else open=true});if(bad)return;if(open){wait++;return}ok++});
   if(wait)return kP(L('A decision is still inside its deadlines','कोई निर्णय अभी अपनी समय-सीमा में है'));return kS(k,ok/d.length*k.max,`${ok} / ${d.length}`)};
 const decWf=()=>WFD.find(w=>w.id==='WF-005'&&w.st==='Active');
-const decApprovers=d=>{const w=decWf();if(!w)return null;const subj=empById(d.owner);return w.steps.map(s=>s.k==='rm'?(subj.mgr?[+subj.mgr]:[]):roleHolders(s.role,subj).slice(0,s.multi==='all'?9:1))};
+const decApprovers=d=>{const w=decWf();if(!w)return null;const subj=empById(d.owner);return w.steps.map(s=>s.k==='emp'?empHolder(s.emp):s.k==='rm'?(subj.mgr?[+subj.mgr]:[]):roleHolders(s.role,subj).slice(0,s.multi==='all'?9:1))};
 function decisionPage(){
   const tabs=['tasks','dec','mtg'], tab=tabs.includes(state.dtab)?state.dtab:'tasks';
   const body={tasks:dcTasks,dec:dcList,mtg:dcMtg}[tab]();
@@ -4500,7 +4503,7 @@ const monthLbl=mk=>mkP(mk);
 const inRun=(e,mk)=>e.active&&e.doj<=mk+'-'+String(new Date(+mk.slice(0,4),+mk.slice(5),0).getDate()).padStart(2,'0')&&!attHeldRun(e,mk)&&!payHeld(e,mk);
 const mkNext=mk=>{let y=+mk.slice(0,4),m=+mk.slice(5)+1;if(m>12){m=1;y++}return y+'-'+pad(m)};
 const mkOf=d=>d.slice(0,7);
-const wfApprovers=(wfId,subj)=>{const w=WFD.find(x=>x.id===wfId&&x.st==='Active');if(!w)return null;return w.steps.map(s=>s.k==='rm'?(subj.mgr?[+subj.mgr]:[]):s.k==='init'?[me()]:roleHolders(s.role,subj).slice(0,s.multi==='all'?9:1))};
+const wfApprovers=(wfId,subj)=>{const w=WFD.find(x=>x.id===wfId&&x.st==='Active');if(!w)return null;return w.steps.map(s=>s.k==='emp'?empHolder(s.emp):s.k==='rm'?(subj.mgr?[+subj.mgr]:[]):s.k==='init'?[me()]:roleHolders(s.role,subj).slice(0,s.multi==='all'?9:1))};
 Object.assign(state,{ptab2:null,payf:'',paycat:'',advv:null,fsv:null});
 
 /* ---- bank details ---- */
@@ -5226,13 +5229,14 @@ function notify(to,title,opener,key){
     TASKS.push({id:++seq,no:tskNo(),kind:'notice',title,subject:0,to:[id],status:'Pending',at:TODAY_S,by:'System',opener:opener||null,read:{},log:[{at:TODAY_S,by:'System',act:'Created'}],key:k,inst:0,step:0,comment:''})})}
 /* workflow engine: resolve the steps when they are reached, one task per step, in order */
 function wfResolve(s,subj,inst){
+  if(s.kind==='emp')return empHolder(s.emp);
   if(s.kind==='rm')return subj.mgr?[+subj.mgr]:[];
   if(s.kind==='init')return s.role?roleHolders(s.role,subj):[inst.by];
   return roleHolders(s.role,subj).slice(0,s.multi==='all'?9:1)}
 function wfStart(o){
   const w=WFD.find(x=>x.id===o.wf&&x.st==='Active');if(!w)return null;
   const inst={id:++seq,no:'WFI-'+pad4(WFI.length+1),wf:w.id,wfName:w.name,type:o.type,subject:o.subject,title:o.title,payload:o.payload,action:o.action,by:o.by,at:TODAY_S,step:-1,status:'Running',opener:o.opener||null,
-   steps:w.steps.map(s=>({kind:s.k,role:s.role,multi:s.multi,holders:[],decision:'',by:0,at:'',comment:'',task:0,fallback:false})),log:[{at:TODAY_S,by:nm_(o.by),act:'Started'}]};
+   steps:w.steps.map(s=>({kind:s.k,role:s.role,multi:s.multi,emp:s.emp||0,holders:[],decision:'',by:0,at:'',comment:'',task:0,fallback:false})),log:[{at:TODAY_S,by:nm_(o.by),act:'Started'}]};
   WFI.push(inst);audit('Workflow','Started',inst.no,`${w.id} ${o.title}`);wfNext(inst);return inst}
 function wfNext(inst){
   const subj=empById(inst.subject);inst.step++;
@@ -5320,7 +5324,7 @@ function ibAll(){
 }
 function instModal(id){
   const w=WFI.find(x=>x.id===id);
-  listModal(`${w.no} · ${esc(w.title)} <span class="pill ${w.status==='Approved'?'p-ok':w.status==='Rejected'?'p-bad':'p-warn'}">${w.status}</span>`,[...w.steps.map((s,i)=>`${i+1}. ${esc(stepTxt({k:s.kind,role:s.role,multi:s.multi}))} → ${s.holders.length?s.holders.map(nmE).join(', '):(s.decision==='Auto'?nmE(s.by):'—')} · <b>${s.decision||(i===w.step&&w.status==='Running'?L('waiting','इंतज़ार'):'—')}</b>${s.comment?' · '+esc(s.comment):''}${s.fallback?' ('+L('no holder, sent to HR','धारक नहीं, HR को')+')':''}`),'<hr>',...w.log.map(l=>`${fmtS(l.at)} · ${esc(l.by)} · ${esc(l.act)}`)]);
+  listModal(`${w.no} · ${esc(w.title)} <span class="pill ${w.status==='Approved'?'p-ok':w.status==='Rejected'?'p-bad':'p-warn'}">${w.status}</span>`,[...w.steps.map((s,i)=>`${i+1}. ${esc(stepTxt({k:s.kind,role:s.role,multi:s.multi,emp:s.emp}))} → ${s.holders.length?s.holders.map(nmE).join(', '):(s.decision==='Auto'?nmE(s.by):'—')} · <b>${s.decision||(i===w.step&&w.status==='Running'?L('waiting','इंतज़ार'):'—')}</b>${s.comment?' · '+esc(s.comment):''}${s.fallback?' ('+L('no holder, sent to HR','धारक नहीं, HR को')+')':''}`),'<hr>',...w.log.map(l=>`${fmtS(l.at)} · ${esc(l.by)} · ${esc(l.act)}`)]);
 }
 function wfTaskModal(id){
   const tk=TASKS.find(x=>x.id===id), inst=WFI.find(x=>x.id===tk.inst), p=inst.payload||{};
@@ -9681,7 +9685,7 @@ function ibClass(r){const en=r.en||'';
 const ibDays=d=>Math.round((Date.parse(TODAY_S)-Date.parse(d))/864e5);
 const ibAge=d=>{const n=ibDays(d);return n<=0?L('today','आज'):n===1?L('yesterday','कल'):`${n} ${L('days ago','दिन पहले')}`};
 function ibWhy(r){const g=r.cls.g;
- if(r.kind==='wf'&&r.tk){const w=WFI.find(x=>x.id===r.tk.inst);if(w&&w.steps[r.tk.step]){const s=w.steps[r.tk.step];return `${w.wf} · ${L('step','स्टेप')} ${r.tk.step+1}/${w.steps.length} · ${L('you are','आप हैं')}: ${stepTxt({k:s.kind,role:s.role,multi:s.multi})}`}}
+ if(r.kind==='wf'&&r.tk){const w=WFI.find(x=>x.id===r.tk.inst);if(w&&w.steps[r.tk.step]){const s=w.steps[r.tk.step];return `${w.wf} · ${L('step','स्टेप')} ${r.tk.step+1}/${w.steps.length} · ${L('you are','आप हैं')}: ${stepTxt({k:s.kind,role:s.role,multi:s.multi,emp:s.emp})}`}}
  if(['leave','att'].includes(r.kind))return L('You approve this as the reporting manager or HR','आप इसे रिपोर्टिंग मैनेजर या HR के रूप में मंज़ूर करते हैं');
  return g==='decide'?L('You are an approver for this','इसके लिए आप मंज़ूर करने वाले हैं'):g==='info'?L('Sent to you for information','जानकारी के लिए आपको भेजा गया'):L('This is assigned to you','यह आपको सौंपा गया है')}
 function ibList(){
