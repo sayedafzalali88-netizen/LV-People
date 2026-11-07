@@ -9630,10 +9630,38 @@ const IBRULES=[
  [/^(Acknowledge|Confirm|Read and acknowledge)/,'do','Acknowledge','पावती दें','Acknowledge','पावती दें'],
  [/feedback|ratings to give|^Survey|^Poll|Take the test|Give the reason|Give the bills|trip report|Course to finish|Induction|Counselling|Exit interview/i,'do','Give your input','अपना काम भरें','Open and fill','खोलकर भरें'],
  [/^(Disburse|Pay |Issue|Take back|Deliver|Exit handover|Mark attendance|Complete the action|Send for approval)/,'do','Process it','पूरा करें','Open and do','खोलकर करें']];
+/* a clear word for every kind of work that has no rule above: group, what to do, button */
+const IBKIND={
+ pip:['do','Follow up','फ़ॉलो-अप करें','Open the PIP','PIP खोलें'],
+ ojt:['do','Do the OJT step','OJT का स्टेप करें','Open the OJT','OJT खोलें'],
+ stock:['do','Review the stock ageing','स्टॉक एजिंग देखें','Open and review','खोलकर देखें'],
+ att:['decide','Approve or reject','मंज़ूर या अस्वीकार','Review and decide','देखें और फ़ैसला'],
+ pc:['do','Act on the case','केस पर कार्रवाई करें','Open the case','केस खोलें'],
+ asg:['do','Do the task given to you','आपको मिला काम करें','Open the task','टास्क खोलें'],
+ alt:['do','Fill the day-end entry','दिन-अंत भरें','Open and fill','खोलकर भरें'],
+ stk:['do','Count the stock','स्टॉक गिनें','Open and count','खोलकर गिनें'],
+ sup:['do','Handle the ticket','टिकट संभालें','Open the ticket','टिकट खोलें'],
+ 'sup-r':['do','Reply on the ticket','टिकट पर जवाब दें','Reply','जवाब दें'],
+ bio:['do','Fix the machine data','मशीन का डेटा ठीक करें','Open and fix','खोलकर ठीक करें'],
+ miss:['do','Correct the punch','पंच सुधारें','Open and correct','खोलकर सुधारें'],
+ todo:['do','Do your daily work','रोज़ का काम करें','Open','खोलें'],
+ chal:['do','Enter the challenge count','चुनौती की गिनती भरें','Open and fill','खोलकर भरें'],
+ 'chal-m':['do','Enter the challenge count','चुनौती की गिनती भरें','Open and fill','खोलकर भरें'],
+ 'ast-m':['do','Follow up on the asset','एसेट पर फ़ॉलो-अप करें','Open','खोलें'],
+ eng:['info','Information','जानकारी','Open','खोलें'],
+ 'adv-disb':['do','Pay the advance','एडवांस दें','Open and pay','खोलकर दें'],kyc:['do','Verify the documents','दस्तावेज़ जाँचें','Open and verify','खोलकर जाँचें'],bank:['do','Verify the bank change','बैंक बदलाव जाँचें','Open and verify','खोलकर जाँचें'],
+ 'dec-act':['do','Complete the action','कार्रवाई पूरी करें','Open and do','खोलकर करें'],'dec-send':['do','Send for approval','मंज़ूरी के लिए भेजें','Open and send','खोलकर भेजें'],'dec-ack':['do','Acknowledge','पावती दें','Acknowledge','पावती दें'],
+ content:['do','Review the content','कंटेंट देखें','Open and review','खोलकर देखें'],cns:['do','Do the counselling','काउंसलिंग करें','Open','खोलें'],eval:['do','Give the ratings','रेटिंग दें','Open and rate','खोलकर रेटिंग दें'],audit:['do','Do the audit','ऑडिट करें','Open the audit','ऑडिट खोलें'],
+ survey:['do','Answer the survey','सर्वे भरें','Open and answer','खोलकर भरें'],poll:['do','Vote in the poll','पोल में वोट दें','Open and vote','खोलकर वोट दें'],letter:['do','Acknowledge the letter','पत्र की पावती दें','Acknowledge','पावती दें'],doc:['do','Read and acknowledge','पढ़ें और पावती दें','Open and read','खोलकर पढ़ें'],
+ 'trn-done':['do','Mark the attendance','हाज़िरी दर्ज करें','Open and mark','खोलकर दर्ज करें'],test:['do','Take the test','टेस्ट दें','Take the test','टेस्ट दें'],fb:['do','Give your feedback','अपना फ़ीडबैक दें','Open and fill','खोलकर भरें'],iv:['do','Give interview feedback','इंटरव्यू फ़ीडबैक दें','Open and fill','खोलकर भरें'],
+ ind:['do','Do the induction','इंडक्शन करें','Open','खोलें'],'ind-c':['do','Confirm the induction','इंडक्शन की पुष्टि करें','Confirm','पुष्टि करें'],'asg-c':['do','Confirm the task','टास्क की पुष्टि करें','Confirm','पुष्टि करें'],'alt-d':['do','Deliver the alteration','अल्टरेशन डिलीवर करें','Open and deliver','खोलकर दें'],
+ 'stk-r':['do','Give the reason','कारण बताएँ','Open and fill','खोलकर भरें'],'stk-v':['do','Check the count','गिनती जाँचें','Open and check','खोलकर जाँचें'],'sup-c':['do','Confirm the resolved ticket','हल हुई टिकट की पुष्टि करें','Confirm','पुष्टि करें'],learn:['do','Finish the course','कोर्स पूरा करें','Open the course','कोर्स खोलें'],
+ xp:['do','Handle the expense','एक्सपेंस संभालें','Open','खोलें'],xt:['do','Take the exit interview','एक्ज़िट इंटरव्यू लें','Open and fill','खोलकर भरें'],ast:['do','Confirm the asset','एसेट की पुष्टि करें','Confirm','पुष्टि करें']};
 function ibClass(r){const en=r.en||'';
  if(r.kind==='wf')return{g:'decide',v:['Approve or reject','मंज़ूर या अस्वीकार'],b:['Details','विवरण']};
  if(r.kind==='notice'||/^Notice/.test(en)||/^Approved, waiting/.test(en))return{g:'info',v:['Information','जानकारी'],b:['Open','खोलें']};
  const h=IBRULES.find(x=>x[0].test(en));if(h)return{g:h[1],v:[h[2],h[3]],b:[h[4],h[5]]};
+ const kd=IBKIND[r.kind];if(kd)return{g:kd[0],v:[kd[1],kd[2]],b:[kd[3],kd[4]]};
  if(['leave','att','adv','req','fs','dec','inc','cmp'].includes(r.kind)&&!/^(Attendance request|Correct)/.test(en))return{g:'decide',v:['Approve or reject','मंज़ूर या अस्वीकार'],b:['Review and decide','देखें और फ़ैसला']};
  return{g:'do',v:['Do the task','काम करें'],b:['Open','खोलें']}}
 const ibDays=d=>Math.round((Date.parse(TODAY_S)-Date.parse(d))/864e5);
