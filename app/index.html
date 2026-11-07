@@ -9617,6 +9617,65 @@ INBOX_SRC.push((id,out)=>{
 const _bindExtra57=bindExtra;
 bindExtra=function(){_bindExtra57();$('#main').querySelectorAll('[data-ibk]').forEach(b=>b.onclick=()=>{state.ibk=state.ibk===b.dataset.ibk?'':b.dataset.ibk;render()})};
 
+/* ---------- Inbox: every row says what you have to do, the most urgent first ---------- */
+Object.assign(state,{ibg:''});
+const IBGRP={decide:{en:'Needs your decision',hi:'आपका फ़ैसला चाहिए',help:['Approve or reject. Your decision sends it to the next step.','मंज़ूर या अस्वीकार करें। आपके फ़ैसले से यह अगले स्टेप पर जाता है।'],pill:'p-bad'},
+ do:{en:'You have work to do',hi:'आपको काम करना है',help:['Open it, do the work, and it leaves your Inbox by itself.','खोलें, काम करें, और यह अपने आप इनबॉक्स से हट जाता है।'],pill:'p-warn'},
+ info:{en:'For your information',hi:'सिर्फ़ जानकारी के लिए',help:['Nothing to decide. Read it and press Read.','कुछ तय नहीं करना। पढ़ें और "पढ़ लिया" दबाएँ।'],pill:'p-teal'},
+ done:{en:'Done',hi:'पूरे हुए',help:['',''],pill:'p-ok'}};
+/* the words of a row, read from the English title so the rule works in Hindi too */
+const IBRULES=[
+ [/^(Approve|Decide)/,'decide','Approve or reject','मंज़ूर या अस्वीकार','Review and decide','देखें और फ़ैसला'],
+ [/^(Verify|Check |Audit|Review |Correct )/,'do','Verify or review','जाँचें','Open and verify','खोलकर जाँचें'],
+ [/^(Acknowledge|Confirm|Read and acknowledge)/,'do','Acknowledge','पावती दें','Acknowledge','पावती दें'],
+ [/feedback|ratings to give|^Survey|^Poll|Take the test|Give the reason|Give the bills|trip report|Course to finish|Induction|Counselling|Exit interview/i,'do','Give your input','अपना काम भरें','Open and fill','खोलकर भरें'],
+ [/^(Disburse|Pay |Issue|Take back|Deliver|Exit handover|Mark attendance|Complete the action|Send for approval)/,'do','Process it','पूरा करें','Open and do','खोलकर करें']];
+function ibClass(r){const en=r.en||'';
+ if(r.kind==='wf')return{g:'decide',v:['Approve or reject','मंज़ूर या अस्वीकार'],b:['Details','विवरण']};
+ if(r.kind==='notice'||/^Notice/.test(en)||/^Approved, waiting/.test(en))return{g:'info',v:['Information','जानकारी'],b:['Open','खोलें']};
+ const h=IBRULES.find(x=>x[0].test(en));if(h)return{g:h[1],v:[h[2],h[3]],b:[h[4],h[5]]};
+ if(['leave','att','adv','req','fs','dec','inc','cmp'].includes(r.kind)&&!/^(Attendance request|Correct)/.test(en))return{g:'decide',v:['Approve or reject','मंज़ूर या अस्वीकार'],b:['Review and decide','देखें और फ़ैसला']};
+ return{g:'do',v:['Do the task','काम करें'],b:['Open','खोलें']}}
+const ibDays=d=>Math.round((Date.parse(TODAY_S)-Date.parse(d))/864e5);
+const ibAge=d=>{const n=ibDays(d);return n<=0?L('today','आज'):n===1?L('yesterday','कल'):`${n} ${L('days ago','दिन पहले')}`};
+function ibWhy(r){const g=r.cls.g;
+ if(r.kind==='wf'&&r.tk){const w=WFI.find(x=>x.id===r.tk.inst);if(w&&w.steps[r.tk.step]){const s=w.steps[r.tk.step];return `${w.wf} · ${L('step','स्टेप')} ${r.tk.step+1}/${w.steps.length} · ${L('you are','आप हैं')}: ${stepTxt({k:s.kind,role:s.role,multi:s.multi})}`}}
+ if(['leave','att'].includes(r.kind))return L('You approve this as the reporting manager or HR','आप इसे रिपोर्टिंग मैनेजर या HR के रूप में मंज़ूर करते हैं');
+ return g==='decide'?L('You are an approver for this','इसके लिए आप मंज़ूर करने वाले हैं'):g==='info'?L('Sent to you for information','जानकारी के लिए आपको भेजा गया'):L('This is assigned to you','यह आपको सौंपा गया है')}
+function ibList(){
+ const id=me(), f=state.ibf;
+ const sv=lang;let vEn=[];try{lang='en';vEn=ibVirtual()}catch(e){vEn=[]}finally{lang=sv}
+ const v=ibVirtual().map((x,i)=>({...x,when:x.due||'',en:(vEn[i]||{}).title||''}));
+ const s=ibStored().map(t=>({virtual:false,id:t.id,kind:t.kind,title:t.title,en:t.title,subject:t.subject,status:t.status,when:t.at,tk:t,page:t.opener&&t.opener.page,tab:t.opener&&t.opener.tab,unread:t.kind==='notice'&&!t.read[id]}));
+ const rows0=[...s.filter(x=>x.status==='Pending'),...v,...(f==='all'?s.filter(x=>x.status!=='Pending'):[])].filter(x=>f==='all'||x.status==='Pending');
+ rows0.forEach(r=>{r.cls=r.status==='Pending'?ibClass(r):{g:'done',v:['Done','पूरा'],b:['','']}});
+ const cnt={decide:0,do:0,info:0};rows0.forEach(r=>{if(cnt[r.cls.g]!=null)cnt[r.cls.g]++});
+ const late=r=>r.virtual&&r.when&&r.when<TODAY_S, key=r=>['decide','do','info','done'].indexOf(r.cls.g)+(late(r)?'0':'1')+(r.when||'9999');
+ const rows=rows0.filter(r=>!state.ibg||r.cls.g===state.ibg).sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
+ const card=(g)=>`<div class="card" data-ibg="${g}" style="cursor:pointer;${state.ibg===g?'outline:2px solid var(--teal)':''}"><small style="color:var(--muted)">${L(IBGRP[g].en,IBGRP[g].hi)}</small><div style="font-size:26px;font-weight:700">${cnt[g]}</div></div>`;
+ const wfRows=rows.filter(r=>r.kind==='wf'&&r.status==='Pending');
+ const btn=r=>{if(r.status!=='Pending')return '';
+  if(r.kind==='wf')return `<button class="btn btn-p btn-s" data-ibq="${r.id}">${L('Approve','मंज़ूर')}</button> <button class="btn btn-o btn-s" data-ibwf="${r.id}">${L(...r.cls.b)} / ${L('Reject','अस्वीकार')}</button>`;
+  if(r.virtual)return `<button class="btn ${r.cls.g==='decide'?'btn-p':'btn-o'} btn-s" data-ibgo="${r.page}:${r.tab||''}">${L(...r.cls.b)}</button>`;
+  return `${r.page?`<button class="btn btn-o btn-s" data-ibgo="${r.page}:${r.tab||''}" data-ibread1="${r.id}">${L('Open','खोलें')}</button> `:''}<button class="btn btn-p btn-s" data-ibdone="${r.id}">${r.cls.g==='info'?L('Read','पढ़ लिया'):L('Done','हो गया')}</button>`};
+ let last='', body='';
+ rows.forEach(r=>{const g=r.cls.g;if(g!==last){last=g;body+=`<tr><td colspan="5" style="background:var(--teal-l,#eef6f4);padding:8px 12px"><b>${L(IBGRP[g].en,IBGRP[g].hi)}</b>${IBGRP[g].help[0]?` <span style="color:var(--muted);font-size:12px">· ${L(...IBGRP[g].help)}</span>`:''}</td></tr>`}
+  const sub=[r.tk?`${L('from','से')} ${esc(r.tk.by)} · ${ibAge(r.tk.at)}`:'',ibWhy(r)].filter(Boolean).join(' · ');
+  body+=`<tr style="${r.unread?'font-weight:600':''}"><td style="width:28px">${r.kind==='wf'&&r.status==='Pending'?`<input type="checkbox" data-ibsel="${r.id}">`:''}</td><td><span class="pill ${IBGRP[g].pill}">${L(...r.cls.v)}</span></td>
+   <td><b style="font-weight:500">${esc(r.title)}</b><small style="display:block;color:var(--muted)">${sub}</small>${r.subject?`<small style="display:block">${L('About','किसके बारे में')}: ${nmE(r.subject)}</small>`:''}</td>
+   <td>${r.when?`${r.virtual?fmtS(r.when):''}${late(r)?` <span class="pill p-bad">${L('late','देर')}</span>`:''}`:'—'}</td><td style="text-align:right;white-space:nowrap">${btn(r)}</td></tr>`});
+ return `<div class="grid g4" style="margin-bottom:12px">${card('decide')}${card('do')}${card('info')}<div class="card"><small style="color:var(--muted)">${L('Start from the top: decisions first, then work, then information. You see only what is with you.','ऊपर से शुरू करें: पहले फ़ैसले, फिर काम, फिर जानकारी। आपको सिर्फ़ वही दिखता है जो आपके पास है।')}</small></div></div>
+  <div class="tools"><div class="seg">${[['pend',L('Waiting','बाकी')],['all',L('Including done','पूरे हुए सहित')]].map(([k,l])=>`<button data-ibf="${k}" class="${f===k?'on':''}">${l}</button>`).join('')}</div>${state.ibg?`<button class="pill p-teal" data-ibg="" style="cursor:pointer;border:0">${L('Show all','सब दिखाएँ')}</button>`:''}<div style="flex:1"></div>
+   ${wfRows.length?`<label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ibSelAll"> ${L('Select all approvals','सभी मंज़ूरियाँ चुनें')}</label><button class="btn btn-p btn-s" data-ibbulk>${L('Approve selected','चुनी हुई मंज़ूर करें')} (<span id="ibSelN">0</span>)</button>`:''}<button class="btn btn-o btn-s" data-ibread>${L('Mark notices read','सूचनाएँ पढ़ी करें')}</button></div>
+  <div class="card tw"><table class="tbl"><thead><tr><th></th><th>${L('What to do','क्या करना है')}</th><th>${L('Task','काम')}</th><th>${L('Due','देय')}</th><th></th></tr></thead><tbody>${body||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:28px">${L('You are all caught up. Nothing is waiting for you.','सब काम निपट गए। आपके लिए कुछ बाकी नहीं।')}</td></tr>`}</tbody></table></div>`}
+{const _bi=bindExtra;bindExtra=function(){_bi();const m=$('#main'), on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
+ on('[data-ibg]',b=>b.onclick=()=>{state.ibg=state.ibg===b.dataset.ibg?'':b.dataset.ibg;render()});
+ on('[data-ibq]',b=>b.onclick=()=>{if(wfDecide(+b.dataset.ibq,true,'',me())){toast(L('Approved','मंज़ूर हुआ'));render()}});
+ const cnt=()=>{const n=m.querySelectorAll('[data-ibsel]:checked').length, e=m.querySelector('#ibSelN');if(e)e.textContent=n};
+ on('[data-ibsel]',c=>c.onchange=cnt);
+ on('#ibSelAll',c=>c.onchange=()=>{m.querySelectorAll('[data-ibsel]').forEach(x=>x.checked=c.checked);cnt()});
+ on('[data-ibbulk]',b=>b.onclick=()=>{const ids=[...m.querySelectorAll('[data-ibsel]:checked')].map(x=>+x.dataset.ibsel);if(!ids.length)return toast(L('Select at least one approval','कम से कम एक मंज़ूरी चुनें'));
+  if(!confirm(`${L('Approve','मंज़ूर करें')} ${ids.length} ${L('item(s)?','?')}`))return;let n=0;ids.forEach(i=>{if(wfDecide(i,true,'',me()))n++});toast(`${n} ${L('approved','मंज़ूर हुईं')}`);render()})}}
 /* ================= Batch 58: Asset Management (Inventory, Issue, My Asset, Request, Acknowledgement, Exit handover) ================= */
 Object.assign(T.en,{assets:'Assets',myasset:'My Asset'});Object.assign(T.hi,{assets:'एसेट',myasset:'मेरा एसेट'});
 MODS.push({id:'assets',name:['Asset Management','एसेट मैनेजमेंट'],desc:['Asset inventory, who holds what, employee requests with approval, acknowledgement on receipt, and the handover at exit','एसेट इन्वेंटरी, किसके पास क्या है, मंज़ूरी वाली माँग, मिलने पर पुष्टि, और एक्ज़िट पर हैंडओवर'],pages:['assets','myasset'],needs:[]});
