@@ -487,7 +487,7 @@ function dashboard(){
   const r=state.role, u=USERS[r];
   let h=`<div class="page-h"><div><h1>${t('hello')}, ${u.name.split(' ')[0]} 👋</h1><p>${t('welcome_sub')} · ${new Date().toLocaleDateString(loc(),{weekday:'long',day:'2-digit',month:'short',year:'numeric'})}</p></div></div>`;
   if(r==='admin'||r==='hr'){
-    h+=`${attDash()}
+    h+=`
     <div class="grid g2"><div class="grid">${approvals()}${chart()}</div><div class="grid" style="align-content:start">${clockCard()}${leaveBal()}${side()}</div></div>`;
   } else if(r==='manager'){
     h+=`<div class="grid g4" style="margin-bottom:16px">
@@ -5985,7 +5985,7 @@ function motivCard(){
   <div class="grid g2" style="margin-bottom:12px"><div class="card"><small style="color:var(--muted)">${L('Growth status','ग्रोथ स्टेटस')}</small><div style="font-size:18px;font-weight:700;margin:4px 0 10px">${gs}</div><div style="display:flex;gap:5px;flex-wrap:wrap">${Array.from({length:12},(_,i)=>i+1).map(n=>`<span class="pill ${n===lv?'p-ok':n<lv?'p-teal':''}" style="${n===lv+1?'outline:2px dashed var(--teal)':''}">L${n}${n===lv?' ←':''}</span>`).join('')}</div><p class="rule" style="font-size:12px;margin-top:8px">${L('Moving to the next level is not guaranteed. It needs score, competency and approval.','अगले लेवल पर जाना तय नहीं है। इसके लिए स्कोर, योग्यता और मंज़ूरी चाहिए।')}</p><button class="btn btn-o btn-s" data-dpm="mycareer">${L('My career growth','मेरी करियर ग्रोथ')}</button></div>
    <div class="card"><div style="display:flex;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><h3 style="margin:0 0 4px;color:var(--ok)">${L('Top 3 strong KPIs','टॉप 3 मज़बूत KPI')}</h3>${list(strong,'ok',L('Scored KPIs will show here.','स्कोर हुए KPI यहाँ दिखेंगे।'))}</div><div style="flex:1;min-width:200px"><h3 style="margin:0 0 4px;color:var(--warn)">${L('Top 3 to improve','सुधार के 3 KPI')}</h3>${list(weak,'warn',L('Nothing to improve yet. Great!','अभी सुधार के लिए कुछ नहीं। बढ़िया!'))}</div></div><small style="color:var(--muted)">${CUR_P} · ${L('KPIs scored so far this month','इस महीने अब तक स्कोर हुए KPI')}</small> <button class="btn btn-o btn-s" data-dpm="mine">${L('All my KPIs','मेरे सभी KPI')}</button></div></div>`;
 }
-{const _dash=dashboard;dashboard=function(){const h=_dash();if(state.role!=='employee'&&state.role!=='manager')return h;const k='</p></div></div>', i=h.indexOf(k);return i<0?h:h.slice(0,i+k.length)+motivCard()+h.slice(i+k.length)}}
+{const _dash=dashboard;dashboard=function(){const h=_dash();if(!['employee','manager','admin','hr'].includes(state.role))return h;const k='</p></div></div>', i=h.indexOf(k);return i<0?h:h.slice(0,i+k.length)+motivCard()+h.slice(i+k.length)}}
 const _bindExtraMV=bindExtra;
 bindExtra=function(){_bindExtraMV();$('#main').querySelectorAll('[data-dpm]').forEach(b=>b.onclick=()=>{state.page='pms';state.pmtab=b.dataset.dpm;state.view=null;render()})};
 /* ---------- Batch 26: additions and deductions in payroll, and Salary Earned (expected vs actual) ---------- */
@@ -12460,7 +12460,9 @@ function adStat(list,ds){const r={t:0,p:0,a:0,l:0,w:0,n:0,fut:ds>TODAY_S};if(r.f
  list.forEach(x=>{const e=x.e;if(e.doj>ds||(e.lwd&&e.lwd<ds))return;const s=(x.m[mk]||(x.m[mk]=adDays(e,mk)))[ds];if(s==='F')return;r.t++;
   if(s==null||s==='N')r.n++;else if(['P','L','HD','WOP','HP'].includes(s))r.p++;else if(['LV','LWP'].includes(s))r.l++;else if(['W','H'].includes(s))r.w++;else r.a++});return r}
 const adPct=(n,t)=>t?Math.round(n*100/t):0;
-function attDash(){const f=state.ad, emps=DATA.emps.filter(e=>AD_F.every(([k])=>!f[k]||String(e[k])===String(f[k]))).map(e=>({e,m:{}}));
+/* HR and Admin see the whole company; a reporting manager sees everybody who reports to them, directly or through others */
+function adBase(){if(state.role!=='manager')return DATA.emps;const ids=new Set([me()]);let n;do{n=ids.size;DATA.emps.forEach(e=>{if(e.active&&ids.has(+e.mgr))ids.add(e.id)})}while(ids.size!==n);ids.delete(me());return DATA.emps.filter(e=>ids.has(e.id))}
+function attDash(){const f=state.ad, emps=adBase().filter(e=>AD_F.every(([k])=>!f[k]||String(e[k])===String(f[k]))).map(e=>({e,m:{}}));
  const cm=curMk(), months=[];{let [y,m]=cm.split('-').map(Number);for(let i=0;i<6;i++){months.push(y+'-'+String(m).padStart(2,'0'));m--;if(!m){m=12;y--}}}
  let dates=[];if(f.month==='last14'){for(let i=13;i>=0;i--)dates.push(addD(TODAY_S,-i))}else{const n=monthDays(f.month);for(let d=1;d<=n;d++)dates.push(f.month+'-'+String(d).padStart(2,'0'))}
  const sel=dates.includes(f.day)?f.day:(dates.includes(TODAY_S)?TODAY_S:dates.filter(d=>d<=TODAY_S).pop()||dates[0]);
@@ -12468,8 +12470,9 @@ function attDash(){const f=state.ad, emps=DATA.emps.filter(e=>AD_F.every(([k])=>
  const box=(c,l,n,sub)=>`<div class="adc" style="border-top-color:var(--${c})"><small>${l}</small><b>${n}</b><span>${sub||'&nbsp;'}</span></div>`;
  const dn=new Date(sel+'T12:00:00').toLocaleDateString(loc(),{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
  const many=dates.length>20;
- return `<div class="adwrap" style="margin-bottom:16px"><div class="tools" style="flex-wrap:wrap;align-items:flex-end">${AD_F.map(([k,src,lab])=>`<div><label style="font-size:12px;color:var(--muted);display:block">${L(...lab)}</label><select class="inp" data-adf="${k}" style="min-width:130px"><option value="">${L('All','सभी')}</option>${DATA[src].filter(x=>!x.off).map(x=>`<option value="${x.id}" ${String(f[k])===String(x.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`).join('')}</div>
-  <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">${L('Showing','दिख रहा है')}: <b>${dn}</b>${isToday?` · ${L('today, so “absent” means not punched in yet','आज, इसलिए “absent” का मतलब अभी पंच नहीं किया')}`:''}</p>
+ const nAct=AD_F.filter(([k])=>f[k]).length;
+ return `<div class="adwrap" style="margin-bottom:16px"><div class="adfb"><span class="adft"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>${L('Filters','फ़िल्टर')}</span>${AD_F.map(([k,src,lab])=>`<label class="adp ${f[k]?'act':''}"><small>${L(...lab)}</small><select data-adf="${k}"><option value="">${L('All','सभी')}</option>${DATA[src].filter(x=>!x.off).map(x=>`<option value="${x.id}" ${String(f[k])===String(x.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`).join('')}${nAct?`<button type="button" class="adrs" data-adreset>${L('Reset','रीसेट')} (${nAct})</button>`:''}
+  <p class="add"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>${L('Showing','दिख रहा है')}: <b>${dn}</b>${isToday?` · ${L('today, so “absent” means not punched in yet','आज, इसलिए “absent” का मतलब अभी पंच नहीं किया')}`:''}</span></p></div>
   <div class="adg">${box('teal',t('total_emp'),tot,'')}${box('ok',isToday?t('present'):L('Present','उपस्थित'),cur.p,`${adPct(cur.p,tot)}% ${L('of total','कुल का')}`)}${box('bad',isToday?L('Not punched in yet','अभी पंच नहीं'):t('absent'),cur.a,`${adPct(cur.a,tot)}% ${L('of total','कुल का')}`)}${box('warn',t('on_leave'),cur.l,`${adPct(cur.l,tot)}% ${L('of total','कुल का')}`)}${box('gold',L('Weekly off / holiday','साप्ताहिक अवकाश / छुट्टी'),cur.w,`${adPct(cur.w,tot)}% ${L('of total','कुल का')}`)}</div>
   ${cur.n?`<p class="pill p-warn" style="display:block;margin:-4px 0 12px;white-space:normal">${cur.n} ${L('employee(s) have no shift on this day, so they are in the total but not counted as present or absent. Give them a shift in Time Office > Shift assignment.','कर्मचारियों की इस दिन कोई शिफ़्ट नहीं है, इसलिए वे कुल में हैं पर present या absent नहीं गिने गए। Time Office > Shift assignment में उन्हें शिफ़्ट दें।')}</p>`:''}
   <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">${L('Present percentage, day by day','रोज़ का present प्रतिशत')}</h3><div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:var(--muted)">${L('Weekly off and holidays are left out. Press a bar to see that day above.','साप्ताहिक अवकाश और छुट्टी छोड़कर। ऊपर उस दिन को देखने के लिए बार दबाएँ।')}</span><select class="inp" data-adm style="min-width:150px"><option value="last14" ${f.month==='last14'?'selected':''}>${L('Last 14 days','पिछले 14 दिन')}</option>${months.map(m=>`<option value="${m}" ${f.month===m?'selected':''}>${mkP(m)}</option>`).join('')}</select></div></div>
@@ -12479,7 +12482,21 @@ function attDash(){const f=state.ad, emps=DATA.emps.filter(e=>AD_F.every(([k])=>
 {const _bA=bindExtra;bindExtra=function(){_bA();const m=$('#main');if(!m)return;
   m.querySelectorAll('[data-adf]').forEach(s=>s.onchange=()=>{state.ad[s.dataset.adf]=s.value;state.ad.day='';render()});
   m.querySelectorAll('[data-adm]').forEach(s=>s.onchange=()=>{state.ad.month=s.value;state.ad.day='';render()});
-  m.querySelectorAll('[data-adday]').forEach(b=>b.onclick=()=>{state.ad.day=b.dataset.adday;render()})}}
+  m.querySelectorAll('[data-adday]').forEach(b=>b.onclick=()=>{state.ad.day=b.dataset.adday;render()});
+  m.querySelectorAll('[data-adreset]').forEach(b=>b.onclick=()=>{AD_F.forEach(([k])=>state.ad[k]='');state.ad.day='';render()})}}
+/* the Dashboard of Admin, HR and a reporting manager: the first tab is the attendance of the company (or of the team); My Performance keeps their own KPIs */
+{const st=document.createElement('style');st.textContent='.adfb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}.adft{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);margin-right:2px}.adp{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:0 4px 0 12px;background:var(--card);font-size:13px;cursor:pointer;height:34px}.adp small{font-size:12px;color:var(--muted);white-space:nowrap}.adp select{border:0;background:transparent;font:inherit;font-weight:500;color:inherit;padding:0 4px;max-width:130px;cursor:pointer;outline:0}.adp.act{background:var(--teal-l);border-color:var(--teal);color:var(--teal)}.adp.act small{color:inherit}.adrs{margin-left:auto;border:0;background:transparent;color:var(--teal);font:inherit;font-size:13px;cursor:pointer;font-weight:500}.add{flex-basis:100%;margin:2px 0 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}';document.head.appendChild(st)}
+Object.assign(state,{dpf:false});
+{const _dbC=dashboard;dashboard=function(){
+  if(!['admin','hr','manager'].includes(state.role))return _dbC();
+  const cur=state.dtab, isC=cur==='co'||(cur==='perf'&&!state.dpf);
+  state.dtab=isC?'today':cur;let h;try{h=_dbC()}finally{state.dtab=cur}
+  const bi=h.indexOf('<div class="tabs">');if(bi<0)return h;const be=h.indexOf('</div>',bi);
+  let strip=h.slice(bi,be);if(isC)strip=strip.replace(/class="on"/g,'class=""');
+  strip=strip.replace('<div class="tabs">','<div class="tabs">'+`<button data-dtab="co" class="${isC?'on':''}">${state.role==='manager'?L('Team today','टीम आज'):L('Company today','कंपनी आज')}</button>`);
+  if(!isC)return h.slice(0,bi)+strip+h.slice(be);
+  return h.slice(0,bi)+strip+'</div>'+`<div class="dash-co">${attDash()}</div>`}}
+{const _bD=bindExtra;bindExtra=function(){_bD();$('#main').querySelectorAll('[data-dtab]').forEach(b=>{const o=b.onclick;b.onclick=()=>{state.dpf=b.dataset.dtab==='perf';if(o)o();else{state.dtab=b.dataset.dtab;render()}}})}}
 /* ---------- Audience: followers and website visits (KPI-277, KPI-267) and the engagement rate (KPI-269), worked out by the system ----------
    The person who has KPI-277 or KPI-267 gets two tasks a month: the opening figures on the 1st, the closing figures at the month end.
    KPI-269 needs no new entry: it reads the posts of Marketing > Post performance. */
