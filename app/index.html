@@ -243,6 +243,7 @@ main{padding:24px;max-width:1200px}
         <select id="roleSel"><option value="admin">Admin</option><option value="hr">HR</option><option value="manager">Manager</option><option value="employee">Employee</option></select>
       </div>
       <div class="seg" data-lang-seg></div>
+      <button class="ic" id="guideBtn" aria-label="User guide" title="User Guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/><path d="M9 7h7M9 11h5"/></svg></button>
       <button class="ic" id="bell" aria-label="notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg><span class="dot"></span></button>
       <div class="me"><div class="av" id="meAv">A</div><div><b id="meName">Admin</b><small id="meRole"></small></div></div>
       <button class="ic" id="logout" aria-label="logout" title="Logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
@@ -12428,6 +12429,48 @@ function salRelNotify(){try{PAY.forEach(p=>{if(p.cat!=='payroll'||p.status!=='Pa
    const h=(p.hist||[]).filter(x=>x.act==='Paid').pop();p.relNote=true;if(!h||h.at<addD(TODAY_S,-1))return;
    notify([p.emp],`${L('Your salary of','आपकी सैलरी')} ${inr(p.paid)} ${L('for','—')} ${monthLbl(p.mk)} ${L('is released. Check your Salary Earned: what you earned and where you lost.','रिलीज़ हो गई है। अपनी Salary Earned देखें: क्या कमाया और कहाँ गया।')}`,{page:'dashboard',tab:'earned'},'salrel|'+p.mk)})}catch(e){}}
 {const _rS=render;render=function(){salRelNotify();return _rS.apply(this,arguments)}}
+/* ---------- User Guide: the button next to the bell opens it. The text lives in guide/*.js, and the PDF is built from the same files ---------- */
+PAGES.push('guide');['admin','hr','manager','employee'].forEach(r=>RIGHTS[r].guide=['V']);
+Object.assign(state,{gm:'start',gq:''});
+{const _phG=placeholder;placeholder=function(P){return P==='guide'?guidePage():_phG(P)}}
+const gT=x=>Array.isArray(x)?L(x[0],x[1]):(x||'');
+/* a module of the guide is shown to the people who may open that page of the app */
+const gModOk=m=>{if(m.id==='start')return true;try{return can(m.id,'V')}catch(e){return true}};
+const gEntOk=e=>!e.hr||canManage();
+const gMods=()=>(window.GUIDE||[]).filter(gModOk);
+function gCard(m,e){const row=(lab,v)=>v?`<p style="margin:6px 0"><b>${lab}:</b> ${esc(gT(v))}</p>`:'';
+ return `<div class="card" id="g-${m.id}-${e.id}" style="margin-bottom:12px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h3 style="margin:0;flex:1">${esc(gT(e.n))}</h3>${e.hr?`<span class="pill p-teal">${L('For HR and Admin','HR और Admin के लिए')}</span>`:''}</div>
+  ${e.path?`<p style="margin:8px 0"><span class="pill p-ok" style="white-space:normal">${L('Where','कहाँ')}: ${esc(gT(e.path))}</span></p>`:''}
+  ${row(L('What it is','यह क्या है'),e.what)}${row(L('Why it is there','यह क्यों है'),e.why)}${row(L('Who uses it','कौन इस्तेमाल करता है'),e.who)}
+  ${e.steps&&e.steps.length?`<p style="margin:10px 0 4px"><b>${L('Step by step','स्टेप बाय स्टेप')}:</b></p><ol style="margin:0 0 6px 20px;padding:0">${e.steps.map(s=>`<li style="margin:3px 0">${esc(gT(s))}</li>`).join('')}</ol>`:''}
+  ${e.notes&&e.notes.length?`<div style="background:var(--teal-l);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:13px"><b>${L('Good to know','जानने लायक')}:</b><ul style="margin:4px 0 0 18px;padding:0">${e.notes.map(s=>`<li>${esc(gT(s))}</li>`).join('')}</ul></div>`:''}</div>`}
+const gText=(m,e)=>[m.name,e.n,e.path,e.what,e.why,e.who,...(e.steps||[]),...(e.notes||[])].map(x=>Array.isArray(x)?x.join(' '):(x||'')).join(' ').toLowerCase();
+/* every tab of every page of the app that the guide does not yet explain: the rule is that this list stays empty */
+function guideCoverage(){const have=new Set(), mods={};(window.GUIDE||[]).forEach(m=>{mods[m.id]=m;m.entries.forEach(e=>have.add(m.id+'/'+e.id))});
+ const miss=[], tot={n:0,ok:0};NAV.forEach(n=>{if(!mods[n.id]){miss.push(n.id+' (module)');return}
+  let secs=[];try{secs=navSections(n.id)}catch(e){}
+  /* Core Setting shows one group at a time; every tab of every group counts */
+  if(n.id==='settings'){try{const lab={};SGR.forEach(g=>g.tabs.forEach(k=>lab[k]=k));secs=Object.keys(lab).map(k=>({tv:k,label:(T.en[k]||k)}))}catch(e){}}
+  secs.forEach(s=>{tot.n++;if(have.has(n.id+'/'+s.tv))tot.ok++;else miss.push(n.id+'/'+s.tv+' = '+s.label)})});
+ return{missing:miss,total:tot.n,written:tot.ok,mods:Object.keys(mods).length}}
+function guidePage(){
+ const mods=gMods(), q=(state.gq||'').trim().toLowerCase(), cur=mods.find(m=>m.id===state.gm)||mods[0];
+ let body='';
+ if(q){const words=q.split(/\s+/).filter(Boolean), hits=[];mods.forEach(m=>m.entries.filter(gEntOk).forEach(e=>{const tx=gText(m,e);if(words.every(w=>tx.includes(w)))hits.push([m,e])}));
+  body=`<p style="color:var(--muted);margin:0 0 10px">${hits.length} ${L('result(s) for','परिणाम:')} “${esc(state.gq)}”</p>`+(hits.slice(0,25).map(([m,e])=>`<div style="color:var(--muted);font-size:12px;margin:6px 0 2px">${esc(gT(m.name))}</div>${gCard(m,e)}`).join('')||`<div class="card empty">${L('Nothing found. Try another word, for example payroll, leave, shift or workflow.','कुछ नहीं मिला। दूसरा शब्द आज़माएँ, जैसे payroll, leave, shift या workflow।')}</div>`)}
+ else if(cur){body=`<div class="card" style="margin-bottom:12px;background:var(--teal-l)"><h2 style="margin:0 0 6px">${esc(gT(cur.name))}</h2><p style="margin:0">${esc(gT(cur.desc))}</p></div>${cur.entries.filter(gEntOk).map(e=>gCard(cur,e)).join('')}`}
+ const cov=state.role==='admin'||state.role==='hr'?guideCoverage():null;
+ const pdf=`guide/LV-People-User-Guide-${lang==='hi'?'HI':'EN'}.pdf`;
+ return `<div class="page-h"><div><h1>${L('User Guide','यूज़र गाइड')}</h1><p>${L('How every part of the ERP works: where to go, what to click, why it is there. Search or pick a module.','ERP का हर हिस्सा कैसे काम करता है: कहाँ जाना है, क्या दबाना है, यह क्यों है। खोजें या मॉड्यूल चुनें।')}</p></div><a class="btn btn-o" href="${pdf}" target="_blank" rel="noopener" download>${L('Download PDF','PDF डाउनलोड')}</a></div>
+ <div class="tools"><input class="inp" id="gq" placeholder="${L('Search the guide, for example daily work, salary release, shift','गाइड में खोजें, जैसे daily work, salary release, shift')}" value="${esc(state.gq||'')}" style="max-width:480px">${q?`<button class="btn btn-o btn-s" data-gclear>${L('Clear','साफ़ करें')}</button>`:''}</div>
+ <div style="display:grid;grid-template-columns:minmax(190px,240px) 1fr;gap:16px;align-items:start" class="gwrap"><div class="card" style="padding:8px;position:sticky;top:8px;max-height:calc(100vh - 120px);overflow:auto">${mods.map(m=>`<button data-gm="${m.id}" class="btn ${cur&&m.id===cur.id&&!q?'btn-p':'btn-o'} btn-s" style="display:flex;justify-content:space-between;width:100%;margin:2px 0;text-align:left"><span>${esc(gT(m.name))}</span><small>${m.entries.filter(gEntOk).length}</small></button>`).join('')}</div><div>${body}
+ ${cov&&!q?`<div class="card" style="margin-top:12px"><b>${L('Guide coverage','गाइड कवरेज')}</b> · ${cov.written} / ${cov.total} ${L('functions explained','फ़ंक्शन समझाए गए')}${cov.missing.length?`<details style="margin-top:6px"><summary style="cursor:pointer">${cov.missing.length} ${L('not written yet','अभी नहीं लिखे')}</summary><div style="font-size:12px;color:var(--muted);margin-top:4px">${cov.missing.map(esc).join(' · ')}</div></details>`:` <span class="pill p-ok">${L('complete','पूरा')}</span>`}</div>`:''}</div></div>
+ <style>@media(max-width:800px){.gwrap{grid-template-columns:1fr!important}.gwrap>.card:first-child{position:static!important;max-height:none!important}}</style>`}
+{const _bg=bindExtra;bindExtra=function(){_bg();const m=$('#main');if(state.page!=='guide')return;
+  m.querySelectorAll('[data-gm]').forEach(b=>b.onclick=()=>{state.gm=b.dataset.gm;state.gq='';render();window.scrollTo(0,0)});
+  m.querySelectorAll('[data-gclear]').forEach(b=>b.onclick=()=>{state.gq='';render()});
+  const q=m.querySelector('#gq');if(q)q.oninput=e=>{state.gq=e.target.value;clearTimeout(state.gt);state.gt=setTimeout(()=>{render();const x=$('#gq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},250)}}}
+{const b=document.getElementById('guideBtn');if(b)b.onclick=()=>{state.page='guide';try{resetViews()}catch(e){}render();window.scrollTo(0,0)}}
 /* module names, menu items, tabs and page titles are written with a capital first letter in every word (KPI Dashboard, Growth and Discipline) */
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
@@ -12436,6 +12479,7 @@ function salRelNotify(){try{PAY.forEach(p=>{if(p.cat!=='payroll'||p.status!=='Pa
  new MutationObserver(()=>{if(!busy){busy=true;setTimeout(run,30)}}).observe(document.body,{childList:true,subtree:true});run()}
 applyI18n();
 </script>
+<script src="guide/g0.js"></script><script src="guide/g1.js"></script><script src="guide/g2.js"></script><script src="guide/g3.js"></script><script src="guide/g4.js"></script><script src="guide/g5.js"></script><script src="guide/g6.js"></script>
 <script src="live.js"></script>
 </body>
 </html>
