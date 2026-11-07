@@ -6682,7 +6682,7 @@ const NAVMODS=[
  {h:['Administration','प्रशासन'],ids:['settings','licensing']}];
 const NAVSUB={
  pms:[['Overview','ओवरव्यू',['overview','dash','perf']],['KPI setup','KPI सेटअप',['master','assign','formula','dsr']],['Scoring','स्कोरिंग',['eval','audit','chk','survey','close']],['Growth and discipline','ग्रोथ और अनुशासन',['counsel','career','cframe','pcase','letters','recog']],['My performance','मेरा परफॉर्मेंस',['mine','mycareer','team']]],
- payroll:[['Monthly payroll','मासिक पेरोल',['run','vars','adj','inc','earned']],['Pay and payslips','भुगतान और पे-स्लिप',['pays','slips','bank','mine']],['Advance and exit','एडवांस और एक्ज़िट',['adv','fs']],['Statutory and structure','वैधानिक और स्ट्रक्चर',['stat','stasg','sstr','struct']]]};
+ payroll:[['Monthly payroll','मासिक पेरोल',['month','run','vars','adj','inc','earned']],['Pay and payslips','भुगतान और पे-स्लिप',['pays','slips','bank','mine','tax']],['Advance and exit','एडवांस और एक्ज़िट',['adv','fs']],['Statutory and structure','वैधानिक और स्ट्रक्चर',['taxd','stat','minw','stasg','sstr','struct']]]};
 const PAGEFN={profile:()=>profilePage(),employees:()=>employeesPage(),settings:()=>settingsPage(),attendance:()=>attendancePage(),leave:()=>leavePage(),team:()=>teamPage(),payroll:()=>payrollPage(),pms:()=>pmsPage(),timeoffice:()=>timeofficePage(),bizdata:()=>bizdataPage(),crm:()=>crmPage(),stock:()=>stockPage(),import:()=>importPage(),workforce:()=>workforcePage(),recruit:()=>recruitPage(),decision:()=>decisionPage(),training:()=>trainingPage(),marketing:()=>marketingPage(),licensing:()=>licensingPage(),library:()=>libraryPage(),attreq:()=>attreqPage(),locreq:()=>locreqPage()};
 const NAVSEC={};
 /* the sections of a page are read from the tab strip the page itself draws, so they never go out of step with it */
@@ -6691,14 +6691,16 @@ function navSections(P){const k=state.role+'|'+lang+'|'+P;if(NAVSEC[k])return NA
   out=[...d.querySelectorAll('.page-h + .tabs button')].map(b=>{const at=[...b.attributes].find(a=>/^data-[a-z]*tab$/.test(a.name));return at?{tk:TABKEY[P]||at.name.slice(5),tv:at.value,label:b.textContent.replace(/\s*\(\d+\)\s*$/,'').trim()}:null}).filter(Boolean)}}catch(e){out=[]}
  state.page=sv.page;state.view=sv.view;state.payview=sv.payview;return NAVSEC[k]=out.length>=2?out:[]}
 const navCur=(P,secs)=>{const v=state[secs[0].tk];return secs.some(s=>s.tv===v)?v:secs[0].tv};
+const navFly=()=>{try{return matchMedia('(min-width:761px) and (hover:hover)').matches}catch(e){return false}};
 function navHTML(){
  const used=new Set(), svg_=n=>svg(n.ic), nmOf=n=>t(n.id);
  const btn=(n,sec,cls)=>`<button data-p="${n.id}" ${sec?`data-tk="${sec.tk}" data-tv="${sec.tv}"`:''} class="${cls||''} ${state.page===n.id&&(!sec||navCur(n.id,navSections(n.id))===sec.tv)?'on':''}">${cls==='sub'?'':svg_(n)}<span>${sec?esc(sec.label):nmOf(n)}</span>${n.id==='dashboard'||n.built?'':`<span class="tag">${t('soon')} ${n.day}</span>`}</button>`;
- const secList=(n,secs)=>{const subs=NAVSUB[n.id];const one=s=>btn(n,s,'sub');if(!subs)return secs.map(one).join('');
+ const fly=navFly();window.NAVFLY={};
+ const secList=(n,secs,all)=>{const subs=NAVSUB[n.id];const one=s=>btn(n,s,'sub');if(!subs)return secs.map(one).join('');
   const cur=state.page===n.id?navCur(n.id,secs):null, ex=state.navSub&&state.navSub.p===n.id&&state.navSub.t===cur, groups=[], seen=new Set();let o='';
   subs.forEach(([en,hi,vals])=>{const g=secs.filter(s=>vals.includes(s.tv));if(g.length){groups.push([en,hi,g]);g.forEach(s=>seen.add(s.tv))}});const rest=secs.filter(s=>!seen.has(s.tv));if(rest.length)groups.push(['More','और',rest]);
   const def=(groups.find(x=>x[2].some(s=>s.tv===cur))||[])[0];
-  groups.forEach(([en,hi,g])=>{const op=ex?state.navSub.o===en:def===en;o+=`<div class="nav-sh" data-sub="${en}" data-sp="${n.id}" data-sopen="${op?1:0}" style="cursor:pointer;display:flex;justify-content:space-between;padding-right:14px"><span>${L(en,hi)}</span><span style="font-size:10px">${op?'▾':'▸'}</span></div>`+(op?g.map(one).join(''):'')});return o};
+  groups.forEach(([en,hi,g])=>{if(all){o+=`<div class="nav-sh">${L(en,hi)}</div>`+g.map(one).join('');return}const op=ex?state.navSub.o===en:def===en;o+=`<div class="nav-sh" data-sub="${en}" data-sp="${n.id}" data-sopen="${op?1:0}" style="cursor:pointer;display:flex;justify-content:space-between;padding-right:14px"><span>${L(en,hi)}</span><span style="font-size:10px">${op?'▾':'▸'}</span></div>`+(op?g.map(one).join(''):'')});return o};
  let out='';
  const own=NAVMODS.find(g=>g.ids.includes(state.page)&&(g.h||g.ids.length===1)), explicit=state.navPage===state.page&&state.navOpen!=null;
  NAVMODS.forEach(g=>{
@@ -6708,9 +6710,12 @@ function navHTML(){
   if(!g.h&&!hasSecs){out+=btn(its[0]);return}
   const key=g.h?g.h[0]:its[0].id, label=g.h?L(g.h[0],g.h[1]):nmOf(its[0]), isOwn=own===g, op=explicit?state.navOpen===key:isOwn;
   const first=info[0].secs.length?`${info[0].n.id}|${info[0].secs[0].tk}|${info[0].secs[0].tv}`:`${info[0].n.id}||`;
+  const kidsOf=all=>{let o='';info.forEach(({n,secs})=>{if(secs.length){if(g.ids.length>1&&nmOf(n)!==label)o+=`<div class="nav-ph">${nmOf(n)}</div>`;o+=secList(n,secs,all)}else o+=btn(n)});return o};
+  /* on a computer the sections of a module open in a panel to the right of the menu; on a phone they open downward */
+  if(fly){NAVFLY[key]=kidsOf(true);out+=`<div class="nav-h ${isOwn?'own':''}" data-ng="${esc(key)}" data-fly="${esc(key)}" data-open="0" data-first="${first}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span>${label}</span><span style="font-size:13px">›</span></div>`;return}
   out+=`<div class="nav-h" data-ng="${esc(key)}" data-open="${op?1:0}" data-first="${first}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span>${label}</span><span style="font-size:10px">${op?'▾':'▸'}</span></div>`;
   if(!op)return;
-  info.forEach(({n,secs})=>{if(secs.length){if(g.ids.length>1&&nmOf(n)!==label)out+=`<div class="nav-ph">${nmOf(n)}</div>`;out+=secList(n,secs)}else out+=btn(n)})});
+  out+=kidsOf(false)});
  NAV.filter(n=>!used.has(n.id)&&can(n.id,'V')).forEach(n=>out+=btn(n));
  return out}
 /* module headings open the first section; section buttons set the tab */
@@ -12429,6 +12434,22 @@ function salRelNotify(){try{PAY.forEach(p=>{if(p.cat!=='payroll'||p.status!=='Pa
    const h=(p.hist||[]).filter(x=>x.act==='Paid').pop();p.relNote=true;if(!h||h.at<addD(TODAY_S,-1))return;
    notify([p.emp],`${L('Your salary of','आपकी सैलरी')} ${inr(p.paid)} ${L('for','—')} ${monthLbl(p.mk)} ${L('is released. Check your Salary Earned: what you earned and where you lost.','रिलीज़ हो गई है। अपनी Salary Earned देखें: क्या कमाया और कहाँ गया।')}`,{page:'dashboard',tab:'earned'},'salrel|'+p.mk)})}catch(e){}}
 {const _rS=render;render=function(){salRelNotify();return _rS.apply(this,arguments)}}
+/* the groups of Payroll in the left menu, one clean list (several later changes had added the same tabs to two groups) */
+NAVSUB.payroll=[['Monthly payroll','मासिक पेरोल',['month','earned','inc']],['Pay and payslips','भुगतान और पे-स्लिप',['pays','slips','bank','mine','tax']],['Advance and exit','एडवांस और एक्ज़िट',['adv','fs']],['Statutory and structure','वैधानिक और स्ट्रक्चर',['taxd','stat','minw','stasg','sstr','struct']]];
+/* ---------- Left menu on a computer: the sections of a module open in a panel to the right, on hover or click ---------- */
+{const st=document.createElement('style');st.textContent='nav .nav-h[data-fly]{font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;padding:10px 12px;border-radius:9px;opacity:1;color:var(--sb-t,var(--muted))}nav .nav-h[data-fly]:hover,nav .nav-h[data-fly].hov{background:var(--sb-h,var(--teal-l));color:#fff}nav .nav-h[data-fly].own{background:var(--sb-act,var(--teal));color:var(--sb-actt,#fff)}#navfly button.sub{padding:8px 12px;font-size:13px;gap:8px}#navfly .nav-sh,#navfly .nav-ph{padding:8px 12px 2px;font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--sb-t,var(--muted))}';document.head.appendChild(st)}
+{const fl=document.createElement('nav');fl.id='navfly';fl.style.cssText='position:fixed;display:none;z-index:30;min-width:230px;max-width:300px;max-height:calc(100vh - 16px);overflow:auto;padding:8px;border-radius:0 12px 12px 0;background:var(--sb-bg,var(--card));border:1px solid var(--sb-h,var(--line));border-left:0;box-shadow:6px 6px 18px rgba(0,0,0,.22)';document.body.appendChild(fl);
+ let tm=null,curK='';const heads=()=>document.querySelectorAll('#nav [data-fly]');
+ const hide=()=>{fl.style.display='none';curK='';heads().forEach(h=>h.classList.remove('hov'))}, later=()=>{clearTimeout(tm);tm=setTimeout(hide,200)}, stay=()=>clearTimeout(tm);
+ const open=h=>{const k=h.dataset.fly;if(!window.NAVFLY||!NAVFLY[k])return;stay();
+  if(curK!==k){heads().forEach(x=>x.classList.remove('hov'));h.classList.add('hov');curK=k;fl.innerHTML=NAVFLY[k];
+   fl.querySelectorAll('button').forEach(b=>b.onclick=()=>{state.page=b.dataset.p;resetViews();if(b.dataset.tk)state[b.dataset.tk]=b.dataset.tv;hide();render()})}
+  const a=document.querySelector('aside').getBoundingClientRect();fl.style.left=a.right+'px';fl.style.display='block';
+  fl.style.top=Math.max(8,Math.min(h.getBoundingClientRect().top-8,innerHeight-fl.offsetHeight-8))+'px'};
+ fl.onmouseenter=stay;fl.onmouseleave=later;
+ const _rF=render;render=function(){const r=_rF.apply(this,arguments);try{hide();heads().forEach(h=>{h.onmouseenter=()=>open(h);h.onmouseleave=later})}catch(e){}return r};
+ try{matchMedia('(min-width:761px) and (hover:hover)').addEventListener('change',()=>render())}catch(e){}
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')hide()})}
 /* ---------- User Guide: the button next to the bell opens it. The text lives in guide/*.js, and the PDF is built from the same files ---------- */
 PAGES.push('guide');['admin','hr','manager','employee'].forEach(r=>RIGHTS[r].guide=['V']);
 Object.assign(state,{gm:'start',gq:''});
@@ -12475,7 +12496,7 @@ function guidePage(){
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
- let busy=false;const run=()=>{busy=false;try{const sb=document.getElementById('sb');if(sb)fix(sb);document.querySelectorAll('.tabs, .page-h h1').forEach(fix)}catch(e){}};
+ let busy=false;const run=()=>{busy=false;try{const sb=document.getElementById('sb');if(sb)fix(sb);const nf=document.getElementById('navfly');if(nf)fix(nf);document.querySelectorAll('.tabs, .page-h h1').forEach(fix)}catch(e){}};
  new MutationObserver(()=>{if(!busy){busy=true;setTimeout(run,30)}}).observe(document.body,{childList:true,subtree:true});run()}
 applyI18n();
 </script>
