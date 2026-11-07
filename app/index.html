@@ -484,11 +484,7 @@ function dashboard(){
   const r=state.role, u=USERS[r];
   let h=`<div class="page-h"><div><h1>${t('hello')}, ${u.name.split(' ')[0]} 👋</h1><p>${t('welcome_sub')} · ${new Date().toLocaleDateString(loc(),{weekday:'long',day:'2-digit',month:'short',year:'numeric'})}</p></div></div>`;
   if(r==='admin'||r==='hr'){
-    h+=`<div class="grid g4" style="margin-bottom:16px">
-      ${kpi(t('total_emp'),dashN('all','total'),dashN('all','new'),'teal','M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8')}
-      ${kpi(t('present'),dashN('all','present'),dashN('all','pct'),'ok','M20 6L9 17l-5-5')}
-      ${kpi(t('absent'),dashN('all','absent'),dashN('all','notin'),'bad','M18 6L6 18M6 6l12 12')}
-      ${kpi(t('on_leave'),dashN('all','leave'),'','warn','M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2')}</div>
+    h+=`${attDash()}
     <div class="grid g2"><div class="grid">${approvals()}${chart()}</div><div class="grid" style="align-content:start">${clockCard()}${leaveBal()}${side()}</div></div>`;
   } else if(r==='manager'){
     h+=`<div class="grid g4" style="margin-bottom:16px">
@@ -12434,6 +12430,37 @@ function salRelNotify(){try{PAY.forEach(p=>{if(p.cat!=='payroll'||p.status!=='Pa
    const h=(p.hist||[]).filter(x=>x.act==='Paid').pop();p.relNote=true;if(!h||h.at<addD(TODAY_S,-1))return;
    notify([p.emp],`${L('Your salary of','आपकी सैलरी')} ${inr(p.paid)} ${L('for','—')} ${monthLbl(p.mk)} ${L('is released. Check your Salary Earned: what you earned and where you lost.','रिलीज़ हो गई है। अपनी Salary Earned देखें: क्या कमाया और कहाँ गया।')}`,{page:'dashboard',tab:'earned'},'salrel|'+p.mk)})}catch(e){}}
 {const _rS=render;render=function(){salRelNotify();return _rS.apply(this,arguments)}}
+/* ---------- Dashboard for Admin and HR: attendance of the company with filters, five boxes for a day and a bar chart of the present percentage ---------- */
+Object.assign(state,{ad:{func:'',dept:'',branch:'',division:'',subdiv:'',desig:'',month:'last14',day:''}});
+{const st=document.createElement('style');st.textContent='.adg{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}@media(max-width:900px){.adg{grid-template-columns:repeat(2,minmax(0,1fr))}}.adc{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--teal);border-radius:12px;padding:12px 14px}.adc small{color:var(--muted);font-size:12px}.adc b{display:block;font-size:26px;font-weight:700;line-height:1.2}.adc span{font-size:12px;color:var(--muted)}.adbars{display:flex;align-items:flex-end;gap:4px;height:180px;border-bottom:1px solid var(--line);margin-top:22px;position:relative}.adb{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;position:relative}.adb i{display:block;width:100%;max-width:38px;background:var(--ok,#1D9E75);border-radius:4px 4px 0 0}.adb.off i{background:var(--line)}.adb.sel i{outline:2px solid var(--teal);outline-offset:1px}.adb em{font-style:normal;font-size:10.5px;color:var(--muted);position:absolute;top:-16px;white-space:nowrap}.adlb{display:flex;gap:4px;margin-top:4px}.adlb span{flex:1;min-width:0;text-align:center;font-size:11px;color:var(--muted)}';document.head.appendChild(st)}
+const AD_F=[['func','functions',['Function','फ़ंक्शन']],['dept','depts',['Department','विभाग']],['branch','branches',['Branch','शाखा']],['division','divisions',['Division','डिवीज़न']],['subdiv','subdivs',['Sub-division','सब-डिवीज़न']],['desig','desigs',['Designation','पद']]];
+function adDays(e,mk){try{return mk===curMk()?attRow(e,mk).days:(typeof withMonth==='function'?withMonth(mk,()=>attRow(e,mk).days):{})}catch(x){return {}}}
+/* one day: how many were employed, present, absent, on leave, on weekly off or holiday */
+function adStat(list,ds){const r={t:0,p:0,a:0,l:0,w:0,n:0,fut:ds>TODAY_S};if(r.fut)return r;const mk=ds.slice(0,7);
+ /* n = employed that day but with no shift or no attendance data: counted in the total, not as present or absent */
+ list.forEach(x=>{const e=x.e;if(e.doj>ds||(e.lwd&&e.lwd<ds))return;const s=(x.m[mk]||(x.m[mk]=adDays(e,mk)))[ds];if(s==='F')return;r.t++;
+  if(s==null||s==='N')r.n++;else if(['P','L','HD','WOP','HP'].includes(s))r.p++;else if(['LV','LWP'].includes(s))r.l++;else if(['W','H'].includes(s))r.w++;else r.a++});return r}
+const adPct=(n,t)=>t?Math.round(n*100/t):0;
+function attDash(){const f=state.ad, emps=DATA.emps.filter(e=>AD_F.every(([k])=>!f[k]||String(e[k])===String(f[k]))).map(e=>({e,m:{}}));
+ const cm=curMk(), months=[];{let [y,m]=cm.split('-').map(Number);for(let i=0;i<6;i++){months.push(y+'-'+String(m).padStart(2,'0'));m--;if(!m){m=12;y--}}}
+ let dates=[];if(f.month==='last14'){for(let i=13;i>=0;i--)dates.push(addD(TODAY_S,-i))}else{const n=monthDays(f.month);for(let d=1;d<=n;d++)dates.push(f.month+'-'+String(d).padStart(2,'0'))}
+ const sel=dates.includes(f.day)?f.day:(dates.includes(TODAY_S)?TODAY_S:dates.filter(d=>d<=TODAY_S).pop()||dates[0]);
+ const stats=dates.map(d=>adStat(emps,d)), cur=stats[dates.indexOf(sel)], isToday=sel===TODAY_S, tot=cur.t;
+ const box=(c,l,n,sub)=>`<div class="adc" style="border-top-color:var(--${c})"><small>${l}</small><b>${n}</b><span>${sub||'&nbsp;'}</span></div>`;
+ const dn=new Date(sel+'T12:00:00').toLocaleDateString(loc(),{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
+ const many=dates.length>20;
+ return `<div class="adwrap" style="margin-bottom:16px"><div class="tools" style="flex-wrap:wrap;align-items:flex-end">${AD_F.map(([k,src,lab])=>`<div><label style="font-size:12px;color:var(--muted);display:block">${L(...lab)}</label><select class="inp" data-adf="${k}" style="min-width:130px"><option value="">${L('All','सभी')}</option>${DATA[src].filter(x=>!x.off).map(x=>`<option value="${x.id}" ${String(f[k])===String(x.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`).join('')}</div>
+  <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">${L('Showing','दिख रहा है')}: <b>${dn}</b>${isToday?` · ${L('today, so “absent” means not punched in yet','आज, इसलिए “absent” का मतलब अभी पंच नहीं किया')}`:''}</p>
+  <div class="adg">${box('teal',t('total_emp'),tot,'')}${box('ok',isToday?t('present'):L('Present','उपस्थित'),cur.p,`${adPct(cur.p,tot)}% ${L('of total','कुल का')}`)}${box('bad',isToday?L('Not punched in yet','अभी पंच नहीं'):t('absent'),cur.a,`${adPct(cur.a,tot)}% ${L('of total','कुल का')}`)}${box('warn',t('on_leave'),cur.l,`${adPct(cur.l,tot)}% ${L('of total','कुल का')}`)}${box('gold',L('Weekly off / holiday','साप्ताहिक अवकाश / छुट्टी'),cur.w,`${adPct(cur.w,tot)}% ${L('of total','कुल का')}`)}</div>
+  ${cur.n?`<p class="pill p-warn" style="display:block;margin:-4px 0 12px;white-space:normal">${cur.n} ${L('employee(s) have no shift on this day, so they are in the total but not counted as present or absent. Give them a shift in Time Office > Shift assignment.','कर्मचारियों की इस दिन कोई शिफ़्ट नहीं है, इसलिए वे कुल में हैं पर present या absent नहीं गिने गए। Time Office > Shift assignment में उन्हें शिफ़्ट दें।')}</p>`:''}
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">${L('Present percentage, day by day','रोज़ का present प्रतिशत')}</h3><div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:var(--muted)">${L('Weekly off and holidays are left out. Press a bar to see that day above.','साप्ताहिक अवकाश और छुट्टी छोड़कर। ऊपर उस दिन को देखने के लिए बार दबाएँ।')}</span><select class="inp" data-adm style="min-width:150px"><option value="last14" ${f.month==='last14'?'selected':''}>${L('Last 14 days','पिछले 14 दिन')}</option>${months.map(m=>`<option value="${m}" ${f.month===m?'selected':''}>${mkP(m)}</option>`).join('')}</select></div></div>
+   <div class="adbars">${stats.map((s,i)=>{const base=s.t-s.w-s.n, p=adPct(s.p,base), off=!s.fut&&base<=0;if(s.fut)return `<div class="adb" style="cursor:default"></div>`;
+     return `<div class="adb ${dates[i]===sel?'sel':''} ${off?'off':''}" data-adday="${dates[i]}" title="${fmtS(dates[i])}: ${off?L('weekly off or holiday','अवकाश या छुट्टी'):p+'% '+L('present','present')+' ('+s.p+' / '+base+')'}"><em>${off||many?'':p+'%'}</em><i style="height:${off?4:Math.max(2,Math.round(p*1.7))}px"></i></div>`}).join('')}</div>
+   <div class="adlb">${dates.map(d=>`<span>${+d.slice(8)}</span>`).join('')}</div></div></div>`}
+{const _bA=bindExtra;bindExtra=function(){_bA();const m=$('#main');if(!m)return;
+  m.querySelectorAll('[data-adf]').forEach(s=>s.onchange=()=>{state.ad[s.dataset.adf]=s.value;state.ad.day='';render()});
+  m.querySelectorAll('[data-adm]').forEach(s=>s.onchange=()=>{state.ad.month=s.value;state.ad.day='';render()});
+  m.querySelectorAll('[data-adday]').forEach(b=>b.onclick=()=>{state.ad.day=b.dataset.adday;render()})}}
 /* the groups of Payroll in the left menu, one clean list (several later changes had added the same tabs to two groups) */
 NAVSUB.payroll=[['Monthly payroll','मासिक पेरोल',['month','earned','inc']],['Pay and payslips','भुगतान और पे-स्लिप',['pays','slips','bank','mine','tax']],['Advance and exit','एडवांस और एक्ज़िट',['adv','fs']],['Statutory and structure','वैधानिक और स्ट्रक्चर',['taxd','stat','minw','stasg','sstr','struct']]];
 /* ---------- Left menu on a computer: the sections of a module open in a panel to the right, on hover or click ---------- */
