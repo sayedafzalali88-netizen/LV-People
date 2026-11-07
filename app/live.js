@@ -573,8 +573,10 @@ drawLogin=function(){_draw.apply(this,arguments);const box=document.getElementBy
     lab.parentNode.insertBefore(wrap,lab);try{document.getElementById('lgC').value=localStorage.getItem('lv_company')||''}catch(e){}}
   const s=box.querySelector('.sub');if(s)s.textContent=L('Company code, employee number and password. Platform admin: leave the company code empty and use the email.','कंपनी कोड, कर्मचारी नंबर और पासवर्ड। प्लेटफ़ॉर्म एडमिन: कंपनी कोड ख़ाली छोड़ें और ईमेल डालें।')};
 async function startSession(user){
-  const [p,pa]=await Promise.all([sb.from('profiles').select('*, client:client_id(code,name,status,modules)').eq('user_id',user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',user.id).maybeSingle()]);
+  const [p,pa,sa]=await Promise.all([sb.from('profiles').select('*, client:client_id(code,name,status,modules)').eq('user_id',user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',user.id).maybeSingle(),sb.from('platform_sales').select('user_id,name,active').eq('user_id',user.id).maybeSingle()]);
+  try{if(!window.RIGHTS_PLAT0)window.RIGHTS_PLAT0=JSON.parse(JSON.stringify(RIGHTS.platform));Object.keys(RIGHTS.platform).forEach(k=>delete RIGHTS.platform[k]);Object.assign(RIGHTS.platform,JSON.parse(JSON.stringify(window.RIGHTS_PLAT0)));LIVE.salesOnly=false;ENQ.loaded=false}catch(e){}
   LIVE.platform=!!pa.data;LIVE.profile=p.data||null;LIVE.client=p.data?p.data.client:null;
+  if(!LIVE.platform&&!p.data&&sa&&sa.data&&sa.data.active){LIVE.platform=true;LIVE.salesOnly=true;LIVE.salesName=sa.data.name;Object.keys(RIGHTS.platform).forEach(k=>RIGHTS.platform[k]=[]);RIGHTS.platform.enquiries=['V','A','E'];try{USERS.platform.name=sa.data.name}catch(e){}}
   if(LIVE.platform&&!LIVE.profile){LIVE.on=true;enterApp(null,'platform',false);return}
   if(!LIVE.profile||!LIVE.profile.active)throw new Error(L('This login is not active','यह लॉगिन चालू नहीं है'));
   await loadLive();applyModules();LIVE.on=true;
@@ -609,5 +611,92 @@ drawLogin();
 /* an open session from before */
 (async()=>{try{const res=await Promise.race([sb.auth.getSession(),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),6000))]);const s=res&&res.data&&res.data.session;if(s)await startSession(s.user)}
   catch(e){if(e&&e.message==='timeout')return;try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(x){}}})();
-try{joinBoot();careersBoot()}catch(e){console.warn('public pages',e)}
+/* ---------- Enquiries: a prospect fills the public form (#enquiry); the LV team (platform admin, and Sales logins) works on it here ---------- */
+const ENQ_ST={new:['New','नया','p-teal'],discussion:['In discussion','बातचीत में','p-warn'],hold:['On hold','रोका हुआ','p-bad'],lost:['Lost','खोया','p-bad'],quoted:['Quotation sent','कोटेशन भेजी','p-teal'],accepted:['Accepted','स्वीकार','p-ok'],signed:['Signed','साइन हुआ','p-ok'],live:['Live','लाइव','p-ok']};
+const ENQ_TYPES=['Proprietorship','Partnership','LLP','Private Limited','Public Limited','Trust / Society','Other'];
+const enqRef=r=>'ENQ-'+String(r.no).padStart(4,'0');
+const enqSt=s=>{const x=ENQ_ST[s]||[s,s,'p-teal'];return `<span class="pill ${x[2]}">${L(x[0],x[1])}</span>`};
+const ENQ={f:'all',rows:[],sales:[],loaded:false,me:null};window.ENQ=ENQ;
+async function enqLoad(){const [e,s,u]=await Promise.all([sb.from('enquiries').select('*').order('no',{ascending:false}).limit(500),LIVE.salesOnly?{data:[]}:sb.from('platform_sales').select('*').order('created_at'),sb.auth.getUser()]);
+  ENQ.rows=e.data||[];ENQ.sales=s.data||[];const us=u&&u.data&&u.data.user;ENQ.me={id:us?us.id:null,name:LIVE.salesOnly?LIVE.salesName:(us&&us.email)||'LV team'};ENQ.loaded=true}
+try{
+  PAGES.push('enquiries');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].enquiries=r==='platform'?['V','A','E']:[]);
+  const at=NAV.findIndex(n=>n.id==='lvclients');NAV.splice(at<0?NAV.length:at,0,{id:'enquiries',ic:'M3 7l9 6 9-6M3 7v10h18V7M3 7l9-4 9 4',roles:[],day:'—',built:true});
+  Object.assign(T.en,{enquiries:'Enquiries'});Object.assign(T.hi,{enquiries:'इन्क्वायरी'});
+}catch(e){}
+const enqLink=()=>location.origin+location.pathname+'#enquiry';
+function enquiriesPage(){
+  if(!ENQ.loaded){if(!ENQ.busy){ENQ.busy=true;enqLoad().then(()=>{ENQ.busy=false;render()}).catch(e=>{ENQ.busy=false;ENQ.loaded=true;ENQ.err=e.message;render()})}return `<div class="page-h"><div><h1>${L('Enquiries','इन्क्वायरी')}</h1></div></div><p>…</p>`}
+  const cnt=k=>ENQ.rows.filter(r=>k==='all'||r.status===k).length, rows=ENQ.rows.filter(r=>ENQ.f==='all'||r.status===ENQ.f);
+  const chips=['all','new','discussion','hold','lost'].map(k=>`<button class="btn ${ENQ.f===k?'btn-p':'btn-o'} btn-s" data-enqf="${k}">${k==='all'?L('All','सभी'):L(ENQ_ST[k][0],ENQ_ST[k][1])} (${cnt(k)})</button>`).join(' ');
+  return `<div class="page-h"><div><h1>${L('Enquiries','इन्क्वायरी')}</h1><p>${L('Companies that filled the enquiry link. They see no price. You check the details, talk to them and make the quotation.','जिन कंपनियों ने इन्क्वायरी लिंक भरा। उन्हें कोई दाम नहीं दिखता। आप जानकारी जाँचते हैं, बात करते हैं और कोटेशन बनाते हैं।')}</p></div></div>
+  ${ENQ.err?`<p class="pill p-bad" style="display:block;white-space:normal">${esc(ENQ.err)}</p>`:''}
+  <div class="card" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>${L('Enquiry link for clients','क्लाइंट के लिए इन्क्वायरी लिंक')}</b><div style="font-size:13px;color:var(--muted);word-break:break-all">${esc(enqLink())}</div><small style="color:var(--muted)">${L('Send this one link to everybody. One enquiry for a GSTIN or mobile number in 90 days.','यही एक लिंक सबको भेजें। एक GSTIN या मोबाइल से 90 दिन में एक इन्क्वायरी।')}</small></div><button class="btn btn-o btn-s" data-enqcopy>${L('Copy link','लिंक कॉपी')}</button><a class="btn btn-o btn-s" href="#enquiry" target="_blank">${L('Open form','फ़ॉर्म खोलें')}</a></div>
+  <div class="tools">${chips}</div>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${L('Ref','संदर्भ')}</th><th>${L('Company','कंपनी')}</th><th>${L('Contact','संपर्क')}</th><th>${L('Employees','कर्मचारी')}</th><th>${L('Received','मिला')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${rows.map(r=>{const d=r.data||{};return `<tr><td><b>${enqRef(r)}</b></td><td>${esc(d.legal)}</td><td>${esc(d.person)}<small style="display:block;color:var(--muted)">${esc(r.mobile)}</small></td><td>${esc(d.employees)}</td><td>${fmtS((r.created_at||'').slice(0,10))}</td><td>${enqSt(r.status)}</td><td style="text-align:right"><button class="btn btn-o btn-s" data-enqopen="${r.id}">${L('Open','खोलें')}</button></td></tr>`}).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">${L('No enquiry yet. Send the link to a client.','अभी कोई इन्क्वायरी नहीं। क्लाइंट को लिंक भेजें।')}</td></tr>`}</tbody></table></div>
+  ${LIVE.salesOnly?'':`<div class="card tw" style="margin-top:16px"><div style="display:flex;align-items:center;gap:10px;padding:16px 18px 0"><h3 style="margin:0">${L('Sales logins','सेल्स लॉगिन')}</h3><div style="flex:1"></div><button class="btn btn-p btn-s" data-enqsales>+ ${L('Sales login','सेल्स लॉगिन')}</button></div><p style="padding:0 18px;font-size:13px;color:var(--muted);margin:6px 0">${L('A Sales login sees only Enquiries (and later Quotations): no licensing, billing, clients or KPI packs. Sign in with the email and no company code.','सेल्स लॉगिन सिर्फ़ इन्क्वायरी (और आगे कोटेशन) देखता है: लाइसेंस, बिलिंग, क्लाइंट या KPI पैक नहीं। ईमेल से और कंपनी कोड के बिना साइन इन करें।')}</p>
+   <table class="tbl"><thead><tr><th>${L('Name','नाम')}</th><th>Email</th><th>${t('status')}</th><th></th></tr></thead><tbody>${ENQ.sales.map(s=>`<tr style="${s.active?'':'opacity:.55'}"><td><b>${esc(s.name)}</b></td><td>${esc(s.email)}</td><td><span class="pill ${s.active?'p-ok':'p-bad'}">${s.active?t('active'):t('inactive_i')}</span></td><td style="text-align:right"><button class="btn btn-o btn-s ${s.active?'btn-d':''}" data-enqstog="${s.user_id}">${s.active?t('inactivate'):t('activate')}</button></td></tr>`).join('')||`<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">${L('No Sales login yet.','अभी कोई सेल्स लॉगिन नहीं।')}</td></tr>`}</tbody></table></div>`}`}
+const enqKV=(l,v)=>v?`<div><label style="font-size:11px;color:var(--muted);display:block;margin:0">${l}</label><div style="font-size:13px">${esc(v)}</div></div>`:'';
+async function enqOpen(id){const r=ENQ.rows.find(x=>x.id===id);if(!r)return;const d=r.data||{}, nr=await sb.from('enquiry_notes').select('*').eq('enquiry_id',id).order('created_at');
+  const sub=o=>o&&(o.name||o.mobile||o.email)?[o.name,o.mobile,o.email].filter(Boolean).join(' · '):'';
+  const mods=(d.mods||[]).map(m=>{const x=((typeof MODS!=='undefined'?MODS:[])).find(k=>k.id===m);return x?L(...x.name):m}).join(', ');
+  const bg=openModal(`<h3>${enqRef(r)} · ${esc(d.legal)} ${enqSt(r.status)}</h3><div class="fgrid" style="gap:8px 14px">
+   ${enqKV(L('Trade name','ट्रेड नाम'),d.trade)}${enqKV(L('Type','प्रकार'),d.type)}${enqKV('GSTIN',d.gstin)}${enqKV('PAN',d.pan)}${enqKV('CIN',d.cin)}
+   <div style="grid-column:1/-1">${enqKV(L('Registered address','पंजीकृत पता'),[d.address,d.state,d.pin].filter(Boolean).join(', '))}</div>
+   ${enqKV(L('Authorised person','अधिकृत व्यक्ति'),[d.person,d.desig].filter(Boolean).join(', '))}${enqKV(L('Mobile','मोबाइल'),d.mobile)}${enqKV('Email',d.email)}
+   ${enqKV(L('Billing contact','बिलिंग संपर्क'),sub(d.bill))}${enqKV(L('Support contact','सपोर्ट संपर्क'),sub(d.support))}
+   ${enqKV(L('Employees','कर्मचारी'),d.employees)}${enqKV(L('Branches','शाखाएँ'),d.branches)}${enqKV(L('Preferred start','पसंदीदा शुरुआत'),d.start)}
+   <div style="grid-column:1/-1">${enqKV(L('Modules asked','माँगे मॉड्यूल'),mods)}</div><div style="grid-column:1/-1">${enqKV(L('Note from the client','क्लाइंट का नोट'),d.note)}</div></div>
+   <h4 style="margin:14px 0 4px">${L('Notes','नोट')}</h4><div id="enqNotes">${(nr.data||[]).map(n=>`<div style="border-top:1px solid var(--line);padding:6px 0;font-size:13px"><small style="color:var(--muted)">${fmtS((n.created_at||'').slice(0,10))} · ${esc(n.by_name||'')}</small><br>${esc(n.note)}</div>`).join('')||`<small style="color:var(--muted)">${L('No note yet.','अभी कोई नोट नहीं।')}</small>`}</div>
+   <label style="margin-top:8px">${L('Add a note','नोट जोड़ें')}</label><textarea class="inp" name="note" rows="2" placeholder="${L('For example: called, demo on Monday','जैसे: फ़ोन किया, सोमवार को डेमो')}"></textarea>
+   <div id="me" style="color:var(--bad);font-size:12px;margin-top:6px"></div>
+   <div class="acts" style="flex-wrap:wrap"><button type="button" class="btn btn-o" data-close>${L('Close','बंद करें')}</button>${['discussion','hold','lost'].filter(s=>s!==r.status).map(s=>`<button type="button" class="btn btn-o" data-enqs="${s}">${s==='discussion'?L('Mark in discussion','बातचीत में करें'):s==='hold'?L('On hold','रोकें'):L('Lost','खोया')}</button>`).join('')}<button class="btn btn-p">${L('Save note','नोट सेव करें')}</button></div>`,
+  async(f,close,bgx)=>{const note=(new FormData(f).get('note')||'').trim(),er=m=>{(bgx||document).querySelector('#me').textContent=m};if(!note)return er(t('e_req'));
+   const x=await sb.from('enquiry_notes').insert({enquiry_id:id,by_user:ENQ.me.id,by_name:ENQ.me.name,note});if(x.error)return er(x.error.message);close();toast(t('saved'));render()});
+  if(bg)bg.querySelectorAll('[data-enqs]').forEach(b=>b.onclick=async()=>{const s=b.dataset.enqs,upd={status:s};if(s==='discussion'&&!r.contacted_at)upd.contacted_at=new Date().toISOString();
+   const x=await sb.from('enquiries').update(upd).eq('id',id);if(x.error)return toast(x.error.message);await sb.from('enquiry_notes').insert({enquiry_id:id,by_user:ENQ.me.id,by_name:ENQ.me.name,note:'Status: '+ENQ_ST[r.status][0]+' → '+ENQ_ST[s][0]});Object.assign(r,upd);bg.remove();toast(t('saved'));render()})}
+function enqSalesModal(){openModal(`<h3>${L('New Sales login','नया सेल्स लॉगिन')}</h3><label>${L('Name','नाम')} *</label><input class="inp" name="n"><label>Email *</label><input class="inp" name="e" type="email"><label>${L('First password (at least 8 characters)','पहला पासवर्ड (कम से कम 8 अक्षर)')} *</label><input class="inp" name="p"><p style="font-size:12px;color:var(--muted)">${L('Tell the password only to that person. They sign in with the email and leave the company code empty.','पासवर्ड सिर्फ़ उसी व्यक्ति को बताएँ। वह ईमेल से साइन इन करेगा और कंपनी कोड ख़ाली छोड़ेगा।')}</p><div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+  async(f,close,bg)=>{const v=Object.fromEntries(new FormData(f)),er=m=>{(bg||document).querySelector('#me').textContent=m};if(!v.n.trim()||!v.e.trim()||!v.p)return er(t('e_req'));
+   const r=await sb.rpc('platform_create_sales',{p_name:v.n,p_email:v.e,p_password:v.p});if(r.error)return er(r.error.message);close();toast(t('saved'));ENQ.loaded=false;render()})}
+try{PAGEFN.enquiries=()=>enquiriesPage()}catch(e){}
+try{const _phE=placeholder;placeholder=function(P){return P==='enquiries'?enquiriesPage():_phE.apply(this,arguments)}}catch(e){}
+{const _bxE=bindExtra;bindExtra=function(){_bxE.apply(this,arguments);if(state.page!=='enquiries')return;const m=document.getElementById('main');if(!m)return;
+  m.querySelectorAll('[data-enqf]').forEach(b=>b.onclick=()=>{ENQ.f=b.dataset.enqf;render()});
+  m.querySelectorAll('[data-enqopen]').forEach(b=>b.onclick=()=>enqOpen(b.dataset.enqopen));
+  m.querySelectorAll('[data-enqcopy]').forEach(b=>b.onclick=()=>{try{navigator.clipboard.writeText(enqLink())}catch(x){}toast(L('Link copied','लिंक कॉपी हुआ'))});
+  m.querySelectorAll('[data-enqsales]').forEach(b=>b.onclick=enqSalesModal);
+  m.querySelectorAll('[data-enqstog]').forEach(b=>b.onclick=async()=>{const s=ENQ.sales.find(x=>x.user_id===b.dataset.enqstog);if(!s)return;const r=await sb.rpc('platform_set_sales_active',{p_user:s.user_id,p_active:!s.active});if(r.error)return toast(r.error.message);s.active=!s.active;toast(t('saved'));render()})}}
+{const _rE=render;render=function(){if(LIVE.salesOnly&&state.role==='platform'&&state.page!=='enquiries')state.page='enquiries';return _rE.apply(this,arguments)}}
+/* the public form: the client sees no price and no quotation */
+function renderEnquiry(el){const mods=(typeof MODS!=='undefined'?MODS:[]), sts=(typeof STATES!=='undefined'?STATES:['Maharashtra']);
+ const inp=(n,l,o={})=>`<div><label>${l}${o.req?' *':''}</label><input class="inp" name="${n}" ${o.max?`maxlength="${o.max}"`:''} ${o.type?`type="${o.type}"`:''} ${o.ph?`placeholder="${o.ph}"`:''} ${o.mode?`inputmode="${o.mode}"`:''} ${o.up?'style="text-transform:uppercase"':''}></div>`;
+ el.innerHTML=`<div style="max-width:700px;margin:0 auto;padding:24px 16px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><h1 style="margin:0;flex:1">LV People · ${L('Tell us about your company','अपनी कंपनी के बारे में बताएँ')}</h1></div><p style="color:var(--muted);margin:0 0 16px">${L('Please fill this form. Our team will check it and contact you.','कृपया यह फ़ॉर्म भरें। हमारी टीम जाँचकर आपसे संपर्क करेगी।')}</p>
+ <div class="card" id="enqForm"><form id="enqf" novalidate>
+  <h3 style="margin-top:0">${L('Company','कंपनी')}</h3><div class="fgrid">${inp('legal',L('Legal name (as per GST)','कानूनी नाम (GST के अनुसार)'),{req:1,max:150})}${inp('trade',L('Trade name (if different)','ट्रेड नाम (अलग हो तो)'),{max:150})}
+   <div><label>${L('Type of company','कंपनी का प्रकार')}</label><select class="inp" name="type">${ENQ_TYPES.map(x=>`<option>${x}</option>`).join('')}</select></div>${inp('gstin','GSTIN',{req:1,max:15,up:1,ph:'27ABCDE1234F1Z5'})}${inp('pan','PAN',{req:1,max:10,up:1,ph:'ABCDE1234F'})}${inp('cin',L('CIN (companies only)','CIN (सिर्फ़ कंपनियाँ)'),{max:21,up:1})}</div>
+  <label>${L('Registered address','पंजीकृत पता')} *</label><textarea class="inp" name="address" rows="2"></textarea><div class="fgrid"><div><label>${L('State','राज्य')} *</label><select class="inp" name="state">${sts.map(s=>`<option>${s}</option>`).join('')}</select></div>${inp('pin','PIN',{max:6,mode:'numeric'})}</div>
+  <h3>${L('People','लोग')}</h3><div class="fgrid">${inp('person',L('Authorised person (who signs)','अधिकृत व्यक्ति (जो हस्ताक्षर करेगा)'),{req:1,max:80})}${inp('desig',L('Designation','पद'),{max:60})}${inp('mobile',L('Mobile','मोबाइल'),{req:1,max:10,mode:'numeric'})}${inp('email','Email',{req:1,max:120,type:'email'})}</div>
+  <div class="fgrid">${inp('bn',L('Billing contact: name','बिलिंग संपर्क: नाम'),{max:80})}${inp('bm',L('Billing contact: mobile','बिलिंग संपर्क: मोबाइल'),{max:10,mode:'numeric'})}${inp('be',L('Billing contact: email','बिलिंग संपर्क: ईमेल'),{max:120})}</div>
+  <div class="fgrid">${inp('sn',L('Support contact: name','सपोर्ट संपर्क: नाम'),{max:80})}${inp('sm',L('Support contact: mobile','सपोर्ट संपर्क: मोबाइल'),{max:10,mode:'numeric'})}${inp('se',L('Support contact: email','सपोर्ट संपर्क: ईमेल'),{max:120})}</div>
+  <h3>${L('What you need','आपकी ज़रूरत')}</h3><div class="fgrid">${inp('employees',L('Number of employees','कर्मचारियों की संख्या'),{req:1,type:'number'})}${inp('branches',L('Number of branches','शाखाओं की संख्या'),{type:'number'})}${inp('start',L('Preferred start date','पसंदीदा शुरुआत की तारीख़'),{type:'date'})}</div>
+  <label>${L('Which modules do you need?','आपको कौन से मॉड्यूल चाहिए?')}</label><div style="display:flex;flex-wrap:wrap;gap:6px 14px">${mods.map(m=>`<label style="margin:0;font-weight:400;display:flex;gap:6px"><input type="checkbox" name="mod" value="${m.id}"> ${L(...m.name)}</label>`).join('')}</div>
+  <label>${L('Anything else we should know','और कुछ जो हमें जानना चाहिए')}</label><textarea class="inp" name="note" rows="3" maxlength="1000"></textarea>
+  <div style="position:absolute;left:-9999px" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
+  <div id="enqe" style="color:var(--bad);font-size:13px;margin-top:8px"></div><div class="acts"><button class="btn btn-p">${L('Submit','भेजें')}</button></div></form></div></div>`;
+ const f=el.querySelector('#enqf');f.onsubmit=async e=>{e.preventDefault();const fd=new FormData(f),v=Object.fromEntries(fd),er=m=>{el.querySelector('#enqe').textContent=m};
+  const s=x=>(x||'').trim(), c3=(n,m,e_)=>({name:s(v[n]),mobile:s(v[m]),email:s(v[e_])});
+  if(!s(v.legal)||!s(v.address)||!s(v.person))return er(L('Company name, address and the authorised person are required','कंपनी का नाम, पता और अधिकृत व्यक्ति ज़रूरी हैं'));
+  if(!/^[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z][1-9A-Za-z]Z[0-9A-Za-z]$/.test(s(v.gstin)))return er(L('GSTIN looks wrong (like 27ABCDE1234F1Z5)','GSTIN ग़लत लग रहा है (जैसे 27ABCDE1234F1Z5)'));
+  if(!/^[A-Za-z]{5}[0-9]{4}[A-Za-z]$/.test(s(v.pan)))return er(L('PAN looks wrong (like ABCDE1234F)','PAN ग़लत लग रहा है (जैसे ABCDE1234F)'));
+  if(!/^[6-9][0-9]{9}$/.test(s(v.mobile)))return er(L('Enter a 10 digit mobile number','10 अंकों का मोबाइल नंबर भरें'));
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s(v.email)))return er(L('Enter a valid email','सही ईमेल भरें'));
+  if(!(+v.employees>=1))return er(L('Enter the number of employees','कर्मचारियों की संख्या भरें'));
+  const p={legal:s(v.legal),trade:s(v.trade),type:v.type,gstin:s(v.gstin).toUpperCase(),pan:s(v.pan).toUpperCase(),cin:s(v.cin).toUpperCase(),address:s(v.address),state:v.state,pin:s(v.pin),person:s(v.person),desig:s(v.desig),mobile:s(v.mobile),email:s(v.email),bill:c3('bn','bm','be'),support:c3('sn','sm','se'),employees:+v.employees,branches:+v.branches||0,start:v.start||'',mods:fd.getAll('mod'),note:s(v.note)};
+  const btn=f.querySelector('.btn-p');btn.disabled=true;let r;try{r=await sb.rpc('submit_enquiry',{p,hp:v.website||''})}catch(x){r={error:x}}btn.disabled=false;
+  if(r.error)return er(r.error.message||L('Could not send. Please try again.','भेज नहीं सके। कृपया फिर कोशिश करें।'));
+  el.querySelector('#enqForm').innerHTML=`<h3 style="margin-top:0">${L('Thank you','धन्यवाद')}, ${esc(p.person)}</h3><p>${L('We have received your details. Our team will contact you.','हमें आपकी जानकारी मिल गई। हमारी टीम आपसे संपर्क करेगी।')}</p><p style="color:var(--muted);font-size:13px">${L('Reference','संदर्भ')}: ${esc(r.data)}</p>`}}
+function enquiryBoot(){const on=location.hash.startsWith('#enquiry');let el=document.getElementById('enquiryPub');if(!on){if(el)el.remove();return}
+ if(!el){el=document.createElement('div');el.id='enquiryPub';el.style.cssText='position:fixed;inset:0;z-index:9999;overflow:auto;background:var(--bg,#f4f7f6)';document.body.appendChild(el)}renderEnquiry(el)}
+window.addEventListener('hashchange',enquiryBoot);
+try{joinBoot();careersBoot();enquiryBoot()}catch(e){console.warn('public pages',e)}
 })();
