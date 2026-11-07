@@ -43,25 +43,20 @@ Question (employee) → login check → rate limit → embeddings of the questio
 
 You need: the Supabase project (already used by LV People), a Claude API key, a Voyage AI key, and the Supabase CLI on your computer.
 
-1. **Database.** Supabase > SQL Editor > paste `server/policy_assistant.sql` > Run. It is safe to run again.
-2. **Vault secret for the schedule.** Make a long random text (for example from a password manager). In the SQL Editor:
-   ```sql
-   select vault.create_secret('PUT-THE-RANDOM-TEXT-HERE', 'policy_cron_secret');
-   ```
-3. **Function secrets.** Supabase > Edge Functions > Secrets, add:
+1. **Database.** Supabase > SQL Editor > paste `server/policy_assistant.sql` > Run. It is safe to run again. It also makes the random secret of the background job in the Vault.
+2. **Function secrets.** Supabase > Edge Functions > Secrets, add:
    - `ANTHROPIC_API_KEY` = your Claude key
    - `VOYAGE_API_KEY` = your Voyage key
-   - `POLICY_CRON_SECRET` = the same random text as step 2
 
    Other settings are optional; see `supabase/functions/policy-assistant/.env.example` for every name and default.
-4. **Deploy the function** from the repository folder:
+3. **Deploy the function** from the repository folder:
    ```bash
    supabase functions deploy policy-assistant --project-ref okhikmjugdytahgnddjm --no-verify-jwt
    ```
    `--no-verify-jwt` is needed because the minute schedule has no user login. The function checks the login itself on every user request.
-5. **Front end.** Push the branch; Cloudflare Pages publishes `app/` as before.
-6. **Switch the module on for a company.** Platform admin: Clients (live) > the company > Modules > tick `policy` > Save.
-7. **Check.** Sign in as HR of a test company > Administration > Policy Management > Upload a small policy > wait for Active > Test Chat.
+4. **Front end.** Push the branch; Cloudflare Pages publishes `app/` as before.
+5. **Switch the module on for a company.** Platform admin: Clients (live) > the company > Modules > tick `policy` > Save.
+6. **Check.** Sign in as HR of a test company > Administration > Policy Management > Upload a small policy > wait for Active > Test Chat.
 
 ## Settings (`.env` of the function)
 
@@ -69,7 +64,7 @@ You need: the Supabase project (already used by LV People), a Claude API key, a 
 |---|---|---|
 | `ANTHROPIC_API_KEY` | (required) | Claude API key |
 | `VOYAGE_API_KEY` | (required) | Voyage AI key (embeddings) |
-| `POLICY_CRON_SECRET` | (required) | protects the background-job call; same value in the Vault |
+| `POLICY_CRON_SECRET` | (made by the SQL file in the Vault) | protects the background-job call; set it only to override the Vault value |
 | `POLICY_LLM_MODEL` | `claude-haiku-5-5` | model that writes answers |
 | `POLICY_OCR_MODEL` | `claude-haiku-5-5` | model that reads scanned pages |
 | `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` | `voyage` / `voyage-3.5` | or `openai` / `text-embedding-3-small` (+ `OPENAI_API_KEY`). Size is fixed at 1024. If you change the provider, upload the policies again (New version) so old and new embeddings are not mixed. |

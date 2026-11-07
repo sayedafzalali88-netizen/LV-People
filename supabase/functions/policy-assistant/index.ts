@@ -21,7 +21,6 @@ const SETTINGS = {
   maxPages: () => num("POLICY_MAX_PAGES", 300),
   ocrBatch: () => Math.min(Math.max(num("POLICY_OCR_BATCH", 4), 1), 10),
   budgetMs: () => Math.max(num("POLICY_WORKER_BUDGET_MS", 100_000), 60_000),
-  cronSecret: () => env("POLICY_CRON_SECRET"),
   origins: () => env("POLICY_ALLOWED_ORIGINS", "*"),
 };
 const CATEGORIES = ["Leave", "Attendance", "Salary", "Conduct", "Travel", "Holiday", "Benefits", "Safety", "IT", "Exit", "Other"];
@@ -30,6 +29,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FN_URL = `${env("SUPABASE_URL")}/functions/v1/policy-assistant`;
 
 const db: SupabaseClient = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false, autoRefreshToken: false } });
+
+// the secret that protects the background-job call: POLICY_CRON_SECRET if set, otherwise the one the SQL file made in the Vault
+let _cron: string | null = null;
+async function cronSecret(): Promise<string> {
+  if (env("POLICY_CRON_SECRET")) return env("POLICY_CRON_SECRET");
+  if (_cron) return _cron;
+  const r = await db.rpc("policy_cron_secret");
+  if (r.error || !r.data) { console.error("cron secret", r.error?.message); return ""; }
+  return (_cron = String(r.data));
+}
 
 class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }
 class PermanentError extends Error {}   // a file problem: trying again will not help
@@ -204,8 +213,9 @@ function startWorker() {
 }
 
 async function kickAgain() {
-  if (!SETTINGS.cronSecret()) return;   // without the secret the minute schedule cannot call us either
-  try { await fetch(FN_URL, { method: "POST", headers: { "Content-Type": "application/json", "x-cron-secret": SETTINGS.cronSecret() }, body: '{"action":"process"}' }); } catch (e) { console.error("kick", e); }
+  const secret = await cronSecret();
+  if (!secret) return;                  // the minute schedule picks the job up
+  try { await fetch(FN_URL, { method: "POST", headers: { "Content-Type": "application/json", "x-cron-secret": secret }, body: '{"action":"process"}' }); } catch (e) { console.error("kick", e); }
 }
 
 async function runWorker() {
@@ -442,7 +452,8 @@ Deno.serve(async (req) => {
     if (isForm) return json(req, await upload(req, await whoAmI(req)));
     const body = await req.json().catch(() => ({})) as Record<string, unknown>;
     if (body.action === "process") {
-      if (!SETTINGS.cronSecret() || req.headers.get("x-cron-secret") !== SETTINGS.cronSecret()) return json(req, { message: "Not allowed" }, 403);
+      const secret = await cronSecret();
+      if (!secret || req.headers.get("x-cron-secret") !== secret) return json(req, { message: "Not allowed" }, 403);
       startWorker();
       return json(req, { ok: true }, 202);
     }

@@ -18,7 +18,7 @@ export function fileTypeOf(name: string): "pdf" | "docx" | "txt" | null {
 const meaningful = (s: string) => (s.match(/[\p{L}\p{N}]/gu) || []).length;
 
 function cleanText(s: string): string {
-  return s.replace(/\r\n?/g, "\n").replace(/ /g, " ").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return s.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export async function extractPdf(bytes: Uint8Array): Promise<Page[]> {

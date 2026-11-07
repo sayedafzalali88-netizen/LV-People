@@ -12,7 +12,9 @@ create function app_private.my_client() returns uuid language sql stable securit
 create function app_private.my_role() returns text language sql stable security definer set search_path='' as $$ select role from public.profiles where user_id = auth.uid() $$;
 create function app_private.is_hr() returns boolean language sql stable security definer set search_path='' as $$ select coalesce((select role in ('admin','hr') from public.profiles where user_id = auth.uid()), false) $$;
 create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint);
-create view vault.decrypted_secrets as select 'policy_cron_secret'::text as name, 'x'::text as decrypted_secret;
+create table vault.secrets(name text, secret text);
+create function vault.create_secret(s text, n text, d text default '') returns uuid language sql as $$ insert into vault.secrets values (n, s); select gen_random_uuid() $$;
+create view vault.decrypted_secrets as select name, secret as decrypted_secret from vault.secrets;
 create table cron.jobs(name text, sched text, cmd text);
 create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.jobs values (n,s,c); select 1::bigint $$;
 create function net.http_post(url text, headers jsonb, body jsonb) returns bigint language sql as $$ select 1::bigint $$;

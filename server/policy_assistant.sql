@@ -358,13 +358,24 @@ on conflict (id) do update set public = false, file_size_limit = 20971520;
 
 -- ---------------------------------------------------------------- background processing
 -- The upload starts the work at once. This schedule is the safety net: every minute, if a job is waiting
--- (for example after a timeout), it wakes the server function again. The secret is kept in the Supabase Vault:
---   select vault.create_secret('<the same value as POLICY_CRON_SECRET>', 'policy_cron_secret');
+-- (for example after a timeout), it wakes the server function again. The call is protected by a random secret that is
+-- made here and kept in the Supabase Vault; only the server function (service role) can read it.
+do $$ begin
+  if not exists (select 1 from vault.secrets where name = 'policy_cron_secret') then
+    perform vault.create_secret(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 'policy_cron_secret', 'Policy Assistant: protects the background job call');
+  end if;
+end $$;
+create or replace function public.policy_cron_secret() returns text
+language sql stable security definer set search_path = '' as $$
+  select decrypted_secret from vault.decrypted_secrets where name = 'policy_cron_secret' limit 1
+$$;
+revoke all on function public.policy_cron_secret() from public, anon, authenticated;
+grant execute on function public.policy_cron_secret() to service_role;
+
 select cron.schedule('policy-assistant-jobs', '* * * * *', $cron$
   select net.http_post(
     url := 'https://okhikmjugdytahgnddjm.supabase.co/functions/v1/policy-assistant',
-    headers := jsonb_build_object('Content-Type', 'application/json',
-      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'policy_cron_secret' limit 1)),
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', public.policy_cron_secret()),
     body := '{"action":"process"}'::jsonb)
   where exists (select 1 from public.policy_jobs where status in ('queued','running') and (locked_until is null or locked_until < now()))
 $cron$);
