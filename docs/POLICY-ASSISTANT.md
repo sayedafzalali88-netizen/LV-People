@@ -1,4 +1,4 @@
-# Policy Assistant ("Policy Sahayak")
+# HR Assistant
 
 Employees ask about company policy in a chat. The answer comes **only** from the policies their own company uploaded. No general knowledge, no labour law, no guessing.
 
@@ -8,7 +8,7 @@ Employees ask about company policy in a chat. The answer comes **only** from the
 |---|---|---|
 | Database | `server/policy_assistant.sql` | 9 new tables, security rules (RLS), search, rate limit, job queue, private file bucket, a schedule every minute |
 | Server function | `supabase/functions/policy-assistant/` | upload, text extraction (PDF, DOCX, TXT, OCR for scanned PDFs), chunks, embeddings, search, answer, admin actions |
-| Screens | `app/policy.js` | Policy Management (Admin, HR) and the Policy Sahayak chat button on every page |
+| Screens | `app/policy.js` | Policy Management (Admin, HR) and the HR Assistant chat button on every page |
 | Guide | `app/guide/g9.js` | User Guide chapter (EN + HI) |
 | Small edits | `app/index.html` (1 line: `policy.js`, 1 script: `g9.js`), `app/live.js` (`'policy'` added to the module list and to the live pages) | |
 

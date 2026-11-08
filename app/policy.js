@@ -1,7 +1,7 @@
-/* ================= LV People · Policy Assistant ("Policy Sahayak") =================
+/* ================= LV People · HR Assistant =================
    A separate module: it only adds things, it changes nothing that exists.
    1. Policy Management (Admin and HR): upload policies, versions, publish, archive, Test Chat, Unanswered Questions, Chat Logs.
-   2. Policy Sahayak: a chat button on every page for every signed-in employee. Answers come only from the company's own policies.
+   2. HR Assistant: a chat button on every page for every signed-in employee. Answers come only from the company's own policies.
    The work is done by the server function "policy-assistant" (supabase/functions/policy-assistant) and the tables of server/policy_assistant.sql.
    The module is on for a company when its modules list has 'policy' (Clients (live) > the company > Modules). */
 (function(){
@@ -71,7 +71,7 @@ async function pa(body){
 
 /* ---------- register the module, the page and the rights ---------- */
 try{
-  MODS.push({id:'policy',name:['Policy Assistant','पॉलिसी सहायक'],desc:['Policy upload and the Policy Sahayak chat: employees ask, answers only from company policy','पॉलिसी अपलोड और पॉलिसी सहायक चैट: कर्मचारी पूछें, जवाब सिर्फ़ कंपनी पॉलिसी से'],pages:['policies'],needs:[]});
+  MODS.push({id:'policy',name:['HR Assistant','HR सहायक'],desc:['Policy upload and the HR Assistant chat: employees ask, answers only from company policy','पॉलिसी अपलोड और HR सहायक चैट: कर्मचारी पूछें, जवाब सिर्फ़ कंपनी पॉलिसी से'],pages:['policies'],needs:[]});
   PAGEMOD.policies='policy';if(LIC&&LIC.mods&&!('policy' in LIC.mods))LIC.mods.policy=true;
   PAGES.push('policies');['admin','hr'].forEach(r=>RIGHTS[r].policies=['V','A','E','X']);Object.keys(RIGHTS).forEach(r=>{if(!RIGHTS[r].policies)RIGHTS[r].policies=[]});
   NAV.push({id:'policies',ic:'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M9 13h6M9 17h6M9 9h1',roles:[],day:'—',built:true});
@@ -82,7 +82,7 @@ try{
 try{const _ph=placeholder;placeholder=function(P){return P==='policies'?policiesPage():_ph.apply(this,arguments)}}catch(e){}
 
 /* =====================================================================================
-   The chat (used by the floating Policy Sahayak and by the Test Chat of HR)
+   The chat (used by the floating HR Assistant and by the Test Chat of HR)
    ===================================================================================== */
 const SUGGEST={en:['CL kitni milti hai?','Late aane ka niyam kya hai?','Notice period kitna hai?','Travel allowance kitna milta hai?','Sick leave ke liye certificate chahiye?'],
   hi:['CL कितनी मिलती है?','देर से आने का नियम क्या है?','नोटिस पीरियड कितना है?','यात्रा भत्ता कितना मिलता है?','बीमारी की छुट्टी के लिए सर्टिफ़िकेट चाहिए?']};
@@ -96,7 +96,7 @@ function chatBody(c){
   if(c.view==='hist'){
     const h=c.hist;return `<div class="ps-msg ps-bot"><b>${L('Your earlier chats','आपकी पिछली चैट')}</b></div>${!h?`<div class="ps-typing"><i></i><i></i><i></i></div>`:h.length?`<div class="ps-hist">${h.map(s=>`<button data-pshist="${s.id}"><b>${esc(s.title||'…')}</b><small>${dtS(s.last_at)}</small></button>`).join('')}</div>`:`<div class="ps-small">${L('No chats yet.','अभी कोई चैट नहीं।')}</div>`}`}
   const first=(USERS[state.role]&&USERS[state.role].name||'').split(' ')[0];
-  let o=`<div class="ps-msg ps-bot">${c.mode==='test'?L('Test Chat: ask the way an employee would. Published and processed (not yet published) versions are searched; the match score is shown.','टेस्ट चैट: वैसे पूछें जैसे कर्मचारी पूछेगा। प्रकाशित और प्रोसेस हो चुके (अभी अप्रकाशित) वर्ज़न खोजे जाते हैं; मिलान स्कोर दिखता है।'):L(`Namaste${first?' '+esc(first):''}! I am Policy Sahayak. Ask me about your company's policies: leave, attendance, travel, conduct and more. I answer only from the policies your company has uploaded.`,`नमस्ते${first?' '+esc(first):''}! मैं पॉलिसी सहायक हूँ। कंपनी की पॉलिसी के बारे में पूछें: छुट्टी, हाज़िरी, यात्रा, आचरण और बहुत कुछ। मैं सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से जवाब देता हूँ।`)}</div>`;
+  let o=`<div class="ps-msg ps-bot">${c.mode==='test'?L('Test Chat: ask the way an employee would. Published and processed (not yet published) versions are searched; the match score is shown.','टेस्ट चैट: वैसे पूछें जैसे कर्मचारी पूछेगा। प्रकाशित और प्रोसेस हो चुके (अभी अप्रकाशित) वर्ज़न खोजे जाते हैं; मिलान स्कोर दिखता है।'):L(`Namaste${first?' '+esc(first):''}! I am your HR Assistant. Ask me about your company's policies: leave, attendance, travel, conduct and more. I answer only from the policies your company has uploaded.`,`नमस्ते${first?' '+esc(first):''}! मैं आपका HR सहायक हूँ। कंपनी की पॉलिसी के बारे में पूछें: छुट्टी, हाज़िरी, यात्रा, आचरण और बहुत कुछ। मैं सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से जवाब देता हूँ।`)}</div>`;
   if(!c.msgs.length)o+=`<div class="ps-chips">${SUGGEST[lang==='hi'?'hi':'en'].map(q=>`<button class="ps-chip" data-psq="${esc(q)}">${esc(q)}</button>`).join('')}</div>`;
   c.msgs.forEach((m,i)=>{
     o+=`<div class="ps-msg ps-me">${esc(m.q)}</div>`;
@@ -163,19 +163,19 @@ async function openSession(c,id){
   if(r.error)return toast(r.error.message);
   c.session=id;c.view='chat';c.msgs=(r.data||[]).map(x=>{const fb=(x.chat_feedback||[]).find(f=>f.user_id===uid());return {id:x.id,q:x.question,answer:x.answer,status:x.status,sources:x.sources||[],rating:fb?fb.rating:undefined}});chatRefresh(c)}
 
-/* ---------- the floating Policy Sahayak (every page) ---------- */
+/* ---------- the floating HR Assistant (every page) ---------- */
 const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 9h8M8 13h5"/></svg>';
 function widgetOn(){try{return LIVE.on&&LIVE.profile&&state.role!=='platform'&&modOn('policy')&&!document.getElementById('app').classList.contains('hidden')}catch(e){return false}}
 function ensureWidget(){
   let fab=document.getElementById('psFab');
   if(!widgetOn()){if(fab)fab.remove();const w=document.getElementById('psWin');if(w)w.remove();return}
-  if(!fab){fab=document.createElement('button');fab.id='psFab';fab.className='ps-fab';fab.setAttribute('aria-label','Policy Sahayak');fab.innerHTML=ICON+'<span>Policy Sahayak</span>';fab.onclick=openWidget;document.body.appendChild(fab)}
+  if(!fab){fab=document.createElement('button');fab.id='psFab';fab.className='ps-fab';fab.setAttribute('aria-label','HR Assistant');fab.innerHTML=ICON+'<span>HR Assistant</span>';fab.onclick=openWidget;document.body.appendChild(fab)}
   fab.style.display=document.getElementById('psWin')||(state.page==='policies'&&state.poltab==='test')?'none':'';
   const m=document.getElementById('main');if(m)m.style.paddingBottom='84px'}
 function openWidget(){
   let w=document.getElementById('psWin');if(w)return;
-  w=document.createElement('div');w.id='psWin';w.className='ps-win';w.setAttribute('role','dialog');w.setAttribute('aria-label','Policy Sahayak');
-  w.innerHTML=`<div class="ps-head"><div class="ps-av">P</div><div style="flex:1;min-width:0"><b>Policy Sahayak</b><small>${L('Answers only from company policy','सिर्फ़ कंपनी पॉलिसी से जवाब')}</small></div>
+  w=document.createElement('div');w.id='psWin';w.className='ps-win';w.setAttribute('role','dialog');w.setAttribute('aria-label','HR Assistant');
+  w.innerHTML=`<div class="ps-head"><div class="ps-av">HR</div><div style="flex:1;min-width:0"><b>HR Assistant</b><small>${L('Answers only from company policy','सिर्फ़ कंपनी पॉलिसी से जवाब')}</small></div>
    <button data-psnew title="${L('New chat','नई चैट')}">＋</button><button data-pshis>${L('History','इतिहास')}</button><button data-psx aria-label="${L('Close','बंद करें')}">✕</button></div>${chatShell(LIVECHAT)}`;
   document.body.appendChild(w);LIVECHAT.el=w;bindChat(LIVECHAT);
   w.querySelector('[data-psx]').onclick=closeWidget;
@@ -212,9 +212,9 @@ function polState(p){
 
 function policiesPage(){
   const tab=state.poltab||'list';
-  const head=`<div class="page-h"><div><h1>${L('Policy Management','पॉलिसी मैनेजमेंट')}</h1><p>${L('Company policies. Policy Sahayak answers employees only from the Active policies here, and only to the roles and departments you choose.','कंपनी की पॉलिसी। पॉलिसी सहायक कर्मचारियों को सिर्फ़ यहाँ की चालू पॉलिसी से जवाब देता है, और सिर्फ़ उन्हीं रोल और विभागों को जो आप चुनें।')}</p></div>${tab==='list'?`<button class="btn btn-p" data-pmup>+ ${L('Upload policy','पॉलिसी अपलोड करें')}</button>`:''}</div>
+  const head=`<div class="page-h"><div><h1>${L('Policy Management','पॉलिसी मैनेजमेंट')}</h1><p>${L('Company policies. HR Assistant answers employees only from the Active policies here, and only to the roles and departments you choose.','कंपनी की पॉलिसी। HR सहायक कर्मचारियों को सिर्फ़ यहाँ की चालू पॉलिसी से जवाब देता है, और सिर्फ़ उन्हीं रोल और विभागों को जो आप चुनें।')}</p></div>${tab==='list'?`<button class="btn btn-p" data-pmup>+ ${L('Upload policy','पॉलिसी अपलोड करें')}</button>`:''}</div>
   <div class="tabs">${[['list',L('Policies','पॉलिसी')],['test',L('Test Chat','टेस्ट चैट')],['unans',L('Unanswered Questions','बिना जवाब के सवाल')],['logs',L('Chat Logs','चैट लॉग')]].map(([k,n])=>`<button data-poltab="${k}" class="${tab===k?'on':''}">${n}</button>`).join('')}</div>`;
-  if(!modOn('policy'))return head+`<div class="card">${L('Policy Assistant is not switched on for your company. Ask the LV People team.','पॉलिसी सहायक आपकी कंपनी के लिए चालू नहीं है। LV People टीम से कहें।')}</div>`;
+  if(!modOn('policy'))return head+`<div class="card">${L('HR Assistant is not switched on for your company. Ask the LV People team.','HR सहायक आपकी कंपनी के लिए चालू नहीं है। LV People टीम से कहें।')}</div>`;
   if(!LIVE.on)return head+`<div class="card">${L('Sign in to the live app to use Policy Management.','पॉलिसी मैनेजमेंट के लिए लाइव ऐप में साइन-इन करें।')}</div>`;
   if(tab==='test')return head+testTab();
   if(tab==='unans')return head+unansTab();
@@ -290,7 +290,7 @@ async function viewModal(pid){const p=PM.pols.find(x=>x.id===pid);if(!p)return;c
   const bg=openModal(`<h3 style="margin-top:0">${esc(p.name)}</h3><p class="ps-small" style="margin-top:-6px">${catName(p.category)} · ${(p.allowed_roles||[]).map(roleName).join(', ')}${(p.allowed_department_ids||[]).length?' · '+(p.allowed_department_ids||[]).map(deptName).filter(Boolean).join(', '):' · '+L('All departments','सभी विभाग')}</p>
    <div class="tw" style="border:1px solid var(--line);border-radius:10px"><table class="tbl"><thead><tr><th>${L('Version','वर्ज़न')}</th><th>${t('status')}</th><th>${L('File','फ़ाइल')}</th><th>${L('Read','पढ़ा गया')}</th><th>${L('Uploaded','अपलोड')}</th><th></th></tr></thead><tbody>
    ${vs.map(v=>`<tr><td><b>v${esc(v.version)}</b>${v.effective_date?`<small style="display:block;color:var(--muted)">${L('from','से')} ${dS(v.effective_date)}</small>`:''}</td><td>${stName(v)}${v.error?`<small style="display:block;color:var(--bad);white-space:normal;max-width:200px">${esc(v.error)}</small>`:''}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc(v.file_name)}<small style="display:block;color:var(--muted)">${Math.max(1,Math.round(v.file_size/1024))} KB</small></td><td>${v.pages} ${L('pages','पेज')}${v.ocr_pages?` (${v.ocr_pages} OCR)`:''}<small style="display:block;color:var(--muted)">${v.chunks} ${L('parts','हिस्से')}</small></td><td>${dS(v.created_at)}<small style="display:block;color:var(--muted)">${esc(userName(v.created_by))}</small></td><td><button type="button" class="btn btn-o btn-s" data-pmfile="${v.id}">${L('File','फ़ाइल')}</button></td></tr>`).join('')}</tbody></table></div>
-   <h4 style="margin:16px 0 6px">${L('Text read from the file','फ़ाइल से पढ़ा गया टेक्स्ट')}${show?` (v${esc(show.version)})`:''}</h4><p class="ps-small" style="margin-top:0">${L('Check that headings, numbers and Hindi text were read correctly. This is exactly what the assistant answers from.','जाँचें कि हेडिंग, अंक और हिंदी टेक्स्ट सही पढ़े गए। सहायक ठीक इसी से जवाब देता है।')}</p><div data-pmchunks class="ps-small">…</div>
+   <h4 style="margin:16px 0 6px">${L('Text read from the file','फ़ाइल से पढ़ा गया टेक्स्ट')}${show?` (v${esc(show.version)})`:''}</h4><p class="ps-small" style="margin-top:0">${L('Check that headings, numbers and Hindi text were read correctly. This is exactly what the assistant answers from.','जाँचें कि हेडिंग, अंक और हिंदी टेक्स्ट सही पढ़े गए। HR सहायक ठीक इसी से जवाब देता है।')}</p><div data-pmchunks class="ps-small">…</div>
    <div class="acts"><button type="button" class="btn btn-p" data-close>${L('Close','बंद करें')}</button></div>`,(f,close)=>close());
   bg.querySelector('.modal').style.maxWidth='860px';
   bg.querySelectorAll('[data-pmfile]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await pa({action:'file_url',version_id:b.dataset.pmfile});const a=document.createElement('a');a.href=r.url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}catch(e){toast(e.message)}b.disabled=false});
