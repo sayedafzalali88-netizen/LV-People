@@ -84,8 +84,8 @@ try{const _ph=placeholder;placeholder=function(P){return P==='policies'?policies
 /* =====================================================================================
    The chat (used by the floating HR Assistant and by the Test Chat of HR)
    ===================================================================================== */
-const SUGGEST={en:['CL kitni milti hai?','Late aane ka niyam kya hai?','Notice period kitna hai?','Travel allowance kitna milta hai?','Sick leave ke liye certificate chahiye?'],
-  hi:['CL कितनी मिलती है?','देर से आने का नियम क्या है?','नोटिस पीरियड कितना है?','यात्रा भत्ता कितना मिलता है?','बीमारी की छुट्टी के लिए सर्टिफ़िकेट चाहिए?']};
+const SUGGEST={en:['CL kitni milti hai?','Late aane ka niyam kya hai?','Notice period kitna hai?','Leave kaise apply karun?','Payslip kahan milegi?'],
+  hi:['CL कितनी मिलती है?','देर से आने का नियम क्या है?','नोटिस पीरियड कितना है?','छुट्टी के लिए आवेदन कैसे करूँ?','पे-स्लिप कहाँ मिलेगी?']};
 const fmtAns=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
 const stripSrc=s=>String(s||'').replace(/\n*\s*Source:[^\n]*$/,'').trim();
 
@@ -96,7 +96,7 @@ function chatBody(c){
   if(c.view==='hist'){
     const h=c.hist;return `<div class="ps-msg ps-bot"><b>${L('Your earlier chats','आपकी पिछली चैट')}</b></div>${!h?`<div class="ps-typing"><i></i><i></i><i></i></div>`:h.length?`<div class="ps-hist">${h.map(s=>`<button data-pshist="${s.id}"><b>${esc(s.title||'…')}</b><small>${dtS(s.last_at)}</small></button>`).join('')}</div>`:`<div class="ps-small">${L('No chats yet.','अभी कोई चैट नहीं।')}</div>`}`}
   const first=(USERS[state.role]&&USERS[state.role].name||'').split(' ')[0];
-  let o=`<div class="ps-msg ps-bot">${c.mode==='test'?L('Test Chat: ask the way an employee would. Published and processed (not yet published) versions are searched; the match score is shown.','टेस्ट चैट: वैसे पूछें जैसे कर्मचारी पूछेगा। प्रकाशित और प्रोसेस हो चुके (अभी अप्रकाशित) वर्ज़न खोजे जाते हैं; मिलान स्कोर दिखता है।'):L(`Namaste${first?' '+esc(first):''}! I am your HR Assistant. Ask me about your company's policies: leave, attendance, travel, conduct and more. I answer only from the policies your company has uploaded.`,`नमस्ते${first?' '+esc(first):''}! मैं आपका HR सहायक हूँ। कंपनी की पॉलिसी के बारे में पूछें: छुट्टी, हाज़िरी, यात्रा, आचरण और बहुत कुछ। मैं सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से जवाब देता हूँ।`)}</div>`;
+  let o=`<div class="ps-msg ps-bot">${c.mode==='test'?L('Test Chat: ask the way an employee would. Published and processed (not yet published) versions are searched; the match score is shown.','टेस्ट चैट: वैसे पूछें जैसे कर्मचारी पूछेगा। प्रकाशित और प्रोसेस हो चुके (अभी अप्रकाशित) वर्ज़न खोजे जाते हैं; मिलान स्कोर दिखता है।'):L(`Namaste${first?' '+esc(first):''}! I am your HR Assistant. Ask me about your company's policies (leave, attendance, travel, conduct and more) or how to do something in LV People. I answer only from your company's policies and the LV People User Guide.`,`नमस्ते${first?' '+esc(first):''}! मैं आपका HR सहायक हूँ। कंपनी की पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण और बहुत कुछ) या LV People में कोई काम कैसे करें, यह पूछें। मैं सिर्फ़ आपकी कंपनी की पॉलिसी और LV People यूज़र गाइड से जवाब देता हूँ।`)}</div>`;
   if(!c.msgs.length)o+=`<div class="ps-chips">${SUGGEST[lang==='hi'?'hi':'en'].map(q=>`<button class="ps-chip" data-psq="${esc(q)}">${esc(q)}</button>`).join('')}</div>`;
   c.msgs.forEach((m,i)=>{
     o+=`<div class="ps-msg ps-me">${esc(m.q)}</div>`;
@@ -104,7 +104,7 @@ function chatBody(c){
     if(m.error){o+=`<div class="ps-msg ps-bot ps-err">${esc(m.error)}</div>`;return}
     const ok=m.status==='answered';
     o+=`<div class="ps-msg ps-bot ${ok?'':'ps-no'}">${fmtAns(ok?stripSrc(m.answer):m.answer)}`;
-    if(ok&&m.sources&&m.sources.length)o+=`<div>${m.sources.map((s,j)=>`<button class="ps-src" data-pssrc="${i}:${j}" title="${L('See this part of the policy','पॉलिसी का यह हिस्सा देखें')}">📄 ${esc(s.policy_name)}${s.label?' · '+esc(s.label):''}${c.mode==='test'&&s.score!=null?` · ${s.score}`:''}</button>`).join('')}</div>`;
+    if(ok&&m.sources&&m.sources.length)o+=`<div>${m.sources.map((s,j)=>`<button class="ps-src" data-pssrc="${i}:${j}" title="${L('See this part of the source','स्रोत का यह हिस्सा देखें')}">${s.kind==='guide'?'📘 '+L('User Guide','यूज़र गाइड'):'📄 '+esc(s.policy_name)}${s.label?' · '+esc(s.label):''}${c.mode==='test'&&s.score!=null?` · ${s.score}`:''}</button>`).join('')}</div>`;
     if(c.mode==='test')o+=`<div class="ps-meta">${L('Status','स्थिति')}: ${esc(m.status)}${m.top_score!=null?` · ${L('best match','सबसे अच्छा मिलान')} ${(+m.top_score).toFixed(3)} (${L('needed','ज़रूरी')} ${m.min_score})`:''}</div>`;
     else if(m.id)o+=`<div class="ps-fb"><span>${L('Was this helpful?','क्या यह काम का था?')}</span><button data-psfb="${i}:1" class="${m.rating===1?'on':''}" aria-label="${L('Helpful','काम का')}">👍</button><button data-psfb="${i}:-1" class="${m.rating===-1?'on':''}" aria-label="${L('Not helpful','काम का नहीं')}">👎</button></div>`;
     o+=`</div>`;
@@ -139,9 +139,15 @@ async function chatAsk(c,q){
   catch(e){m.error=e.message}
   m.pending=false;c.busy=false;chatRefresh(c)}
 
-function showSource(s){if(!s)return;const bg=openModal(`<h3 style="margin-top:0">${esc(s.policy_name)} <span class="pill p-teal">v${esc(s.version)}</span></h3>${s.label?`<p class="ps-small" style="margin:-4px 0 10px">${esc(s.label)}</p>`:''}
-  <div class="ps-ex">${esc(s.excerpt||'')}</div><p class="ps-small">${L('This is the part of the policy the answer was taken from.','यह पॉलिसी का वह हिस्सा है जिससे जवाब लिया गया।')}</p><div class="acts"><button type="button" class="btn btn-p" data-close>${L('Close','बंद करें')}</button></div>`,(f,close)=>close());
-  bg.querySelector('.modal').style.maxWidth='640px'}
+function showSource(s){if(!s)return;const g=s.kind==='guide', ex=g&&lang==='hi'&&s.excerpt_hi?s.excerpt_hi:(s.excerpt||'');
+  const bg=openModal(`<h3 style="margin-top:0">${g?L('LV People User Guide','LV People यूज़र गाइड'):esc(s.policy_name)+` <span class="pill p-teal">v${esc(s.version)}</span>`}</h3>${s.label?`<p class="ps-small" style="margin:-4px 0 10px">${esc(s.label)}</p>`:''}
+  <div class="ps-ex">${esc(ex)}</div><p class="ps-small">${g?L('This is the part of the User Guide the answer was taken from.','यह यूज़र गाइड का वह हिस्सा है जिससे जवाब लिया गया।'):L('This is the part of the policy the answer was taken from.','यह पॉलिसी का वह हिस्सा है जिससे जवाब लिया गया।')}</p>
+  <div class="acts">${g&&s.module_id?`<button type="button" class="btn btn-o" data-psguide>${L('Open in User Guide','यूज़र गाइड में खोलें')}</button>`:''}<button type="button" class="btn btn-p" data-close>${L('Close','बंद करें')}</button></div>`,(f,close)=>close());
+  bg.querySelector('.modal').style.maxWidth='640px';
+  const gb=bg.querySelector('[data-psguide]');if(gb)gb.onclick=()=>{bg.remove();openGuide(s.module_id,s.entry_id)}}
+/* opens the app's User Guide page at that entry */
+function openGuide(mod,entry){closeWidget();state.page='guide';try{resetViews()}catch(e){}state.gm=mod;state.gq='';render();
+  setTimeout(()=>{const el=document.getElementById(`g-${mod}-${entry}`);if(el){el.scrollIntoView({behavior:'smooth',block:'start'});el.style.boxShadow='0 0 0 2px var(--teal)';setTimeout(()=>{el.style.boxShadow=''},2500)}},80)}
 
 async function feedback(c,m,rating){
   if(!m.id||!uid())return;const was=m.rating;m.rating=rating;chatRefresh(c);
@@ -175,7 +181,7 @@ function ensureWidget(){
 function openWidget(){
   let w=document.getElementById('psWin');if(w)return;
   w=document.createElement('div');w.id='psWin';w.className='ps-win';w.setAttribute('role','dialog');w.setAttribute('aria-label','HR Assistant');
-  w.innerHTML=`<div class="ps-head"><div class="ps-av">HR</div><div style="flex:1;min-width:0"><b>HR Assistant</b><small>${L('Answers only from company policy','सिर्फ़ कंपनी पॉलिसी से जवाब')}</small></div>
+  w.innerHTML=`<div class="ps-head"><div class="ps-av">HR</div><div style="flex:1;min-width:0"><b>HR Assistant</b><small>${L('Company policy and the LV People guide','कंपनी पॉलिसी और LV People गाइड')}</small></div>
    <button data-psnew title="${L('New chat','नई चैट')}">＋</button><button data-pshis>${L('History','इतिहास')}</button><button data-psx aria-label="${L('Close','बंद करें')}">✕</button></div>${chatShell(LIVECHAT)}`;
   document.body.appendChild(w);LIVECHAT.el=w;bindChat(LIVECHAT);
   w.querySelector('[data-psx]').onclick=closeWidget;
@@ -390,4 +396,46 @@ function csv(name,head,rows){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"'
   on('[data-lgopen]',r=>r.onclick=()=>lgOpen(lgFiltered()[+r.dataset.lgopen]));
   on('[data-lgcsv]',b=>b.onclick=()=>csv(`chat_logs_${PM.lg.from}_${PM.lg.to}.csv`,['Date time','Employee code','Employee','Question','Answer','Status','Source','Feedback','Comment'],lgFiltered().map(m=>{const e=empOf(m.employee_id),fb=(m.chat_feedback||[])[0];return [dtS(m.created_at),e?e.code:'',e?e.name:'',m.question,m.answer,m.status,(m.sources||[]).map(s=>s.policy_name+' '+(s.label||'')).join('; '),fb?(fb.rating===1?'up':'down'):'',fb?fb.comment||'':'']})));
 }}
+
+/* =====================================================================================
+   ERP User Guide in the HR Assistant: ONE copy for every company (platform admin keeps it indexed)
+   Each entry carries its licence module and the roles that may see it, so the server shows a company
+   only the entries of the modules it has, and a person only the entries of the pages their role can open.
+   ===================================================================================== */
+const GI={status:null,loading:false,busy:false,ver:null,entries:null,err:''};
+const R4=['admin','hr','manager','employee'];
+function guidePayload(){
+  const out=[], tx=(x,i)=>Array.isArray(x)?(x[i]||x[0]||''):(x||'');
+  (window.GUIDE||[]).forEach(m=>{
+    let app=null;try{app=PAGEMOD[m.id]||null}catch(e){}
+    let view=R4;
+    if(m.id!=='start'){try{view=R4.filter(r=>(RIGHTS[r]&&RIGHTS[r][m.id]||[]).includes('V'))}catch(e){}}
+    (m.entries||[]).forEach(e=>{
+      const roles=e.hr?view.filter(r=>r==='admin'||r==='hr'):view;if(!roles.length)return;
+      const text=i=>{const L2=[];if(e.what)L2.push(tx(e.what,i));if(e.why)L2.push(tx(e.why,i));if(e.who)L2.push((i?'कौन: ':'Who: ')+tx(e.who,i));
+        if(e.steps&&e.steps.length)L2.push((i?'स्टेप:':'Steps:')+'\n'+e.steps.map((st,k)=>`${k+1}. ${tx(st,i)}`).join('\n'));
+        if(e.notes&&e.notes.length)L2.push((i?'जानने लायक:':'Good to know:')+'\n'+e.notes.map(n=>'- '+tx(n,i)).join('\n'));return L2.join('\n')};
+      out.push({module_id:m.id,entry_id:String(e.id),app_module:app,allowed_roles:roles,module_name:tx(m.name,0),title:tx(e.n,0),path:tx(e.path,0),content_en:text(0),content_hi:text(1)})})});
+  return out}
+async function guideVersion(entries){const b=new TextEncoder().encode(JSON.stringify(entries));const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32)}
+async function guideLoad(){if(GI.loading)return;GI.loading=true;
+  try{if(!GI.entries){GI.entries=guidePayload();GI.ver=await guideVersion(GI.entries)}GI.status=await pa({action:'guide_status'});GI.err=''}catch(e){GI.err=e.message}
+  GI.loading=false;mountGuideCard()}
+function guideCardHTML(){const s=GI.status, n=(GI.entries||[]).length, same=s&&s.live_version&&s.live_version===GI.ver;
+  const pill=!s?'':!s.live_version?`<span class="pill p-warn">${L('Not indexed yet','अभी इंडेक्स नहीं हुई')}</span>`:same?`<span class="pill p-ok">${L('Up to date','अप-टू-डेट')}</span>`:`<span class="pill p-warn">${L('Guide changed: re-index needed','गाइड बदली: दोबारा इंडेक्स करें')}</span>`;
+  return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>${L('HR Assistant · LV People User Guide','HR सहायक · LV People यूज़र गाइड')}</b> ${pill}
+   <div class="ps-small" style="margin-top:4px">${L('One copy for every company. Each company gets only the entries of its own modules, and each person only those their role can open. Company policies stay separate per company.','सभी कंपनियों के लिए एक ही कॉपी। हर कंपनी को सिर्फ़ उसके अपने मॉड्यूल की एंट्री मिलती हैं, और हर व्यक्ति को सिर्फ़ वही जो उसका रोल खोल सकता है। कंपनी की पॉलिसी हर कंपनी की अलग रहती हैं।')}</div>
+   <div class="ps-small">${GI.err?`<span style="color:var(--bad)">${esc(GI.err)}</span>`:s?`${L('Indexed','इंडेक्स')}: ${s.entries||0} ${L('entries','एंट्री')}${s.indexed_at?' · '+dtS(s.indexed_at):''} · ${L('In this app','इस ऐप में')}: ${n}`:'…'}</div></div>
+   <button class="btn ${same?'btn-o':'btn-p'} btn-s" data-gidx ${GI.busy||!GI.ver?'disabled':''}>${GI.busy?L('Indexing…','इंडेक्स हो रही है…'):L('Re-index User Guide','यूज़र गाइड दोबारा इंडेक्स करें')}</button></div>`}
+function mountGuideCard(){
+  const on=state.role==='platform'&&state.page==='lvclients'&&LIVE.on&&LIVE.platform&&!LIVE.salesOnly, m=document.getElementById('main');
+  let c=document.getElementById('giCard');if(!on||!m){if(c)c.remove();return}
+  if(!c){c=document.createElement('div');c.id='giCard';c.className='card';c.style.marginBottom='14px'}
+  const h=m.querySelector('.page-h');if(h&&h.nextSibling!==c)h.after(c);else if(!h&&m.firstChild!==c)m.prepend(c);
+  c.innerHTML=guideCardHTML();
+  const b=c.querySelector('[data-gidx]');if(b)b.onclick=async()=>{GI.busy=true;mountGuideCard();
+    try{const r=await pa({action:'guide_index',version:GI.ver,entries:GI.entries});toast(r.unchanged?L('Already up to date','पहले से अप-टू-डेट'):L('User Guide indexed: ','यूज़र गाइड इंडेक्स हुई: ')+r.entries);GI.status=null}catch(e){toast(e.message)}
+    GI.busy=false;guideLoad()};
+  if(!GI.status&&!GI.err)guideLoad()}
+{const _r2=render;render=function(){_r2.apply(this,arguments);try{mountGuideCard()}catch(e){}}}
 })();

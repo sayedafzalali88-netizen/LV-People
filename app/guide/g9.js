@@ -65,13 +65,13 @@ G('policies', ['Policy Management', 'पॉलिसी मैनेजमें
   if (!mod || mod.entries.some(function (e) { return e.id === 'policysahayak'; })) return;
   mod.entries.push({ id: 'policysahayak', n: ['HR Assistant (policy chat)', 'HR सहायक (पॉलिसी चैट)'],
     path: ['The "HR Assistant" button at the bottom right of every page', 'हर पेज पर नीचे दाईं ओर "HR Assistant" बटन'],
-    what: ['A chat that answers your questions about company policy (leave, attendance, travel, conduct …) only from the policies your company uploaded.', 'एक चैट जो कंपनी पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण …) के बारे में आपके सवालों का जवाब सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से देती है।'],
+    what: ['A chat that answers your questions about company policy (leave, attendance, travel, conduct …) only from the policies your company uploaded, and questions about using LV People (for example how to apply for leave) from this User Guide.', 'एक चैट जो कंपनी पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण …) के बारे में आपके सवालों का जवाब सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से देती है, और LV People चलाने के सवालों (जैसे छुट्टी के लिए आवेदन कैसे करें) का जवाब इसी यूज़र गाइड से।'],
     why: ['You get the rule at once, in your own language, with the policy name and section, without waiting for HR.', 'HR का इंतज़ार किए बिना आपको तुरंत नियम मिलता है, आपकी अपनी भाषा में, पॉलिसी के नाम और सेक्शन के साथ।'],
     who: ['Every employee (when the HR Assistant module is on for the company).', 'हर कर्मचारी (जब कंपनी के लिए HR सहायक मॉड्यूल चालू हो)।'],
     steps: [
       ['Press "HR Assistant" at the bottom right.', 'नीचे दाईं ओर "HR Assistant" दबाएँ।'],
       ['Type your question in Hindi, Hinglish or English, or press one of the suggested questions.', 'अपना सवाल हिंदी, हिंग्लिश या अंग्रेज़ी में लिखें, या सुझाए गए सवालों में से कोई दबाएँ।'],
-      ['Read the answer. Press the source chip under it to see the exact part of the policy.', 'जवाब पढ़ें। पॉलिसी का ठीक वही हिस्सा देखने के लिए नीचे के स्रोत चिप को दबाएँ।'],
+      ['Read the answer. Press the source chip under it to see the exact part of the policy (📄) or of the User Guide (📘). For the guide, "Open in User Guide" opens that entry.', 'जवाब पढ़ें। पॉलिसी (📄) या यूज़र गाइड (📘) का ठीक वही हिस्सा देखने के लिए नीचे के स्रोत चिप को दबाएँ। गाइड के लिए "यूज़र गाइड में खोलें" से वही एंट्री खुलती है।'],
       ['Press 👍 or 👎 to tell HR whether it helped.', 'HR को बताने के लिए कि काम का था या नहीं, 👍 या 👎 दबाएँ।'],
       ['"History" shows your earlier chats; "+" starts a new chat.', '"इतिहास" में आपकी पिछली चैट दिखती हैं; "+" से नई चैट शुरू होती है।'],
     ],

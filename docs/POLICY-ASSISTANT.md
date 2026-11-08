@@ -2,11 +2,22 @@
 
 Employees ask about company policy in a chat. The answer comes **only** from the policies their own company uploaded. No general knowledge, no labour law, no guessing.
 
+## Two sources, kept apart for many clients
+
+| Source | Stored | Who gets it |
+|---|---|---|
+| Company policies | `policy_chunks`, one set **per company** (`client_id`) | only that company, filtered by role and department |
+| LV People User Guide (`app/guide/g*.js`) | `guide_chunks`, **one copy for all companies** (no `client_id`) | every company, but only the entries of the modules that company has (`clients.modules`), and only the entries the person's role may open (HR-only entries: Admin and HR) |
+
+On every question the server searches both, using the company, modules, role and department from the signed-in person's own profile. The AI is told that company rules (days, rupees, %) come **only** from the company policy, and that the guide only explains how to use the software. The source chip shows 📄 for a policy and 📘 for the guide; "Open in User Guide" opens that entry in the app.
+
+**When the guide changes** (after a deploy with new `g*.js` text): sign in as the platform admin > **Clients (live)** > card "HR Assistant · LV People User Guide" > **Re-index User Guide**. The card says "Guide changed: re-index needed" when the guide in the app differs from the indexed one. The new version is written completely first and then switched in one step; questions keep using the old version until then. Platform-only pages (Licensing, Clients, KPI library and packs, Enquiries) are never indexed.
+
 ## What was added (nothing existing was changed)
 
 | Part | File | What it does |
 |---|---|---|
-| Database | `server/policy_assistant.sql` | 9 new tables, security rules (RLS), search, rate limit, job queue, private file bucket, a schedule every minute |
+| Database | `server/policy_assistant.sql` | 11 new tables (9 for policies and chats, 2 for the guide), security rules (RLS), search, rate limit, job queue, private file bucket, a schedule every minute |
 | Server function | `supabase/functions/policy-assistant/` | upload, text extraction (PDF, DOCX, TXT, OCR for scanned PDFs), chunks, embeddings, search, answer, admin actions |
 | Screens | `app/policy.js` | Policy Management (Admin, HR) and the HR Assistant chat button on every page |
 | Guide | `app/guide/g9.js` | User Guide chapter (EN + HI) |
