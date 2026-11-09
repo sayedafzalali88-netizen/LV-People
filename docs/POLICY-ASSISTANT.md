@@ -11,6 +11,8 @@ Employees ask about company policy in a chat. The answer comes **only** from the
 
 On every question the server searches both, using the company, modules, role and department from the signed-in person's own profile. The AI is told that company rules (days, rupees, %) come **only** from the company policy, and that the guide only explains how to use the software. The source chip shows 📄 for a policy and 📘 for the guide; "Open in User Guide" opens that entry in the app.
 
+**KPI reference.** Besides the guide pages, the index holds one short entry for every KPI of the KPI library (`app/kpiguide.js`, about 400): the KPI number, name, frequency, maximum score, how it is scored (from its method and rule) and what to do to score well (from what the rule measures, nothing added by hand). A company gets the KPIs of its own modules. They are for the HR Assistant only and are not shown in the User Guide pages. A question such as "KPI-277 kaise kaam karti hai" or "KPI-277 me acha score kaise laun" finds the entry of that KPI. After a change in a KPI rule, re-index the User Guide.
+
 **When the guide changes** (after a deploy with new `g*.js` text): sign in as the platform admin > **Clients (live)** > card "HR Assistant · LV People User Guide" > **Re-index User Guide**. The card says "Guide changed: re-index needed" when the guide in the app differs from the indexed one. The new version is written completely first and then switched in one step; questions keep using the old version until then. Platform-only pages (Licensing, Clients, KPI library and packs, Enquiries) are never indexed.
 
 ## What was added (nothing existing was changed)
