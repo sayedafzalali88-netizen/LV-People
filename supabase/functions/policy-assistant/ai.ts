@@ -1,7 +1,7 @@
 // Embeddings (Voyage or OpenAI) and the Claude calls (answer, search-query rewrite, OCR) for the HR Assistant.
 import Anthropic from "npm:@anthropic-ai/sdk@1.1.0";
 import { encodeBase64 } from "jsr:@std/encoding@1.0.10/base64";
-import { NOT_FOUND } from "./check.ts";
+import { NOT_FOUND, NOT_FOUND_HI, type Lang } from "./check.ts";
 
 const env = (k: string, d = "") => Deno.env.get(k) ?? d;
 export const EMBED_DIM = 1024;                                     // must match vector(1024) in server/policy_assistant.sql
@@ -50,16 +50,21 @@ export const vectorLiteral = (v: number[]) => "[" + v.map((x) => (Number.isFinit
 
 // ---------------------------------------------------------------- the answer
 
-export function systemPrompt(company: string): string {
+export function systemPrompt(company: string, lang: Lang = "auto"): string {
+  const hi = lang === "hi";
+  const nf = hi ? NOT_FOUND_HI : NOT_FOUND;
   return `Tum ${company} ke HR Assistant ho. Tum SIRF neeche diye gaye POLICY TEXT ke aadhar par jawab doge.
 POLICY TEXT me do tarah ke hisse hain:
 - "COMPANY POLICY": ${company} ki apni policy. Company ke saare niyam (chhutti, din, rupaye, pratishat, eligibility, late aane ka niyam, notice, allowance) SIRF isi se batao.
 - "LV PEOPLE USER GUIDE": LV People software (ERP) kaise use karna hai: kaunsa menu kholna hai, kya dabana hai. Ye guide sabhi companies ke liye ek jaisi hai, isliye isse company ka koi niyam, din, rupaye ya pratishat kabhi mat batao; isse sirf software ke steps batao.
 
-- Agar jawab POLICY TEXT me saaf likha nahi hai, to sirf ye bolo: '${NOT_FOUND}'
+- LV PEOPLE USER GUIDE me "KPI reference" ke hisse hote hain: har KPI (jaise KPI-277) ka rule, method aur maximum score. Wo software ka niyam hai. KPI ke sawal par batao ki wo kaise gina jata hai (method, rule, maximum score) aur acche score ke liye kya karna chahiye. Acche score ke upay sirf us KPI ke rule aur method se nikalo; apni taraf se target ya number mat jodo.
+- Agar jawab POLICY TEXT me saaf likha nahi hai, to sirf ye bolo: '${nf}'
 - Apni general knowledge, labour law, doosri companies ke niyam ya andaaze se kuch bhi mat jodo.
 - Policy ke shabd/numbers (din, rupaye, pratishat) bilkul waise hi likho jaise policy me hain.
-- Employee jis bhasha me poochhe (Hindi/Hinglish/English), usi me saral bhasha me jawab do.
+${hi
+  ? "- BHASHA: Jawab HAMESHA saral Hindi (Devanagari lipi) me do, chahe sawal kisi bhi bhasha ya lipi me ho. Policy ya guide ke naam, KPI ke ID (jaise KPI-277), module ke naam aur numbers jaise hain waise hi likho. Ant me line: \"स्रोत: <Policy ka naam> – <Section/Page>\"."
+  : "- Employee jis bhasha me poochhe (Hindi/Hinglish/English), usi me saral bhasha me jawab do."}
 - Har jawab ke ant me source likho: Policy ka naam + Section/Page (ya User Guide ka module + entry).
 - Policy se bahar ke sawal (jaise general gyaan, personal salary calculation, doosre employee ki jaankari) par politely mana karo.
 
@@ -85,7 +90,7 @@ const ANSWER_SCHEMA = {
 
 export type AnswerOut = { result: "answered" | "not_found" | "out_of_scope" | "rejected"; answer: string; source_ids: string[]; input_tokens: number; output_tokens: number; model: string };
 
-export async function answer(company: string, question: string, ctx: Ctx[]): Promise<AnswerOut> {
+export async function answer(company: string, question: string, ctx: Ctx[], lang: Lang = "auto"): Promise<AnswerOut> {
   const policyText = ctx.map((c) => c.kind === "guide"
     ? `[${c.id}] LV PEOPLE USER GUIDE: ${c.label}\n${c.content}`
     : `[${c.id}] COMPANY POLICY: ${c.policy_name} (Version ${c.version})${c.label ? " | " + c.label : ""}\n${c.content}`).join("\n\n---\n\n");
@@ -93,7 +98,7 @@ export async function answer(company: string, question: string, ctx: Ctx[]): Pro
   const res = await claude().messages.create({
     model,
     max_tokens: 3000,
-    system: systemPrompt(company),
+    system: systemPrompt(company, lang),
     output_config: { effort: "low", format: { type: "json_schema", schema: ANSWER_SCHEMA } },
     messages: [{ role: "user", content: `POLICY TEXT:\n\n${policyText}\n\n=====\nEMPLOYEE KA SAWAL:\n${question}` }],
   });

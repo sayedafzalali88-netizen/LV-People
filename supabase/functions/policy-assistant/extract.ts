@@ -2,6 +2,7 @@
 // Pure functions: no database, no network. Tested with: deno test supabase/functions/policy-assistant/extract_test.ts
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.3";
 import { extractText, getDocumentProxy } from "npm:unpdf@1.9.1";
+import { looksGarbled } from "./text_quality.ts";
 
 export type Page = { page_no: number; text: string; source: "text" | "ocr" | "docx" | "txt"; need_ocr: boolean };
 export type Chunk = { chunk_no: number; heading: string | null; page_from: number; page_to: number; content: string; word_count: number };
@@ -26,7 +27,8 @@ export async function extractPdf(bytes: Uint8Array): Promise<Page[]> {
   const { text } = await extractText(pdf, { mergePages: false });
   const pages = (Array.isArray(text) ? text : [text]).map((t, i) => {
     const clean = cleanText(String(t || ""));
-    return { page_no: i + 1, text: clean, source: "text" as const, need_ocr: meaningful(clean) < MIN_PAGE_CHARS };
+    // a page whose Hindi text is broken (an old Hindi font) is read again with OCR, like a scanned page
+    return { page_no: i + 1, text: clean, source: "text" as const, need_ocr: meaningful(clean) < MIN_PAGE_CHARS || looksGarbled(clean) };
   });
   return pages;
 }

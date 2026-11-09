@@ -105,7 +105,7 @@ function chatBody(c){
     const ok=m.status==='answered';
     o+=`<div class="ps-msg ps-bot ${ok?'':'ps-no'}">${fmtAns(ok?stripSrc(m.answer):m.answer)}`;
     if(ok&&m.sources&&m.sources.length)o+=`<div>${m.sources.map((s,j)=>`<button class="ps-src" data-pssrc="${i}:${j}" title="${L('See this part of the source','स्रोत का यह हिस्सा देखें')}">${s.kind==='guide'?'📘 '+L('User Guide','यूज़र गाइड'):'📄 '+esc(s.policy_name)}${s.label?' · '+esc(s.label):''}${c.mode==='test'&&s.score!=null?` · ${s.score}`:''}</button>`).join('')}</div>`;
-    if(c.mode==='test')o+=`<div class="ps-meta">${L('Status','स्थिति')}: ${esc(m.status)}${m.top_score!=null?` · ${L('best match','सबसे अच्छा मिलान')} ${(+m.top_score).toFixed(3)} (${L('needed','ज़रूरी')} ${m.min_score})`:''}</div>`;
+    if(c.mode==='test')o+=`<div class="ps-meta">${L('Status','स्थिति')}: ${esc(m.status)}${m.top_score!=null?` · ${L('best match','सबसे अच्छा मिलान')} ${(+m.top_score).toFixed(3)} (${L('needed','ज़रूरी')} ${m.min_score})`:''}</div>${!ok&&m.why?`<div class="ps-meta" style="color:var(--bad);white-space:normal">${L('Why','कारण')}: ${esc(m.why)}</div>`:''}`;
     else if(m.id)o+=`<div class="ps-fb"><span>${L('Was this helpful?','क्या यह काम का था?')}</span><button data-psfb="${i}:1" class="${m.rating===1?'on':''}" aria-label="${L('Helpful','काम का')}">👍</button><button data-psfb="${i}:-1" class="${m.rating===-1?'on':''}" aria-label="${L('Not helpful','काम का नहीं')}">👎</button></div>`;
     o+=`</div>`;
   });
@@ -134,8 +134,8 @@ function bindBody(c){
 
 async function chatAsk(c,q){
   if(c.busy)return;c.view='chat';c.busy=true;const m={q,pending:true};c.msgs.push(m);chatRefresh(c);
-  try{const body={action:'ask',question:q,mode:c.mode,session_id:c.session};if(c.mode==='test'){body.test_role=c.test.role;body.test_dept=c.test.dept||null}
-    const r=await pa(body);c.session=r.session_id;Object.assign(m,{id:r.message_id,status:r.status,answer:r.answer,sources:r.sources||[],top_score:r.top_score,min_score:r.min_score})}
+  try{const body={action:'ask',question:q,mode:c.mode,session_id:c.session,lang:lang==='hi'?'hi':'auto'};if(c.mode==='test'){body.test_role=c.test.role;body.test_dept=c.test.dept||null}
+    const r=await pa(body);c.session=r.session_id;Object.assign(m,{id:r.message_id,status:r.status,answer:r.answer,sources:r.sources||[],top_score:r.top_score,min_score:r.min_score,why:r.why})}
   catch(e){m.error=e.message}
   m.pending=false;c.busy=false;chatRefresh(c)}
 
@@ -202,7 +202,7 @@ window.PM=PM;
 
 async function pmLoad(){
   const [p,v]=await Promise.all([sb().from('policies').select('*').order('updated_at',{ascending:false}),
-    sb().from('policy_versions').select('id,policy_id,version,effective_date,file_name,file_type,file_size,status,auto_publish,pages,ocr_pages,chunks,error,processed_at,published_at,created_by,created_at').order('created_at',{ascending:false})]);
+    sb().from('policy_versions').select('id,policy_id,version,effective_date,file_name,file_type,file_size,status,auto_publish,pages,ocr_pages,chunks,error,note,processed_at,published_at,created_by,created_at').order('created_at',{ascending:false})]);
   if(p.error)throw p.error;if(v.error)throw v.error;PM.pols=p.data||[];PM.vers=v.data||[];PM.loaded=true;PM.err='';
   clearTimeout(PM.poll);if(PM.vers.some(x=>x.status==='processing'))PM.poll=setTimeout(()=>{if(state.page==='policies'&&(state.poltab||'list')==='list')pmLoad().then(render).catch(()=>{})},5000)}
 
@@ -232,7 +232,7 @@ function policiesPage(){
     const ver=s.live?`v${esc(s.live.version)}${s.live.effective_date?` · ${dS(s.live.effective_date)}`:''}`:'—';
     const newer=s.last&&s.live&&s.last.id!==s.live.id?`<small style="display:block;color:var(--muted)">${L('new','नया')}: v${esc(s.last.version)}</small>`:'';
     const b=(attr,label,cls='')=>`<button class="btn ${cls==='btn-p'?'':'btn-o'} btn-s ${cls}" ${attr}>${label}</button>`;
-    return `<tr><td><b>${esc(p.name)}</b><small style="display:block;color:var(--muted)">${catName(p.category)}</small></td><td>${ver}${newer}</td><td>${esc(who)}${dep}</td><td>${s.pill}${s.k==='failed'&&s.last.error?`<small style="display:block;color:var(--bad);max-width:260px;white-space:normal">${esc(s.last.error)}</small>`:''}${s.k==='processing'?`<small style="display:block;color:var(--muted)">${L('You can keep working; this updates by itself.','आप काम जारी रखें; यह अपने आप अपडेट होगा।')}</small>`:''}</td><td>${dS(p.updated_at)}</td>
+    return `<tr><td><b>${esc(p.name)}</b><small style="display:block;color:var(--muted)">${catName(p.category)}</small></td><td>${ver}${newer}</td><td>${esc(who)}${dep}</td><td>${s.pill}${s.k==='failed'&&s.last.error?`<small style="display:block;color:var(--bad);max-width:260px;white-space:normal">${esc(s.last.error)}</small>`:''}${s.last&&s.last.note&&s.k!=='archived'?`<small style="display:block;color:var(--warn,#b45309);max-width:300px;white-space:normal">⚠ ${esc(s.last.note)}</small>`:''}${s.k==='processing'?`<small style="display:block;color:var(--muted)">${L('You can keep working; this updates by itself.','आप काम जारी रखें; यह अपने आप अपडेट होगा।')}</small>`:''}</td><td>${dS(p.updated_at)}</td>
       <td style="text-align:right;white-space:nowrap">${b(`data-pmview="${p.id}"`,L('View','देखें'))} ${s.k==='ready'?b(`data-pmpub="${s.last.id}"`,L('Publish','प्रकाशित करें'),'btn-p'):''} ${s.k==='failed'?b(`data-pmretry="${s.last.id}"`,L('Try again','फिर कोशिश')):''} ${s.k!=='processing'?b(`data-pmnew="${p.id}"`,L('New version','नया वर्ज़न')):''} ${b(`data-pmedit="${p.id}"`,L('Edit','बदलें'))} ${p.status==='archived'?b(`data-pmres="${p.id}"`,L('Restore','वापस लाएँ')):b(`data-pmarc="${p.id}"`,L('Archive','आर्काइव'))} ${b(`data-pmdel="${p.id}"`,L('Delete','हटाएँ'),'btn-d')}</td></tr>`}).join('');
   const act=PM.pols.filter(p=>polState(p).k==='active').length;
   return head+(PM.err?`<p class="pill p-bad" style="display:block;white-space:normal">${esc(PM.err)}</p>`:'')+
@@ -339,7 +339,7 @@ function unQs(){const byQ={};(PM.un.rows||[]).forEach(r=>{const g=byQ[r.question
 
 /* ---------- Chat Logs ---------- */
 async function lgLoad(){const g=PM.lg;g.rows=null;render();
-  let q=sb().from('chat_messages').select('id,created_at,employee_id,user_id,question,answer,status,sources,top_score,latency_ms,chat_feedback(rating,comment)').eq('mode','live').gte('created_at',g.from+'T00:00:00').lte('created_at',g.to+'T23:59:59.999').order('created_at',{ascending:false}).limit(1000);
+  let q=sb().from('chat_messages').select('id,created_at,employee_id,user_id,question,answer,status,sources,top_score,latency_ms,reject_reason,chat_feedback(rating,comment)').eq('mode','live').gte('created_at',g.from+'T00:00:00').lte('created_at',g.to+'T23:59:59.999').order('created_at',{ascending:false}).limit(1000);
   if(g.st)q=q.eq('status',g.st);const r=await q;g.rows=r.error?[]:r.data;g.err=r.error?r.error.message:'';render()}
 function lgFiltered(){const g=PM.lg, s=g.q.trim().toLowerCase();return (g.rows||[]).filter(m=>{const fb=(m.chat_feedback||[])[0];
   if(g.fb==='up'&&!(fb&&fb.rating===1))return false;if(g.fb==='down'&&!(fb&&fb.rating===-1))return false;if(g.fb==='none'&&fb)return false;
@@ -359,6 +359,7 @@ function logsTab(){const g=PM.lg;if(g.rows===null&&!g.busy){g.busy=true;lgLoad()
 function lgOpen(m){const e=empOf(m.employee_id), fb=(m.chat_feedback||[])[0];
   const bg=openModal(`<h3 style="margin-top:0">${L('Chat','चैट')} · ${dtS(m.created_at)}</h3><p class="ps-small" style="margin-top:-6px">${e?esc(e.name)+' ('+esc(e.code)+')':''} · ${stPill(m.status)}${m.top_score!=null?` · ${L('best match','सबसे अच्छा मिलान')} ${(+m.top_score).toFixed(3)}`:''}${m.latency_ms?` · ${(m.latency_ms/1000).toFixed(1)} s`:''}</p>
    <label>${L('Question','सवाल')}</label><div class="ps-ex">${esc(m.question)}</div><label>${L('Answer','जवाब')}</label><div class="ps-ex">${esc(m.answer)}</div>
+   ${m.reject_reason?`<label>${L('Why no answer','जवाब क्यों नहीं मिला')}</label><div class="ps-ex" style="color:var(--bad)">${esc(m.reject_reason)}</div>`:''}
    ${(m.sources||[]).map(s=>`<label>${esc(s.policy_name)} v${esc(s.version)} · ${esc(s.label||'')}</label><div class="ps-ex" style="max-height:200px">${esc(s.excerpt||'')}</div>`).join('')}
    ${fb?`<label>${L('Feedback','फ़ीडबैक')}</label><div>${fb.rating===1?'👍':'👎'} ${esc(fb.comment||'')}</div>`:''}<div class="acts"><button type="button" class="btn btn-p" data-close>${L('Close','बंद करें')}</button></div>`,(f,close)=>close());
   bg.querySelector('.modal').style.maxWidth='720px'}

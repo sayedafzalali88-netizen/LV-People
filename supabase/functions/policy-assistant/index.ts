@@ -7,7 +7,8 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.1
 import { PDFDocument } from "npm:pdf-lib@1.17.1";
 import { chunkPages, extractDocx, extractPdf, extractTxt, fileTypeOf, MIN_PAGE_CHARS, parseOcr, sourceLabel, type Page } from "./extract.ts";
 import { answer, CFG, describeAiError, embed, ocrPdf, searchQuery, vectorLiteral, type Ctx } from "./ai.ts";
-import { checkAnswer, NOT_FOUND } from "./check.ts";
+import { checkAnswer, notFoundText, whyText } from "./check.ts";
+import { looksGarbled } from "./text_quality.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -355,9 +356,18 @@ async function runStage(v: Version, stage: string, deadline: number): Promise<st
     }
     await db.from("policy_versions").update({ pages: pages.length }).eq("id", v.id);
     const scanned = pages.filter((p) => p.need_ocr).length;
+    const bad = pages.filter((p) => looksGarbled(p.text)).length;
+    const empty = pages.filter((p) => (p.text.match(/[\p{L}\p{N}]/gu) || []).length < MIN_PAGE_CHARS).length;
+    // a note for HR, shown on the version: the Hindi text of the file is broken (an old Hindi font)
+    let note: string | null = null;
+    if (v.file_type !== "pdf" && looksGarbled(pages.map((p) => p.text).join("\n"))) note = "The Hindi text of this file looks broken. Please check the file and upload it again from Word (DOCX) or with a Unicode font (Mangal, Nirmala UI), so that the answers are right.";
+    else if (bad) note = v.file_type === "pdf" && CFG.ocr()
+      ? `The Hindi text of ${bad} page(s) was broken in the file (an old Hindi font), so these pages are read again with OCR. Please check the text of the answers.`
+      : `The Hindi text of ${bad} page(s) looks broken (an old Hindi font). Upload the policy from Word (DOCX), or a PDF made with a Unicode font (Mangal, Nirmala UI), so that the answers are right.`;
+    await db.from("policy_versions").update({ note }).eq("id", v.id);
     if (!scanned) return "chunk";
     if (CFG.ocr()) return "ocr";
-    if (scanned === pages.length) throw new PermanentError("This looks like a scanned PDF (no text). OCR is switched off: upload a PDF with text, or a DOCX.");
+    if (empty === pages.length) throw new PermanentError("This looks like a scanned PDF (no text). OCR is switched off: upload a PDF with text, or a DOCX.");
     return "chunk";
   }
 
@@ -467,10 +477,11 @@ async function ask(body: Record<string, unknown>, me: Me) {
   const top = ranked[0]?.score ?? 0;
   const minScore = SETTINGS.minScore();
 
-  const save = async (status: string, text: string, sources: unknown[], model: string | null) => {
+  const lang: "hi" | "auto" = body.lang === "hi" ? "hi" : "auto";
+  const save = async (status: string, text: string, sources: unknown[], model: string | null, why = "") => {
     const m = must(await db.from("chat_messages").insert({
       client_id: me.client_id, session_id: sessionId, user_id: me.user_id, employee_id: me.employee_id, mode: test ? "test" : "live", test_role: test ? role : null,
-      question, answer: text, status, sources, top_score: ranked.length ? top : null, model, input_tokens: inTok, output_tokens: outTok, latency_ms: Date.now() - t0, created_by: me.user_id,
+      question, answer: text, status, sources, top_score: ranked.length ? top : null, model, input_tokens: inTok, output_tokens: outTok, latency_ms: Date.now() - t0, created_by: me.user_id, reject_reason: why ? why.slice(0, 500) : null,
     }).select("id").single(), "message") as { id: string };
     await db.from("chat_sessions").update({ last_at: new Date().toISOString() }).eq("id", sessionId);
     if (!test && (status === "not_found" || status === "rejected")) {
@@ -478,25 +489,30 @@ async function ask(body: Record<string, unknown>, me: Me) {
     }
     return m.id;
   };
-  const reply = async (status: string, text: string, sources: SourceOut[], model: string | null) => {
-    const id = await save(status, text, sources, model);
-    return { message_id: id, session_id: sessionId, status, answer: text, sources: sources.map(({ chunk_id: _c, policy_id: _p, ...s }) => s), ...(test ? { top_score: top, min_score: minScore } : {}) };
+  const reply = async (status: string, text: string, sources: SourceOut[], model: string | null, why = "") => {
+    const id = await save(status, text, sources, model, why);
+    return { message_id: id, session_id: sessionId, status, answer: text, sources: sources.map(({ chunk_id: _c, policy_id: _p, ...s }) => s), ...(test ? { top_score: top, min_score: minScore, ...(why ? { why } : {}) } : {}) };
   };
 
   // rule (a): weak match → no AI call
-  if (!ranked.length || top < minScore) return reply("not_found", NOT_FOUND, [], null);
+  if (!ranked.length || top < minScore) {
+    const weak = ranked.length
+      ? `The best match (${Math.round(top * 1000) / 1000}) is below the needed ${minScore}, so no AI call was made. The policy and the guide have no part that matches the question well.`
+      : "Nothing in the policies or the guide matched the question.";
+    return reply("not_found", notFoundText(lang), [], null, weak);
+  }
 
   // rule (b): only the best 4–6 parts go to the AI
   const picked = ranked.filter((r) => r.score >= minScore * 0.8).slice(0, SETTINGS.topK());
   const ctx: (Ctx & { h: Hit; effective_date: string | null })[] = picked.map((h, i) => h.kind === "policy"
     ? { id: "S" + (i + 1), kind: "policy", policy_name: h.m!.policy_name, version: h.m!.version, heading: h.m!.heading, label: sourceLabel(h.m!.heading, h.m!.page_from, h.m!.page_to, h.m!.file_type !== "txt"), content: h.m!.content, effective_date: h.m!.effective_date, h }
     : { id: "S" + (i + 1), kind: "guide", policy_name: "LV People User Guide", version: "", heading: h.g!.title, label: `${h.g!.module_name} › ${h.g!.title}`, content: `Where: ${h.g!.path}\n${h.g!.content_en}${h.g!.content_hi ? "\n\n" + h.g!.content_hi : ""}`, effective_date: null, h });
-  const out = await answer(me.client_name, question, ctx);
+  const out = await answer(me.client_name, question, ctx, lang);
   inTok += out.input_tokens; outTok += out.output_tokens;
-  const ck = checkAnswer(out, ctx, question);
+  const ck = checkAnswer(out, ctx, question, lang);
   if (ck.status !== "answered") {
     if (ck.status === "rejected") console.warn("answer rejected:", ck.why);
-    return reply(ck.status, ck.text, [], out.model);
+    return reply(ck.status, ck.text, [], out.model, whyText(ck.why));
   }
   const sources: SourceOut[] = ck.cited.map((c, i) => {
     const h = ctx.find((x) => x.id === c.id)!.h;
