@@ -11,3 +11,10 @@ begin
 end $function$;
 revoke all on function public.platform_set_client_logo(uuid, text) from public, anon;
 grant execute on function public.platform_set_client_logo(uuid, text) to authenticated;
+
+-- the login page shows the logo of the company whose code is typed (only the logo; a suspended client shows none)
+create or replace function public.client_logo_by_code(p_code text) returns text language sql stable security definer set search_path = '' as $$
+  select logo from public.clients where code = lower(trim(coalesce(p_code,''))) and status <> 'suspended' and logo is not null limit 1
+$$;
+revoke all on function public.client_logo_by_code(text) from public;
+grant execute on function public.client_logo_by_code(text) to anon, authenticated;
