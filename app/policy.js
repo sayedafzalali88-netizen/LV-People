@@ -416,6 +416,8 @@ function guidePayload(){
         if(e.steps&&e.steps.length)L2.push((i?'स्टेप:':'Steps:')+'\n'+e.steps.map((st,k)=>`${k+1}. ${tx(st,i)}`).join('\n'));
         if(e.notes&&e.notes.length)L2.push((i?'जानने लायक:':'Good to know:')+'\n'+e.notes.map(n=>'- '+tx(n,i)).join('\n'));return L2.join('\n')};
       out.push({module_id:m.id,entry_id:String(e.id),app_module:app,allowed_roles:roles,module_name:tx(m.name,0),title:tx(e.n,0),path:tx(e.path,0),content_en:text(0),content_hi:text(1)})})});
+  /* one entry for every KPI (app/kpiguide.js): so that a question with a KPI number, or "how to score well in KPI-277", finds it */
+  try{if(typeof window.kpiGuideEntries==='function')out.push(...window.kpiGuideEntries())}catch(e){}
   return out}
 async function guideVersion(entries){const b=new TextEncoder().encode(JSON.stringify(entries));const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32)}
 async function guideLoad(){if(GI.loading)return;GI.loading=true;
