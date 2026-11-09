@@ -473,6 +473,17 @@ async function ask(body: Record<string, unknown>, me: Me) {
     for (const r of must(pol, "search") as Match[]) keep({ key: "p:" + r.chunk_id, kind: "policy", score: r.score, m: r });
     for (const r of must(gd, "guide search") as GuideMatch[]) keep({ key: "g:" + r.chunk_id, kind: "guide", score: r.score, g: r });
   }
+  // a KPI number written in the question (KPI-277, kpi 277) finds that KPI's entry directly
+  const kpiNums = [...new Set([...question.matchAll(/\bkpi[\s_-]*0*(\d{1,4})\b/gi)].map((m) => m[1]))].slice(0, 3);
+  if (kpiNums.length) {
+    const ids = kpiNums.flatMap((n) => ["kpi-" + n, "kpi-" + n.padStart(3, "0")]);
+    const rows = must(await db.from("guide_chunks").select("id, module_id, entry_id, module_name, title, path, content_en, content_hi, allowed_roles, app_module, guide_version").eq("module_id", "kpiref").in("entry_id", ids), "kpi lookup") as (GuideMatch & { allowed_roles: string[]; app_module: string | null; guide_version: string })[];
+    const live = (await guideStatus()).live_version;
+    for (const r of rows) {
+      if (r.guide_version !== live || !r.allowed_roles.includes(role) || (r.app_module && !me.modules.includes(r.app_module))) continue;
+      keep({ key: "g:" + (r as unknown as { id: string }).id, kind: "guide", score: 0.95, g: { ...r, chunk_id: (r as unknown as { id: string }).id, score: 0.95 } });
+    }
+  }
   const ranked = [...best.values()].sort((a, b) => b.score - a.score);
   const top = ranked[0]?.score ?? 0;
   const minScore = SETTINGS.minScore();
