@@ -100,10 +100,6 @@
     'The companies that use LV People, with the status, the employee limit and the modules each one has.', 'LV People इस्तेमाल करने वाली कंपनियाँ, हर एक की स्थिति, कर्मचारी सीमा और मॉड्यूल।',
     'So that LV can start, pause and set up a client without touching the database.', 'ताकि LV डेटाबेस को छुए बिना क्लाइंट शुरू, रोक और सेट कर सके।', 'Only the LV platform team.', 'सिर्फ़ LV प्लेटफ़ॉर्म टीम।',
     [['Open Clients (live) and press to create a client: the company code (small letters, digits or -), the name, the employee limit and the modules.', 'Clients (live) खोलें और क्लाइंट बनाने के लिए दबाएँ: कंपनी कोड (छोटे अक्षर, अंक या -), नाम, कर्मचारी सीमा और मॉड्यूल।'], ['Write the first admin: the name, the employee code, the mobile and a password of at least 8 characters. The admin must change it at the first login.', 'पहला एडमिन लिखें: नाम, कर्मचारी कोड, मोबाइल और कम से कम 8 अक्षर का पासवर्ड। एडमिन को पहले लॉगिन पर इसे बदलना होता है।'], ['To change a client later, set the status (active, test or suspended), the limit and the modules. A suspended client cannot sign in.', 'बाद में क्लाइंट बदलने के लिए स्थिति (active, test या suspended), सीमा और मॉड्यूल तय करें। suspended क्लाइंट साइन इन नहीं कर सकता।']]);
-  M('licensing', 'Licensing console', 'लाइसेंस कंसोल',
-    'The place where the LV team sets which modules and how many employees a client may use.', 'वह जगह जहाँ LV टीम तय करती है कि क्लाइंट कौन से मॉड्यूल और कितने कर्मचारी इस्तेमाल कर सकता है।',
-    'So that a client uses only what it has paid for.', 'ताकि क्लाइंट सिर्फ़ वही इस्तेमाल करे जिसका उसने भुगतान किया है।', 'Only the LV platform team.', 'सिर्फ़ LV प्लेटफ़ॉर्म टीम।',
-    [['Open Licensing console and choose the client.', 'Licensing console खोलें और क्लाइंट चुनें।'], ['Switch the modules on or off and set the employee limit.', 'मॉड्यूल चालू या बंद करें और कर्मचारी सीमा तय करें।'], ['Save. The change shows in the left menu of the client at the next sign-in.', 'सेव करें। बदलाव क्लाइंट के बाएँ मेन्यू में अगले साइन-इन पर दिखता है।']]);
 })();
 /* Enquiries: the public enquiry form of a prospect, and the Enquiries list of the LV team */
 (function () {

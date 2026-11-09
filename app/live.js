@@ -574,7 +574,7 @@ drawLogin=function(){_draw.apply(this,arguments);const box=document.getElementBy
   const s=box.querySelector('.sub');if(s)s.textContent=L('Company code, employee number and password. Platform admin: leave the company code empty and use the email.','कंपनी कोड, कर्मचारी नंबर और पासवर्ड। प्लेटफ़ॉर्म एडमिन: कंपनी कोड ख़ाली छोड़ें और ईमेल डालें।')};
 async function startSession(user){
   const [p,pa,sa]=await Promise.all([sb.from('profiles').select('*, client:client_id(code,name,status,modules)').eq('user_id',user.id).maybeSingle(),sb.from('platform_admins').select('user_id').eq('user_id',user.id).maybeSingle(),sb.from('platform_sales').select('user_id,name,active').eq('user_id',user.id).maybeSingle()]);
-  try{if(!window.RIGHTS_PLAT0)window.RIGHTS_PLAT0=JSON.parse(JSON.stringify(RIGHTS.platform));Object.keys(RIGHTS.platform).forEach(k=>delete RIGHTS.platform[k]);Object.assign(RIGHTS.platform,JSON.parse(JSON.stringify(window.RIGHTS_PLAT0)));LIVE.salesOnly=false;ENQ.loaded=false}catch(e){}
+  try{if(!window.RIGHTS_PLAT0){window.RIGHTS_PLAT0=JSON.parse(JSON.stringify(RIGHTS.platform));delete window.RIGHTS_PLAT0.licensing}Object.keys(RIGHTS.platform).forEach(k=>delete RIGHTS.platform[k]);Object.assign(RIGHTS.platform,JSON.parse(JSON.stringify(window.RIGHTS_PLAT0)));LIVE.salesOnly=false;ENQ.loaded=false}catch(e){}
   LIVE.platform=!!pa.data;LIVE.profile=p.data||null;LIVE.client=p.data?p.data.client:null;
   if(!LIVE.platform&&!p.data&&sa&&sa.data&&sa.data.active){LIVE.platform=true;LIVE.salesOnly=true;LIVE.salesName=sa.data.name;Object.keys(RIGHTS.platform).forEach(k=>RIGHTS.platform[k]=[]);RIGHTS.platform.enquiries=['V','A','E'];try{USERS.platform.name=sa.data.name}catch(e){}}
   if(LIVE.platform&&!LIVE.profile){LIVE.on=true;enterApp(null,'platform',false);return}
@@ -919,7 +919,7 @@ try{const _phE=placeholder;placeholder=function(P){return P==='enquiries'?enquir
   m.querySelectorAll('[data-enqsales]').forEach(b=>b.onclick=enqSalesModal);
   m.querySelectorAll('[data-enqadd]').forEach(b=>b.onclick=enqAddModal);
   m.querySelectorAll('[data-enqstog]').forEach(b=>b.onclick=async()=>{const s=ENQ.sales.find(x=>x.user_id===b.dataset.enqstog);if(!s)return;const r=await sb.rpc('platform_set_sales_active',{p_user:s.user_id,p_active:!s.active});if(r.error)return toast(r.error.message);s.active=!s.active;toast(t('saved'));render()})}}
-{const _rE=render;render=function(){if(LIVE.salesOnly&&state.role==='platform'&&state.page!=='enquiries')state.page='enquiries';return _rE.apply(this,arguments)}}
+{const _rE=render;render=function(){if(state.role==='platform'&&state.page==='licensing')state.page='enquiries';if(LIVE.salesOnly&&state.role==='platform'&&state.page!=='enquiries')state.page='enquiries';return _rE.apply(this,arguments)}}
 /* the public form: the client sees no price and no quotation */
 function renderEnquiry(el){const mods=(typeof MODS!=='undefined'?MODS:[]), sts=INDIA_STATES;
  const inp=(n,l,o={})=>`<div><label>${l}${o.req?' *':''}</label><input class="inp" name="${n}" ${o.max?`maxlength="${o.max}"`:''} ${o.type?`type="${o.type}"`:''} ${o.ph?`placeholder="${o.ph}"`:''} ${o.mode?`inputmode="${o.mode}"`:''} ${o.up?'style="text-transform:uppercase"':''}></div>`;
