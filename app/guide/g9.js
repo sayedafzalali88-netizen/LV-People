@@ -1,12 +1,12 @@
-/* LV People User Guide: Policy Assistant (Policy Management for HR and Admin, and the Policy Sahayak chat for every employee). */
+/* LV People User Guide: HR Assistant (Policy Management for HR and Admin, and the HR Assistant chat for every employee). */
 G('policies', ['Policy Management', 'पॉलिसी मैनेजमेंट'],
-  ['HR and Admin upload the company policies here. Policy Sahayak (the chat button at the bottom right of every page) answers employees only from these policies, never from general knowledge or the law.',
-   'HR और Admin यहाँ कंपनी की पॉलिसी अपलोड करते हैं। पॉलिसी सहायक (हर पेज पर नीचे दाईं ओर का चैट बटन) कर्मचारियों को सिर्फ़ इन्हीं पॉलिसी से जवाब देता है, कभी सामान्य ज्ञान या क़ानून से नहीं।'],
+  ['HR and Admin upload the company policies here. HR Assistant (the chat button at the bottom right of every page) answers employees only from these policies, never from general knowledge or the law.',
+   'HR और Admin यहाँ कंपनी की पॉलिसी अपलोड करते हैं। HR सहायक (हर पेज पर नीचे दाईं ओर का चैट बटन) कर्मचारियों को सिर्फ़ इन्हीं पॉलिसी से जवाब देता है, कभी सामान्य ज्ञान या क़ानून से नहीं।'],
   [
     { id: 'list', n: ['Policies', 'पॉलिसी'], hr: true,
       path: ['Administration > Policy Management > Policies', 'प्रशासन > पॉलिसी मैनेजमेंट > पॉलिसी'],
       what: ['The list of company policies with their live version, who may see them and their status: Processing, Ready to test, Active, Failed or Archived.', 'कंपनी की पॉलिसी की सूची: चालू वर्ज़न, कौन देख सकता है और स्थिति: प्रोसेस हो रही, टेस्ट के लिए तैयार, चालू, विफल या आर्काइव।'],
-      why: ['Policy Sahayak can answer only what is written in an Active policy. Keeping this list correct keeps the answers correct.', 'पॉलिसी सहायक सिर्फ़ वही बता सकता है जो किसी चालू पॉलिसी में लिखा है। यह सूची सही रहेगी तो जवाब सही रहेंगे।'],
+      why: ['HR Assistant can answer only what is written in an Active policy. Keeping this list correct keeps the answers correct.', 'HR सहायक सिर्फ़ वही बता सकता है जो किसी चालू पॉलिसी में लिखा है। यह सूची सही रहेगी तो जवाब सही रहेंगे।'],
       who: ['HR and Admin.', 'HR और Admin।'],
       steps: [
         ['Open Administration > Policy Management and press "+ Upload policy".', 'प्रशासन > पॉलिसी मैनेजमेंट खोलें और "+ पॉलिसी अपलोड करें" दबाएँ।'],
@@ -49,7 +49,7 @@ G('policies', ['Policy Management', 'पॉलिसी मैनेजमें
       ] },
     { id: 'logs', n: ['Chat Logs', 'चैट लॉग'], hr: true,
       path: ['Administration > Policy Management > Chat Logs', 'प्रशासन > पॉलिसी मैनेजमेंट > चैट लॉग'],
-      what: ['Every question asked to Policy Sahayak: employee, question, answer, source, date and time, and the 👍/👎 feedback with its comment.', 'पॉलिसी सहायक से पूछा गया हर सवाल: कर्मचारी, सवाल, जवाब, स्रोत, तारीख़ और समय, और 👍/👎 फ़ीडबैक उसकी टिप्पणी के साथ।'],
+      what: ['Every question asked to HR Assistant: employee, question, answer, source, date and time, and the 👍/👎 feedback with its comment.', 'HR सहायक से पूछा गया हर सवाल: कर्मचारी, सवाल, जवाब, स्रोत, तारीख़ और समय, और 👍/👎 फ़ीडबैक उसकी टिप्पणी के साथ।'],
       why: ['For audit, and to see where the answers can be improved.', 'ऑडिट के लिए, और यह देखने के लिए कि जवाब कहाँ बेहतर हो सकते हैं।'],
       who: ['HR and Admin.', 'HR और Admin।'],
       steps: [
@@ -59,19 +59,19 @@ G('policies', ['Policy Management', 'पॉलिसी मैनेजमें
       ] },
   ]);
 
-/* Policy Sahayak for every employee: added to the Dashboard module of the guide, which everyone can open */
+/* HR Assistant for every employee: added to the Dashboard module of the guide, which everyone can open */
 (function () {
   var mod = window.GUIDE.filter(function (x) { return x.id === 'dashboard'; })[0];
   if (!mod || mod.entries.some(function (e) { return e.id === 'policysahayak'; })) return;
-  mod.entries.push({ id: 'policysahayak', n: ['Policy Sahayak (policy chat)', 'पॉलिसी सहायक (पॉलिसी चैट)'],
-    path: ['The "Policy Sahayak" button at the bottom right of every page', 'हर पेज पर नीचे दाईं ओर "Policy Sahayak" बटन'],
-    what: ['A chat that answers your questions about company policy (leave, attendance, travel, conduct …) only from the policies your company uploaded.', 'एक चैट जो कंपनी पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण …) के बारे में आपके सवालों का जवाब सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से देती है।'],
+  mod.entries.push({ id: 'policysahayak', n: ['HR Assistant (policy chat)', 'HR सहायक (पॉलिसी चैट)'],
+    path: ['The "HR Assistant" button at the bottom right of every page', 'हर पेज पर नीचे दाईं ओर "HR Assistant" बटन'],
+    what: ['A chat that answers your questions about company policy (leave, attendance, travel, conduct …) only from the policies your company uploaded, and questions about using LV People (for example how to apply for leave) from this User Guide.', 'एक चैट जो कंपनी पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण …) के बारे में आपके सवालों का जवाब सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से देती है, और LV People चलाने के सवालों (जैसे छुट्टी के लिए आवेदन कैसे करें) का जवाब इसी यूज़र गाइड से।'],
     why: ['You get the rule at once, in your own language, with the policy name and section, without waiting for HR.', 'HR का इंतज़ार किए बिना आपको तुरंत नियम मिलता है, आपकी अपनी भाषा में, पॉलिसी के नाम और सेक्शन के साथ।'],
-    who: ['Every employee (when the Policy Assistant module is on for the company).', 'हर कर्मचारी (जब कंपनी के लिए पॉलिसी सहायक मॉड्यूल चालू हो)।'],
+    who: ['Every employee (when the HR Assistant module is on for the company).', 'हर कर्मचारी (जब कंपनी के लिए HR सहायक मॉड्यूल चालू हो)।'],
     steps: [
-      ['Press "Policy Sahayak" at the bottom right.', 'नीचे दाईं ओर "Policy Sahayak" दबाएँ।'],
+      ['Press "HR Assistant" at the bottom right.', 'नीचे दाईं ओर "HR Assistant" दबाएँ।'],
       ['Type your question in Hindi, Hinglish or English, or press one of the suggested questions.', 'अपना सवाल हिंदी, हिंग्लिश या अंग्रेज़ी में लिखें, या सुझाए गए सवालों में से कोई दबाएँ।'],
-      ['Read the answer. Press the source chip under it to see the exact part of the policy.', 'जवाब पढ़ें। पॉलिसी का ठीक वही हिस्सा देखने के लिए नीचे के स्रोत चिप को दबाएँ।'],
+      ['Read the answer. Press the source chip under it to see the exact part of the policy (📄) or of the User Guide (📘). For the guide, "Open in User Guide" opens that entry.', 'जवाब पढ़ें। पॉलिसी (📄) या यूज़र गाइड (📘) का ठीक वही हिस्सा देखने के लिए नीचे के स्रोत चिप को दबाएँ। गाइड के लिए "यूज़र गाइड में खोलें" से वही एंट्री खुलती है।'],
       ['Press 👍 or 👎 to tell HR whether it helped.', 'HR को बताने के लिए कि काम का था या नहीं, 👍 या 👎 दबाएँ।'],
       ['"History" shows your earlier chats; "+" starts a new chat.', '"इतिहास" में आपकी पिछली चैट दिखती हैं; "+" से नई चैट शुरू होती है।'],
     ],

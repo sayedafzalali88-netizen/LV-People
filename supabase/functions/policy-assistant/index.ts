@@ -1,5 +1,6 @@
 // Server function "policy-assistant" (Supabase Edge Function).
-// Employees ask about company policy; the answer comes ONLY from the policies of their own company.
+// HR Assistant. Employees ask about company policy and about using LV People; the answer comes ONLY from the policies of
+// their own company and from the LV People User Guide (one copy for all companies, filtered by the company's modules and the role).
 // Every request: the signed-in person's own profile decides the company, role and department (nothing from the browser is trusted).
 // Deploy: supabase functions deploy policy-assistant --no-verify-jwt   (the function checks the login itself; the cron call has no login)
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
@@ -52,7 +53,7 @@ const json = (req: Request, body: unknown, status = 200) => new Response(JSON.st
 const must = <T>(r: { data: T; error: { message: string } | null }, what: string): T => { if (r.error) throw new Error(`${what}: ${r.error.message}`); return r.data; };
 
 // ---------------------------------------------------------------- who is asking
-type Me = { user_id: string; client_id: string; client_name: string; role: string; isHr: boolean; employee_id: string | null; dept_id: string | null; name: string };
+type Me = { user_id: string; client_id: string; client_name: string; role: string; isHr: boolean; employee_id: string | null; dept_id: string | null; name: string; modules: string[] };
 
 async function whoAmI(req: Request): Promise<Me> {
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
@@ -64,14 +65,14 @@ async function whoAmI(req: Request): Promise<Me> {
   if (!p || !p.active || !p.client_id) throw new HttpError(403, "This login is not active for a company.");
   const c = must(await db.from("clients").select("id, name, status, modules").eq("id", p.client_id).maybeSingle(), "company");
   if (!c || c.status === "suspended") throw new HttpError(403, "Your company's login is not active.");
-  const mods = Array.isArray(c.modules) ? c.modules : [];
+  const mods: string[] = Array.isArray(c.modules) ? c.modules.map(String) : [];
   if (!mods.includes("policy")) throw new HttpError(403, "Policy Assistant is not switched on for your company.");
   let dept: string | null = null, name = "";
   if (p.employee_id) {
     const e = must(await db.from("employees").select("department_id, name, client_id").eq("id", p.employee_id).maybeSingle(), "employee");
     if (e && e.client_id === p.client_id) { dept = e.department_id || null; name = e.name || ""; }
   }
-  return { user_id: uid, client_id: p.client_id, client_name: c.name || "the company", role: p.role, isHr: p.role === "admin" || p.role === "hr", employee_id: p.employee_id, dept_id: dept, name };
+  return { user_id: uid, client_id: p.client_id, client_name: c.name || "the company", role: p.role, isHr: p.role === "admin" || p.role === "hr", employee_id: p.employee_id, dept_id: dept, name, modules: mods };
 }
 const requireHr = (me: Me) => { if (!me.isHr) throw new HttpError(403, "Only HR or Admin can do this."); };
 
@@ -203,6 +204,62 @@ async function fileUrl(body: Record<string, unknown>, me: Me) {
   const r = await db.storage.from("policies").createSignedUrl(v.file_path, 600, { download: v.file_name });
   if (r.error) throw new Error(r.error.message);
   return { url: r.data.signedUrl };
+}
+
+// ---------------------------------------------------------------- ERP User Guide (same for every company; platform admin keeps it indexed)
+async function platformAdmin(req: Request): Promise<string> {
+  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!jwt) throw new HttpError(401, "Please sign in again.");
+  const u = await db.auth.getUser(jwt);
+  if (u.error || !u.data.user) throw new HttpError(401, "Please sign in again.");
+  const pa = must(await db.from("platform_admins").select("user_id").eq("user_id", u.data.user.id).maybeSingle(), "platform admin");
+  if (!pa) throw new HttpError(403, "Only the platform admin can do this.");
+  return u.data.user.id;
+}
+
+async function guideStatus() {
+  const s = must(await db.from("guide_index_state").select("live_version, entries, indexed_at").eq("id", 1).maybeSingle(), "guide state");
+  return s || { live_version: null, entries: 0, indexed_at: null };
+}
+
+type GuideEntry = { module_id: string; entry_id: string; app_module: string | null; allowed_roles: string[]; module_name: string; title: string; path: string; content_en: string; content_hi: string };
+const KEY = /^[A-Za-z0-9_-]{1,60}$/;
+
+async function guideIndex(body: Record<string, unknown>, by: string) {
+  const version = String(body.version || "");
+  if (!/^[0-9a-f]{8,64}$/.test(version)) throw new HttpError(400, "Wrong guide version.");
+  const raw = Array.isArray(body.entries) ? body.entries as Record<string, unknown>[] : [];
+  if (!raw.length || raw.length > 3000) throw new HttpError(400, "The guide has no entries.");
+  const cut = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+  const seen = new Set<string>();
+  const entries: GuideEntry[] = [];
+  for (const e of raw) {
+    const m = cut(e.module_id, 60), id = cut(e.entry_id, 60);
+    if (!KEY.test(m) || !KEY.test(id) || seen.has(m + "/" + id)) continue;
+    seen.add(m + "/" + id);
+    const roles = (Array.isArray(e.allowed_roles) ? e.allowed_roles : []).map(String).filter((r) => ROLES.includes(r));
+    const am = e.app_module == null || e.app_module === "" ? null : cut(e.app_module, 60);
+    const en = cut(e.content_en, 12000).trim();
+    if (!roles.length || !en || (am !== null && !KEY.test(am))) continue;
+    entries.push({ module_id: m, entry_id: id, app_module: am, allowed_roles: [...new Set(roles)], module_name: cut(e.module_name, 200), title: cut(e.title, 300), path: cut(e.path, 500), content_en: en, content_hi: cut(e.content_hi, 12000).trim() });
+  }
+  if (!entries.length) throw new HttpError(400, "No usable guide entries.");
+  const now = await guideStatus();
+  if (now.live_version === version) return { ok: true, unchanged: true, entries: now.entries };
+  // write the complete new version, then switch in one step (questions keep using the old version until then)
+  must(await db.from("guide_chunks").delete().eq("guide_version", version), "old attempt");
+  const ids: string[] = [];
+  for (let i = 0; i < entries.length; i += 200) {
+    const rows = must(await db.from("guide_chunks").insert(entries.slice(i, i + 200).map((e) => ({ ...e, guide_version: version, created_by: by }))).select("id"), "guide rows") as { id: string }[];
+    ids.push(...rows.map((r) => r.id));
+  }
+  for (let i = 0; i < entries.length; i += 64) {
+    const part = entries.slice(i, i + 64);
+    const vecs = await embed(part.map((e) => `LV People User Guide — ${e.module_name} › ${e.title}\nWhere: ${e.path}\n${e.content_en}\n${e.content_hi}`), "document");
+    must(await db.rpc("guide_set_embeddings", { p_ids: ids.slice(i, i + 64), p_vectors: vecs.map(vectorLiteral) }), "guide embeddings");
+  }
+  const n = must(await db.rpc("guide_switch_version", { p_version: version, p_by: by }), "switch guide") as number;
+  return { ok: true, entries: n };
 }
 
 // ---------------------------------------------------------------- background processing
@@ -394,10 +451,17 @@ async function ask(body: Record<string, unknown>, me: Me) {
   if (rw) { inTok += rw.input_tokens; outTok += rw.output_tokens; }
   const queries = rw && rw.q.toLowerCase() !== question.toLowerCase() ? [question, rw.q] : [question];
   const vecs = await embed(queries, "query");
-  const best = new Map<string, Match>();
+  // this company's policies + the guide entries of this company's modules, for this person's role
+  const best = new Map<string, Hit>();
+  const keep = (h: Hit) => { const o = best.get(h.key); if (!o || h.score > o.score) best.set(h.key, h); };
   for (const v of vecs) {
-    const rows = must(await db.rpc("policy_match", { p_client: me.client_id, p_role: role, p_dept: dept, p_query: vectorLiteral(v), p_count: 8, p_test: test }), "search") as Match[];
-    for (const r of rows) { const o = best.get(r.chunk_id); if (!o || r.score > o.score) best.set(r.chunk_id, r); }
+    const q = vectorLiteral(v);
+    const [pol, gd] = await Promise.all([
+      db.rpc("policy_match", { p_client: me.client_id, p_role: role, p_dept: dept, p_query: q, p_count: 8, p_test: test }),
+      db.rpc("guide_match", { p_role: role, p_modules: me.modules, p_query: q, p_count: 6 }),
+    ]);
+    for (const r of must(pol, "search") as Match[]) keep({ key: "p:" + r.chunk_id, kind: "policy", score: r.score, m: r });
+    for (const r of must(gd, "guide search") as GuideMatch[]) keep({ key: "g:" + r.chunk_id, kind: "guide", score: r.score, g: r });
   }
   const ranked = [...best.values()].sort((a, b) => b.score - a.score);
   const top = ranked[0]?.score ?? 0;
@@ -424,24 +488,28 @@ async function ask(body: Record<string, unknown>, me: Me) {
 
   // rule (b): only the best 4–6 parts go to the AI
   const picked = ranked.filter((r) => r.score >= minScore * 0.8).slice(0, SETTINGS.topK());
-  const ctx: (Ctx & { m: Match })[] = picked.map((m, i) => ({
-    id: "S" + (i + 1), policy_name: m.policy_name, version: m.version, heading: m.heading,
-    label: sourceLabel(m.heading, m.page_from, m.page_to, m.file_type !== "txt"), content: m.content, m,
-  }));
+  const ctx: (Ctx & { h: Hit; effective_date: string | null })[] = picked.map((h, i) => h.kind === "policy"
+    ? { id: "S" + (i + 1), kind: "policy", policy_name: h.m!.policy_name, version: h.m!.version, heading: h.m!.heading, label: sourceLabel(h.m!.heading, h.m!.page_from, h.m!.page_to, h.m!.file_type !== "txt"), content: h.m!.content, effective_date: h.m!.effective_date, h }
+    : { id: "S" + (i + 1), kind: "guide", policy_name: "LV People User Guide", version: "", heading: h.g!.title, label: `${h.g!.module_name} › ${h.g!.title}`, content: `Where: ${h.g!.path}\n${h.g!.content_en}${h.g!.content_hi ? "\n\n" + h.g!.content_hi : ""}`, effective_date: null, h });
   const out = await answer(me.client_name, question, ctx);
   inTok += out.input_tokens; outTok += out.output_tokens;
-  const ck = checkAnswer(out, ctx.map((c) => ({ ...c, effective_date: c.m.effective_date })), question);
+  const ck = checkAnswer(out, ctx, question);
   if (ck.status !== "answered") {
     if (ck.status === "rejected") console.warn("answer rejected:", ck.why);
     return reply(ck.status, ck.text, [], out.model);
   }
   const sources: SourceOut[] = ck.cited.map((c, i) => {
-    const m = ctx.find((x) => x.id === c.id)!.m;
-    return { n: i + 1, chunk_id: m.chunk_id, policy_id: m.policy_id, policy_name: c.policy_name, version: c.version, label: c.label, excerpt: c.content, ...(test ? { score: Math.round(m.score * 1000) / 1000, version_status: m.version_status } : {}) };
+    const h = ctx.find((x) => x.id === c.id)!.h;
+    const sc = test ? { score: Math.round(h.score * 1000) / 1000 } : {};
+    return h.kind === "policy"
+      ? { n: i + 1, kind: "policy", chunk_id: h.m!.chunk_id, policy_id: h.m!.policy_id, policy_name: c.policy_name, version: c.version, label: c.label, excerpt: h.m!.content, ...sc, ...(test ? { version_status: h.m!.version_status } : {}) }
+      : { n: i + 1, kind: "guide", chunk_id: h.g!.chunk_id, policy_id: "", policy_name: "LV People User Guide", version: "", label: c.label, module_id: h.g!.module_id, entry_id: h.g!.entry_id, excerpt: `${h.g!.path ? "Where: " + h.g!.path + "\n\n" : ""}${h.g!.content_en}`, excerpt_hi: h.g!.content_hi, ...sc };
   });
   return reply("answered", ck.text, sources, out.model);
 }
-type SourceOut = { n: number; chunk_id: string; policy_id: string; policy_name: string; version: string; label: string; excerpt: string; score?: number; version_status?: string };
+type GuideMatch = { chunk_id: string; module_id: string; entry_id: string; module_name: string; title: string; path: string; content_en: string; content_hi: string; score: number };
+type Hit = { key: string; kind: "policy" | "guide"; score: number; m?: Match; g?: GuideMatch };
+type SourceOut = { n: number; kind: "policy" | "guide"; chunk_id: string; policy_id: string; policy_name: string; version: string; label: string; excerpt: string; excerpt_hi?: string; module_id?: string; entry_id?: string; score?: number; version_status?: string };
 
 // ---------------------------------------------------------------- router
 Deno.serve(async (req) => {
@@ -457,6 +525,8 @@ Deno.serve(async (req) => {
       startWorker();
       return json(req, { ok: true }, 202);
     }
+    if (body.action === "guide_status") { await platformAdmin(req); return json(req, await guideStatus()); }
+    if (body.action === "guide_index") return json(req, await guideIndex(body, await platformAdmin(req)));
     const me = await whoAmI(req);
     switch (body.action) {
       case "ask": return json(req, await ask(body, me));
