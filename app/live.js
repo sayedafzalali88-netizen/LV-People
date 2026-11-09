@@ -616,16 +616,16 @@ const ENQ_ST={new:['New','नया','p-teal'],discussion:['In discussion','ब�
 const ENQ_TYPES=['Proprietorship','Partnership','LLP','Private Limited','Public Limited','Trust / Society','Other'];
 const enqRef=r=>'ENQ-'+String(r.no).padStart(4,'0');
 const enqSt=s=>{const x=ENQ_ST[s]||[s,s,'p-teal'];return `<span class="pill ${x[2]}">${L(x[0],x[1])}</span>`};
-const ENQ={f:'all',rows:[],sales:[],loaded:false,me:null};window.ENQ=ENQ;
-async function enqLoad(){const [e,s,u]=await Promise.all([sb.from('enquiries').select('*').order('no',{ascending:false}).limit(500),LIVE.salesOnly?{data:[]}:sb.from('platform_sales').select('*').order('created_at'),sb.auth.getUser()]);
-  ENQ.rows=e.data||[];ENQ.sales=s.data||[];const us=u&&u.data&&u.data.user;ENQ.me={id:us?us.id:null,name:LIVE.salesOnly?LIVE.salesName:(us&&us.email)||'LV team'};ENQ.loaded=true}
+const ENQ={f:'all',rows:[],sales:[],q:[],co:{},tab:'enq',loaded:false,me:null};window.ENQ=ENQ;
+async function enqLoad(){const [e,s,u,qq,cc]=await Promise.all([sb.from('enquiries').select('*').order('no',{ascending:false}).limit(500),LIVE.salesOnly?{data:[]}:sb.from('platform_sales').select('*').order('created_at'),sb.auth.getUser(),sb.from('quotations').select('*').order('created_at',{ascending:false}).limit(1000),sb.from('platform_settings').select('value').eq('key','company').maybeSingle()]);
+  ENQ.rows=e.data||[];ENQ.sales=s.data||[];ENQ.q=qq.data||[];ENQ.co=(cc.data&&cc.data.value)||{};const us=u&&u.data&&u.data.user;ENQ.me={id:us?us.id:null,name:LIVE.salesOnly?LIVE.salesName:(us&&us.email)||'LV team'};ENQ.loaded=true}
 try{
   PAGES.push('enquiries');Object.keys(RIGHTS).forEach(r=>RIGHTS[r].enquiries=r==='platform'?['V','A','E']:[]);
   const at=NAV.findIndex(n=>n.id==='lvclients');NAV.splice(at<0?NAV.length:at,0,{id:'enquiries',ic:'M3 7l9 6 9-6M3 7v10h18V7M3 7l9-4 9 4',roles:[],day:'—',built:true});
   Object.assign(T.en,{enquiries:'Enquiries'});Object.assign(T.hi,{enquiries:'इन्क्वायरी'});
 }catch(e){}
 const enqLink=()=>location.origin+location.pathname+'#enquiry';
-function enquiriesPage(){
+function enqListPage(){
   if(!ENQ.loaded){if(!ENQ.busy){ENQ.busy=true;enqLoad().then(()=>{ENQ.busy=false;render()}).catch(e=>{ENQ.busy=false;ENQ.loaded=true;ENQ.err=e.message;render()})}return `<div class="page-h"><div><h1>${L('Enquiries','इन्क्वायरी')}</h1></div></div><p>…</p>`}
   const cnt=k=>ENQ.rows.filter(r=>k==='all'||r.status===k).length, rows=ENQ.rows.filter(r=>ENQ.f==='all'||r.status===ENQ.f);
   const chips=['all','new','discussion','hold','lost'].map(k=>`<button class="btn ${ENQ.f===k?'btn-p':'btn-o'} btn-s" data-enqf="${k}">${k==='all'?L('All','सभी'):L(ENQ_ST[k][0],ENQ_ST[k][1])} (${cnt(k)})</button>`).join(' ');
@@ -648,27 +648,150 @@ async function enqOpen(id){const r=ENQ.rows.find(x=>x.id===id);if(!r)return;cons
    ${enqKV(L('Employees','कर्मचारी'),d.employees)}${enqKV(L('Branches','शाखाएँ'),d.branches)}${enqKV(L('Preferred start','पसंदीदा शुरुआत'),d.start)}
    <div style="grid-column:1/-1">${enqKV(L('Modules asked','माँगे मॉड्यूल'),mods)}</div><div style="grid-column:1/-1">${enqKV(L('Note from the client','क्लाइंट का नोट'),d.note)}</div></div>
    <h4 style="margin:14px 0 4px">${L('Notes','नोट')}</h4><div id="enqNotes">${(nr.data||[]).map(n=>`<div style="border-top:1px solid var(--line);padding:6px 0;font-size:13px"><small style="color:var(--muted)">${fmtS((n.created_at||'').slice(0,10))} · ${esc(n.by_name||'')}</small><br>${esc(n.note)}</div>`).join('')||`<small style="color:var(--muted)">${L('No note yet.','अभी कोई नोट नहीं।')}</small>`}</div>
+   ${(()=>{const lq=qLatest(id);return `<div style="margin:10px 0;padding:8px 10px;border-radius:8px;background:var(--bg,#f4f7f6);font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${lq?`${L('Quotation','कोटेशन')}: <b>${esc(lq.no)}</b> ${qSt(lq.status)} <button type="button" class="btn btn-o btn-s" data-enqq="${lq.id}">${L('Open','खोलें')}</button>`:(['lost','live'].includes(r.status)?`<span style="color:var(--muted)">${L('No quotation'  ,'कोई कोटेशन नहीं')}</span>`:`<button type="button" class="btn btn-p btn-s" data-enqgen>${L('Generate quotation','कोटेशन बनाएँ')}</button>`)}</div>`})()}
    <label style="margin-top:8px">${L('Add a note','नोट जोड़ें')}</label><textarea class="inp" name="note" rows="2" placeholder="${L('For example: called, demo on Monday','जैसे: फ़ोन किया, सोमवार को डेमो')}"></textarea>
    <div id="me" style="color:var(--bad);font-size:12px;margin-top:6px"></div>
    <div class="acts" style="flex-wrap:wrap"><button type="button" class="btn btn-o" data-close>${L('Close','बंद करें')}</button>${['discussion','hold','lost'].filter(s=>s!==r.status).map(s=>`<button type="button" class="btn btn-o" data-enqs="${s}">${s==='discussion'?L('Mark in discussion','बातचीत में करें'):s==='hold'?L('On hold','रोकें'):L('Lost','खोया')}</button>`).join('')}<button class="btn btn-p">${L('Save note','नोट सेव करें')}</button></div>`,
   async(f,close,bgx)=>{const note=(new FormData(f).get('note')||'').trim(),er=m=>{(bgx||document).querySelector('#me').textContent=m};if(!note)return er(t('e_req'));
    const x=await sb.from('enquiry_notes').insert({enquiry_id:id,by_user:ENQ.me.id,by_name:ENQ.me.name,note});if(x.error)return er(x.error.message);close();toast(t('saved'));render()});
+  if(bg){const g=bg.querySelector('[data-enqgen]');if(g)g.onclick=()=>{bg.remove();quoteForm({enq:r,mode:'new'})};const o=bg.querySelector('[data-enqq]');if(o)o.onclick=()=>{bg.remove();quoteView(o.dataset.enqq)}}
   if(bg)bg.querySelectorAll('[data-enqs]').forEach(b=>b.onclick=async()=>{const s=b.dataset.enqs,upd={status:s};if(s==='discussion'&&!r.contacted_at)upd.contacted_at=new Date().toISOString();
-   const x=await sb.from('enquiries').update(upd).eq('id',id);if(x.error)return toast(x.error.message);await sb.from('enquiry_notes').insert({enquiry_id:id,by_user:ENQ.me.id,by_name:ENQ.me.name,note:'Status: '+ENQ_ST[r.status][0]+' → '+ENQ_ST[s][0]});Object.assign(r,upd);bg.remove();toast(t('saved'));render()})}
+   const x=await sb.rpc('enquiry_set_status',{p_id:id,p_status:s});if(x.error)return toast(x.error.message);await sb.from('enquiry_notes').insert({enquiry_id:id,by_user:ENQ.me.id,by_name:ENQ.me.name,note:'Status: '+ENQ_ST[r.status][0]+' → '+ENQ_ST[s][0]});Object.assign(r,upd);bg.remove();toast(t('saved'));render()})}
 function enqSalesModal(){openModal(`<h3>${L('New Sales login','नया सेल्स लॉगिन')}</h3><label>${L('Name','नाम')} *</label><input class="inp" name="n"><label>Email *</label><input class="inp" name="e" type="email"><label>${L('First password (at least 8 characters)','पहला पासवर्ड (कम से कम 8 अक्षर)')} *</label><input class="inp" name="p"><p style="font-size:12px;color:var(--muted)">${L('Tell the password only to that person. They sign in with the email and leave the company code empty.','पासवर्ड सिर्फ़ उसी व्यक्ति को बताएँ। वह ईमेल से साइन इन करेगा और कंपनी कोड ख़ाली छोड़ेगा।')}</p><div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   async(f,close,bg)=>{const v=Object.fromEntries(new FormData(f)),er=m=>{(bg||document).querySelector('#me').textContent=m};if(!v.n.trim()||!v.e.trim()||!v.p)return er(t('e_req'));
    const r=await sb.rpc('platform_create_sales',{p_name:v.n,p_email:v.e,p_password:v.p});if(r.error)return er(r.error.message);close();toast(t('saved'));ENQ.loaded=false;render()})}
+/* ---------- Quotations of the LV team: made from an enquiry, revised, sent, accepted; and "Our details" printed on them ---------- */
+const INDIA_STATES=['Andaman and Nicobar Islands','Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chandigarh','Chhattisgarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jammu and Kashmir','Jharkhand','Karnataka','Kerala','Ladakh','Lakshadweep','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Puducherry','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal'];
+const QST={draft:['Draft','ड्राफ़्ट','p-warn'],sent:['Sent','भेजी','p-teal'],accepted:['Accepted','स्वीकार','p-ok'],rejected:['Rejected','अस्वीकार','p-bad'],superseded:['Replaced','बदली गई','p-bad']};
+const qSt=s=>{const x=QST[s]||[s,s,'p-teal'];return `<span class="pill ${x[2]}">${L(x[0],x[1])}</span>`};
+const r0q=x=>Math.round(x);
+const qMoney=n=>'₹'+Number(n||0).toLocaleString('en-IN');
+const qCo=()=>ENQ.co||{};
+/* the first invoice: base fee + one-time setup, and the GST: CGST and SGST in our own state, IGST for another state */
+function qCalc(d,co){const taxable=(+d.base||0)+(+d.setup||0), rate=+(co.gst!=null?co.gst:18), same=(d.client&&d.client.state)===co.state, g=taxable*rate/100;
+  return same?{taxable,rate,cgst:r0q(g/2),sgst:r0q(g/2),igst:0,total:taxable+r0q(g/2)*2}:{taxable,rate,cgst:0,sgst:0,igst:r0q(g),total:taxable+r0q(g)}}
+const qLatest=eid=>ENQ.q.filter(x=>x.enquiry_id===eid&&x.status!=='superseded').sort((a,b)=>b.rev-a.rev)[0];
+async function enqReload(){ENQ.loaded=false;render()}
+function enqConfirm(title,text,okLabel,fn,withReason){openModal(`<h3>${title}</h3><p style="font-size:13px">${text}</p>${withReason?`<label>${L('Reason (optional)','कारण (वैकल्पिक)')}</label><textarea class="inp" name="why" rows="2"></textarea>`:''}<div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${okLabel}</button></div>`,
+  async(f,close,bg)=>{const r=await fn(new FormData(f).get('why')||'');if(r&&r.error)return (bg||document).querySelector('#me').textContent=r.error.message;close();toast(t('saved'));enqReload()})}
+function quoteForm(o){const enq=o.enq, q=o.q, mode=o.mode, co=qCo(), ed=enq.data||{};
+  const base=q?q.data:{client:{name:ed.legal||'',address:[ed.address,ed.pin].filter(Boolean).join(' - '),state:ed.state||co.state||'Maharashtra',gstin:ed.gstin||'',email:ed.email||'',person:ed.person||'',mobile:enq.mobile||''},
+    mods:Object.fromEntries(MODS.map(m=>[m.id,(ed.mods||[]).includes(m.id)])),cycle:'Monthly',term:12,base:0,incl:+ed.employees||25,rate:0,hardPct:SAAS.hardPct,setup:0,valid:addD(TODAY_S,+co.validDays||15),notes:''};
+  const d=base, cl=d.client||{};
+  const title=mode==='new'?L('New quotation','नई कोटेशन'):mode==='revise'?`${L('Revise','संशोधन')} ${q.no} → R${q.rev+1}`:`${q.no}`;
+  const bg0=openModal(`<h3>${title} · ${esc(cl.name)}</h3><div class="fgrid"><div><label>${L('Client company','क्लाइंट कंपनी')} *</label><input class="inp" name="cn" value="${esc(cl.name)}"></div><div><label>GSTIN</label><input class="inp" name="gs" maxlength="15" style="text-transform:uppercase" value="${esc(cl.gstin)}"></div>
+   <div><label>${L('Address','पता')}</label><input class="inp" name="ad" value="${esc(cl.address)}"></div><div><label>${L('State (place of supply)','राज्य (आपूर्ति का स्थान)')} *</label><select class="inp" name="st">${INDIA_STATES.map(s=>`<option ${s===cl.state?'selected':''}>${s}</option>`).join('')}</select></div>
+   <div><label>${L('Contact person','संपर्क व्यक्ति')}</label><input class="inp" name="pn" value="${esc(cl.person)}"></div><div><label>Email</label><input class="inp" name="em" value="${esc(cl.email)}"></div>
+   <div><label>${L('Plan preset','प्लान नमूना')}</label><select class="inp" name="pl">${Object.keys(PLANS).map(p=>`<option>${p}</option>`).join('')}<option value="Custom">${L('Customize (choose modules)','अपनी पसंद (मॉड्यूल चुनें)')}</option></select></div></div>
+   <label>${L('Modules','मॉड्यूल')}</label><div id="qmods" style="display:flex;flex-wrap:wrap;gap:6px 14px">${MODS.map(m=>`<label style="margin:0;font-weight:400;display:flex;gap:6px"><input type="checkbox" data-qm="${m.id}" ${d.mods[m.id]?'checked':''}> ${L(...m.name)}</label>`).join('')}</div>
+   <div class="fgrid" style="margin-top:10px"><div><label>${L('Billing cycle','बिलिंग साइकिल')}</label><select class="inp" name="cy">${Object.keys(CYC).map(c=>`<option ${c===d.cycle?'selected':''}>${c}</option>`).join('')}</select></div><div><label>${L('Contract (months)','अनुबंध (महीने)')}</label><input class="inp" type="number" min="1" name="tm" value="${d.term}"></div>
+   <div><label>${L('Base fee per cycle (before GST)','बेस फ़ीस प्रति साइकिल (GST से पहले)')} *</label><input class="inp" type="number" min="1" name="bf" value="${d.base||''}"></div><div><label>${L('Employees included in the base fee','बेस फ़ीस में शामिल कर्मचारी')} *</label><input class="inp" type="number" min="1" name="in" value="${d.incl}"></div>
+   <div><label>${L('Extra rate per extra employee per month','अतिरिक्त कर्मचारी की दर प्रति माह')}</label><input class="inp" type="number" min="0" name="rt" value="${d.rate}"></div><div><label>${L('Hard cap above the limit (%)','सीमा से ऊपर पक्की रोक (%)')}</label><input class="inp" type="number" min="0" name="hp" value="${d.hardPct}"></div>
+   <div><label>${L('One-time setup charge (optional)','एक बार का सेटअप चार्ज (वैकल्पिक)')}</label><input class="inp" type="number" min="0" name="su" value="${d.setup||0}"></div><div><label>${L('Valid till','मान्य')}</label><input class="inp" type="date" name="vt" value="${d.valid}"></div></div>
+   <label>${L('Note for the PDF (optional)','PDF के लिए नोट (वैकल्पिक)')}</label><textarea class="inp" name="nt" rows="2">${esc(d.notes||'')}</textarea>
+   <div id="qtot" style="margin:10px 0;padding:10px 12px;border-radius:8px;background:var(--bg,#f4f7f6);font-size:13px"></div>
+   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${mode==='revise'?`${L('Save as','इस रूप में सेव')} R${q.rev+1}`:t('save')}</button></div>`,
+  async(f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), er=m=>bg.querySelector('#me').textContent=m, mods={};bg.querySelectorAll('[data-qm]').forEach(c=>mods[c.dataset.qm]=c.checked);
+   const gs=(v.gs||'').toUpperCase().trim();if(!v.cn.trim())return er(L('Client name is required','क्लाइंट का नाम ज़रूरी है'));if(gs&&!/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gs))return er(L('GSTIN is not in the right format','GSTIN का फ़ॉर्मेट सही नहीं'));
+   const bs=Math.round(+v.bf), incl=Math.round(+v.in);if(!(bs>0)||!(incl>=1))return er(L('Base fee and included employees are required','बेस फ़ीस और शामिल कर्मचारी ज़रूरी हैं'));if(!MODS.some(m=>mods[m.id]))return er(L('Choose at least one module','कम से कम एक मॉड्यूल चुनें'));
+   for(const m of MODS){if(mods[m.id]){const bad=m.needs.find(n=>!mods[n]);if(bad)return er(`${L(...m.name)}: ${L('needs','के लिए चाहिए')} ${L(...MODS.find(x=>x.id===bad).name)}`)}}
+   const dd={client:{name:v.cn.trim(),address:v.ad.trim(),state:v.st,gstin:gs,email:v.em.trim(),person:v.pn.trim(),mobile:cl.mobile||''},plan:planName(mods),mods,cycle:v.cy,term:Math.max(1,Math.round(+v.tm)),base:bs,incl,rate:Math.max(0,Math.round(+v.rt)),hardPct:Math.max(0,+v.hp||0),setup:Math.max(0,Math.round(+v.su)),valid:v.vt,notes:v.nt.trim()};
+   dd.calc=qCalc(dd,co);dd.our=co;
+   const r=mode==='new'?await sb.rpc('quotation_create',{p_enquiry:enq.id,p_data:dd}):mode==='revise'?await sb.rpc('quotation_revise',{p_id:q.id,p_data:dd}):await sb.rpc('quotation_save',{p_id:q.id,p_data:dd});
+   if(r.error)return er(r.error.message);close();toast(t('saved'));enqReload()});
+  const bg=bg0||document.querySelector('.modal-bg'), pl=bg.querySelector('[name=pl]'), tot=()=>{const g=n=>+(bg.querySelector(`[name=${n}]`).value||0), st=bg.querySelector('[name=st]').value, c=qCalc({base:g('bf'),setup:g('su'),client:{state:st}},co);
+    bg.querySelector('#qtot').innerHTML=`${L('First invoice','पहला इनवॉइस')}: ${qMoney(g('bf'))} ${g('su')?`+ ${qMoney(g('su'))} ${L('setup','सेटअप')} `:''}= ${qMoney(c.taxable)} · ${c.igst?`IGST ${c.rate}% ${qMoney(c.igst)}`:`CGST ${c.rate/2}% ${qMoney(c.cgst)} + SGST ${c.rate/2}% ${qMoney(c.sgst)}`} · <b>${L('Total','कुल')} ${qMoney(c.total)}</b><br><small style="color:var(--muted)">${L('Our state','हमारा राज्य')}: ${esc(co.state||'')}. ${(g('in')?`${L('Hard cap','पक्की रोक')}: ${hardOf(g('in'),g('hp'))} ${L('employees','कर्मचारी')}`:'')}</small>`};
+  const cur0=(()=>{const m={};MODS.forEach(x=>m[x.id]=!!d.mods[x.id]);return planName(m)})();pl.value=cur0;
+  pl.onchange=()=>{if(pl.value==='Custom')return;bg.querySelectorAll('[data-qm]').forEach(c=>c.checked=PLANS[pl.value].includes(c.dataset.qm));tot()};
+  bg.querySelectorAll('[data-qm]').forEach(c=>c.onchange=()=>{const m=MODS.find(x=>x.id===c.dataset.qm);if(c.checked)m.needs.forEach(n=>{bg.querySelector(`[data-qm="${n}"]`).checked=true});else MODS.filter(x=>x.needs.includes(m.id)).forEach(x=>bg.querySelector(`[data-qm="${x.id}"]`).checked=false);
+    const cur={};bg.querySelectorAll('[data-qm]').forEach(x=>cur[x.dataset.qm]=x.checked);pl.value=planName(cur)});
+  bg.querySelectorAll('input[type=number],[name=st]').forEach(i=>{i.oninput=tot;i.onchange=tot});tot()}
+/* the PDF: opens a clean page and the browser prints it to PDF */
+function quotePdf(q){const co=q.data.our&&q.data.our.legal!==undefined?q.data.our:qCo(), d=q.data, cl=d.client||{}, c=d.calc||qCalc(d,co);
+  if(!(co.legal||'').trim()){toast(L('Write the legal name of the company in Our details first','पहले Our details में कंपनी का कानूनी नाम लिखें'));return}
+  const mods=MODS.filter(m=>d.mods[m.id]).map(m=>m.name[0]).join(', '), E=esc, b=co.bank||{}, hasBank=b.name||b.acc, cap=hardOf(d.incl,d.hardPct), cyc=d.cycle.toLowerCase();
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${E(q.no)}</title><style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;margin:0;padding:28px 34px;font-size:13px;line-height:1.5}h1{font-size:20px;margin:0}h2{font-size:14px;margin:18px 0 6px;border-bottom:1px solid #999;padding-bottom:3px}
+  .top{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #0f5b4d;padding-bottom:10px}.top small{color:#555}table{width:100%;border-collapse:collapse}th,td{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f1f5f4;font-size:12px}td.r,th.r{text-align:right}
+  .tot td{border-bottom:0}.b{font-weight:bold}.sig{margin-top:46px}.sm{font-size:12px;color:#444}@media print{body{padding:0}}</style></head><body>
+  <div class="top"><div><h1>${E(co.legal)}</h1><small>${E([co.address,co.state,co.pin].filter(Boolean).join(', '))}<br>GSTIN ${E(co.gstin||'')} · PAN ${E(co.pan||'')}${co.sac?' · SAC '+E(co.sac):''}</small></div><div style="text-align:right"><h1>QUOTATION</h1><small>No. <b>${E(q.no)}</b><br>Date: ${E(fmtY((q.created_at||'').slice(0,10)||TODAY_S))}<br>Valid till: <b>${E(fmtY(d.valid))}</b></small></div></div>
+  <h2>To</h2><div><b>${E(cl.name)}</b>${cl.person?'<br>Attn: '+E(cl.person):''}<br>${E(cl.address||'')}${cl.gstin?'<br>GSTIN '+E(cl.gstin):''}<br>Place of supply: ${E(cl.state||'')}</div>
+  <h2>Subscription to LV People (HR management software)</h2><div class="sm">Plan: <b>${E(d.plan)}</b> · Modules: ${E(mods)}<br>Billing: ${E(d.cycle)} · Contract: ${d.term} month(s)</div>
+  <table style="margin-top:8px"><thead><tr><th>Description</th><th class="r">Amount (₹)</th></tr></thead><tbody>
+  <tr><td>Subscription fee per ${E(cyc==='monthly'?'month':cyc==='quarterly'?'quarter':'year')} (${E(d.cycle)}), up to <b>${d.incl}</b> employees</td><td class="r">${E(Number(d.base).toLocaleString('en-IN'))}</td></tr>
+  ${d.setup?`<tr><td>One-time setup and implementation (first invoice only)</td><td class="r">${E(Number(d.setup).toLocaleString('en-IN'))}</td></tr>`:''}
+  <tr class="tot"><td class="b">Taxable value (first invoice)</td><td class="r b">${E(Number(c.taxable).toLocaleString('en-IN'))}</td></tr>
+  ${c.igst?`<tr class="tot"><td>IGST ${c.rate}%</td><td class="r">${E(Number(c.igst).toLocaleString('en-IN'))}</td></tr>`:`<tr class="tot"><td>CGST ${c.rate/2}%</td><td class="r">${E(Number(c.cgst).toLocaleString('en-IN'))}</td></tr><tr class="tot"><td>SGST ${c.rate/2}%</td><td class="r">${E(Number(c.sgst).toLocaleString('en-IN'))}</td></tr>`}
+  <tr class="tot"><td class="b">Total (first invoice)</td><td class="r b">${E(Number(c.total).toLocaleString('en-IN'))}</td></tr></tbody></table>
+  <div class="sm" style="margin-top:6px">Rupees ${E(typeof words==='function'?words(c.total):'')} Only</div>
+  ${d.rate?`<h2>Extra employees</h2><div class="sm">Above ${d.incl} employees: ₹${E(Number(d.rate).toLocaleString('en-IN'))} per extra employee per month, plus GST. The number of employees cannot go beyond ${cap} (hard cap).</div>`:''}
+  <h2>Terms</h2><div class="sm"><ol style="margin:0;padding-left:18px">
+  <li>This quotation is valid till ${E(fmtY(d.valid))}.</li>
+  <li>Payment is due within ${+co.payDays||15} days of the invoice date. GST is charged as applicable.</li>
+  <li>Support: ${E(co.support||'')}.</li>
+  ${co.dataTerm?`<li>${E(co.dataTerm)}</li>`:''}
+  ${d.notes?`<li>${E(d.notes)}</li>`:''}</ol></div>
+  ${hasBank?`<h2>Bank details</h2><div class="sm">${[b.name&&'Bank: '+E(b.name),b.holder&&'Account name: '+E(b.holder),b.acc&&'Account no.: '+E(b.acc),b.ifsc&&'IFSC: '+E(b.ifsc)].filter(Boolean).join('<br>')}</div>`:''}
+  <div class="sig">For <b>${E(co.legal)}</b><br><br><br>${E(co.signName||'')}<br>${E(co.signDesig||'')}</div>
+  <div class="sm" style="margin-top:18px;border-top:1px solid #ddd;padding-top:6px">This is a computer generated quotation. Prices are in Indian Rupees.</div></body></html>`;
+  const w=window.open('','_blank');if(!w){toast(L('Allow pop-ups to see the PDF','PDF देखने के लिए पॉप-अप चालू करें'));return}w.document.open();w.document.write(html);w.document.close();w.focus();setTimeout(()=>{try{w.print()}catch(e){}},500)}
+function quoteView(id){const q=ENQ.q.find(x=>x.id===id);if(!q)return;const d=q.data, cl=d.client||{}, c=d.calc||qCalc(d,qCo()), enq=ENQ.rows.find(x=>x.id===q.enquiry_id);
+  const mods=MODS.filter(m=>d.mods[m.id]).map(m=>L(...m.name)).join(', '), kv=(l,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:13px"><span style="color:var(--muted)">${l}</span><span>${v}</span></div>`;
+  const btns=[`<button type="button" class="btn btn-o" data-qa="pdf">${L('Preview PDF','PDF देखें')}</button>`];
+  if(q.status==='draft')btns.push(`<button type="button" class="btn btn-o" data-qa="edit">${t('edit')}</button><button type="button" class="btn btn-p" data-qa="send">${L('Mark as sent','भेजी हुई करें')}</button>`);
+  if(q.status==='sent')btns.push(`<button type="button" class="btn btn-o" data-qa="revise">${L('Revise','संशोधन')}</button><button type="button" class="btn btn-o" data-qa="reject">${L('Client rejected','क्लाइंट ने मना किया')}</button><button type="button" class="btn btn-p" data-qa="accept">${L('Accept quotation','कोटेशन स्वीकार करें')}</button>`);
+  if(q.status==='rejected')btns.push(`<button type="button" class="btn btn-o" data-qa="revise">${L('Revise','संशोधन')}</button>`);
+  const bg=openModal(`<h3>${esc(q.no)} · ${esc(cl.name)} ${qSt(q.status)}</h3>
+   ${kv(L('Plan','प्लान'),esc(d.plan))}${kv(L('Modules','मॉड्यूल'),esc(mods))}${kv(L('Billing','बिलिंग'),`${esc(d.cycle)} · ${d.term} ${L('months','महीने')}`)}${kv(L('Base fee per cycle','बेस फ़ीस प्रति साइकिल'),`${qMoney(d.base)} · ${L('up to','तक')} ${d.incl} ${L('employees','कर्मचारी')}`)}${d.rate?kv(L('Extra per employee / month','अतिरिक्त प्रति कर्मचारी / माह'),qMoney(d.rate)):''}${d.setup?kv(L('One-time setup','एक बार का सेटअप'),qMoney(d.setup)):''}
+   ${kv(L('Place of supply','आपूर्ति का स्थान'),esc(cl.state||''))}${kv(c.igst?`IGST ${c.rate}%`:`CGST + SGST ${c.rate}%`,qMoney(c.igst||c.cgst+c.sgst))}${kv(`<b>${L('First invoice total','पहले इनवॉइस का कुल')}</b>`,`<b>${qMoney(c.total)}</b>`)}${kv(L('Valid till','मान्य'),fmtS(d.valid))}
+   ${q.sent_at?kv(L('Sent on','भेजी गई'),fmtS(q.sent_at.slice(0,10))):''}${q.accepted_at?kv(L('Accepted on','स्वीकार हुई'),`${fmtS(q.accepted_at.slice(0,10))} · ${esc(q.accepted_by||'')}`):''}${q.rejected_at?kv(L('Rejected on','अस्वीकार हुई'),`${fmtS(q.rejected_at.slice(0,10))}${q.reject_reason?' · '+esc(q.reject_reason):''}`):''}
+   ${q.status==='accepted'?`<p class="pill p-ok" style="display:block;white-space:normal;margin-top:10px">${L('Accepted and locked. The agreement, the onboarding form and the checklist come in the next step.','स्वीकार और लॉक। एग्रीमेंट, ऑनबोर्डिंग फ़ॉर्म और चेकलिस्ट अगले चरण में आएँगे।')}</p>`:''}
+   <div class="acts" style="flex-wrap:wrap"><button type="button" class="btn btn-o" data-close>${L('Close','बंद करें')}</button>${btns.join('')}</div>`,()=>{});
+  const A=a=>bg&&bg.querySelector(`[data-qa="${a}"]`);
+  if(A('pdf'))A('pdf').onclick=()=>quotePdf(q);
+  if(A('edit'))A('edit').onclick=()=>{bg.remove();quoteForm({enq,q,mode:'edit'})};
+  if(A('revise'))A('revise').onclick=()=>{bg.remove();quoteForm({enq,q,mode:'revise'})};
+  if(A('send'))A('send').onclick=()=>{bg.remove();enqConfirm(L('Mark as sent','भेजी हुई करें'),L('Use this after you have sent the PDF to the client. The enquiry becomes “Quotation sent” and the quotation can no longer be edited, only revised.','PDF क्लाइंट को भेजने के बाद इसे दबाएँ। इन्क्वायरी “कोटेशन भेजी” हो जाएगी और कोटेशन बदली नहीं जा सकेगी, सिर्फ़ संशोधित होगी।'),L('Mark as sent','भेजी हुई करें'),()=>sb.rpc('quotation_send',{p_id:q.id}))};
+  if(A('reject'))A('reject').onclick=()=>{bg.remove();enqConfirm(L('Client rejected','क्लाइंट ने मना किया'),L('The enquiry goes On hold. You can revise the quotation later.','इन्क्वायरी On hold हो जाएगी। आप बाद में कोटेशन संशोधित कर सकते हैं।'),L('Mark rejected','अस्वीकार करें'),w=>sb.rpc('quotation_reject',{p_id:q.id,p_reason:w}),true)};
+  if(A('accept'))A('accept').onclick=()=>{bg.remove();enqConfirm(L('Accept quotation','कोटेशन स्वीकार करें'),`${esc(q.no)} ${L('is accepted by the client. It will be locked: nothing in it can be changed after this.','को क्लाइंट ने मान लिया। यह लॉक हो जाएगी: इसके बाद इसमें कुछ नहीं बदला जा सकेगा।')}`,L('Accept','स्वीकार'),()=>sb.rpc('quotation_accept',{p_id:q.id}))}}
+function quotesTab2(){const f=ENQ.qf||'all', rows=ENQ.q.filter(x=>f==='all'||x.status===f).sort((a,b)=>a.created_at<b.created_at?1:-1);
+  const chips=['all','draft','sent','accepted','rejected'].map(k=>`<button class="btn ${f===k?'btn-p':'btn-o'} btn-s" data-qf="${k}">${k==='all'?L('All','सभी'):L(QST[k][0],QST[k][1])} (${ENQ.q.filter(x=>k==='all'||x.status===k).length})</button>`).join(' ');
+  return `<div class="page-h"><div><h1>${L('Quotations','कोटेशन')}</h1><p>${L('Made from an enquiry. Every change after it is sent is a new revision; the old one is kept. The client never sees the price in the app.','इन्क्वायरी से बनती हैं। भेजने के बाद हर बदलाव नई रिविज़न है; पुरानी रखी रहती है। क्लाइंट को ऐप में दाम नहीं दिखता।')}</p></div></div>
+  <div class="tools">${chips}</div><div class="card tw"><table class="tbl"><thead><tr><th>${L('No.','नंबर')}</th><th>${L('Company','कंपनी')}</th><th>${L('Plan','प्लान')}</th><th>${L('Per cycle','प्रति साइकिल')}</th><th>${L('Valid till','मान्य')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${rows.map(q=>{const d=q.data||{};return `<tr style="${q.status==='superseded'?'opacity:.55':''}"><td><b>${esc(q.no)}</b></td><td>${esc((d.client||{}).name)}</td><td>${esc(d.plan)} · ${esc(d.cycle)}</td><td>${qMoney(d.base)} + GST</td><td>${fmtS(d.valid)}</td><td>${qSt(q.status)}</td><td style="text-align:right"><button class="btn btn-o btn-s" data-qopen="${q.id}">${L('Open','खोलें')}</button></td></tr>`}).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">${L('No quotation yet. Open an enquiry and press Generate quotation.','अभी कोई कोटेशन नहीं। इन्क्वायरी खोलकर Generate quotation दबाएँ।')}</td></tr>`}</tbody></table></div>`}
+function ourTab(){const c=qCo(), b=c.bank||{}, inp=(n,l,v,o={})=>`<div><label>${l}</label><input class="inp" name="${n}" value="${esc(v==null?'':v)}" ${o.max?`maxlength="${o.max}"`:''} ${o.type?`type="${o.type}"`:''} ${o.up?'style="text-transform:uppercase"':''}></div>`;
+  return `<div class="page-h"><div><h1>${L('Our details','हमारी जानकारी')}</h1><p>${L('Printed on every quotation. Change it here once; quotations already made keep the details they were made with.','हर कोटेशन पर छपती है। यहाँ एक बार बदलें; बन चुकी कोटेशन अपनी बनी हुई जानकारी रखती हैं।')}</p></div></div>
+  ${(c.legal||'').trim()?'':`<p class="pill p-warn" style="display:block;white-space:normal;margin-bottom:10px">${L('The legal name of the company is empty. A quotation PDF cannot be made until you write it.','कंपनी का कानूनी नाम ख़ाली है। जब तक आप इसे नहीं लिखते, कोटेशन PDF नहीं बनेगी।')}</p>`}
+  <form id="ourf" class="card" style="padding:16px 18px"><div class="fgrid">${inp('legal',L('Legal name of the company','कंपनी का कानूनी नाम')+' *',c.legal,{max:150})}${inp('trade',L('Brand name','ब्रांड नाम'),c.trade,{max:80})}${inp('address',L('Address','पता'),c.address)}
+   <div><label>${L('State','राज्य')}</label><select class="inp" name="state">${INDIA_STATES.map(s=>`<option ${s===c.state?'selected':''}>${s}</option>`).join('')}</select></div>${inp('pin','PIN',c.pin,{max:6})}${inp('gstin','GSTIN',c.gstin,{max:15,up:1})}${inp('pan','PAN',c.pan,{max:10,up:1})}${inp('sac','SAC',c.sac,{max:8})}${inp('gst',L('GST rate (%)','GST दर (%)'),c.gst,{type:'number'})}${inp('payDays',L('Payment due in (days)','भुगतान कितने दिन में'),c.payDays,{type:'number'})}${inp('validDays',L('Quotation valid for (days)','कोटेशन कितने दिन मान्य'),c.validDays,{type:'number'})}</div>
+   <label>${L('Support time','सपोर्ट का समय')}</label><input class="inp" name="support" value="${esc(c.support||'')}"><label>${L('Data term printed on the quotation','कोटेशन पर छपने वाली डेटा की शर्त')}</label><textarea class="inp" name="dataTerm" rows="2">${esc(c.dataTerm||'')}</textarea>
+   <h4 style="margin:12px 0 4px">${L('Bank details (optional)','बैंक विवरण (वैकल्पिक)')}</h4><div class="fgrid">${inp('bn',L('Bank','बैंक'),b.name)}${inp('bh',L('Account name','खाते का नाम'),b.holder)}${inp('ba',L('Account number','खाता नंबर'),b.acc)}${inp('bi','IFSC',b.ifsc,{max:11,up:1})}</div>
+   <h4 style="margin:12px 0 4px">${L('Signature on the quotation','कोटेशन पर हस्ताक्षर')}</h4><div class="fgrid">${inp('signName',L('Name','नाम'),c.signName)}${inp('signDesig',L('Designation','पद'),c.signDesig)}</div>
+   <div id="ourE" style="color:var(--bad);font-size:13px;margin-top:8px"></div><div class="acts"><button class="btn btn-p">${t('save')}</button></div></form>`}
+function ourSave(f){const v=Object.fromEntries(new FormData(f)), er=m=>{f.querySelector('#ourE').textContent=m};
+  const p={legal:v.legal.trim(),trade:v.trade.trim(),address:v.address.trim(),state:v.state,pin:v.pin.trim(),gstin:v.gstin.trim().toUpperCase(),pan:v.pan.trim().toUpperCase(),sac:v.sac.trim(),gst:+v.gst||0,payDays:+v.payDays||15,validDays:+v.validDays||15,support:v.support.trim(),dataTerm:v.dataTerm.trim(),signName:v.signName.trim(),signDesig:v.signDesig.trim(),bank:{name:v.bn.trim(),holder:v.bh.trim(),acc:v.ba.trim(),ifsc:v.bi.trim().toUpperCase()}};
+  sb.rpc('platform_save_company',{p}).then(r=>{if(r.error)return er(r.error.message);ENQ.co=p;toast(t('saved'));render()})}
+function enquiriesPage(){
+  if(!ENQ.loaded)return enqListPage();
+  const tab=LIVE.salesOnly&&ENQ.tab==='our'?'enq':(ENQ.tab||'enq');
+  const tabs=`<div class="tabs" style="margin-bottom:14px">${[['enq','Enquiries','इन्क्वायरी'],['quo','Quotations','कोटेशन'],...(LIVE.salesOnly?[]:[['our','Our details','हमारी जानकारी']])].map(([k,en,hi])=>`<button data-enqtab="${k}" class="${tab===k?'on':''}">${L(en,hi)}</button>`).join('')}</div>`;
+  if(tab==='quo')return tabs+quotesTab2();
+  if(tab==='our')return tabs+ourTab();
+  const h=enqListPage(), i=h.indexOf('</p></div></div>');return i<0?tabs+h:h.slice(0,i+16)+tabs+h.slice(i+16)}
 try{PAGEFN.enquiries=()=>enquiriesPage()}catch(e){}
 try{const _phE=placeholder;placeholder=function(P){return P==='enquiries'?enquiriesPage():_phE.apply(this,arguments)}}catch(e){}
 {const _bxE=bindExtra;bindExtra=function(){_bxE.apply(this,arguments);if(state.page!=='enquiries')return;const m=document.getElementById('main');if(!m)return;
   m.querySelectorAll('[data-enqf]').forEach(b=>b.onclick=()=>{ENQ.f=b.dataset.enqf;render()});
+  m.querySelectorAll('[data-enqtab]').forEach(b=>b.onclick=()=>{ENQ.tab=b.dataset.enqtab;render()});
+  m.querySelectorAll('[data-qf]').forEach(b=>b.onclick=()=>{ENQ.qf=b.dataset.qf;render()});
+  m.querySelectorAll('[data-qopen]').forEach(b=>b.onclick=()=>quoteView(b.dataset.qopen));
+  m.querySelectorAll('#ourf').forEach(f=>f.onsubmit=e=>{e.preventDefault();ourSave(f)});
   m.querySelectorAll('[data-enqopen]').forEach(b=>b.onclick=()=>enqOpen(b.dataset.enqopen));
   m.querySelectorAll('[data-enqcopy]').forEach(b=>b.onclick=()=>{try{navigator.clipboard.writeText(enqLink())}catch(x){}toast(L('Link copied','लिंक कॉपी हुआ'))});
   m.querySelectorAll('[data-enqsales]').forEach(b=>b.onclick=enqSalesModal);
   m.querySelectorAll('[data-enqstog]').forEach(b=>b.onclick=async()=>{const s=ENQ.sales.find(x=>x.user_id===b.dataset.enqstog);if(!s)return;const r=await sb.rpc('platform_set_sales_active',{p_user:s.user_id,p_active:!s.active});if(r.error)return toast(r.error.message);s.active=!s.active;toast(t('saved'));render()})}}
 {const _rE=render;render=function(){if(LIVE.salesOnly&&state.role==='platform'&&state.page!=='enquiries')state.page='enquiries';return _rE.apply(this,arguments)}}
 /* the public form: the client sees no price and no quotation */
-function renderEnquiry(el){const mods=(typeof MODS!=='undefined'?MODS:[]), sts=(typeof STATES!=='undefined'?STATES:['Maharashtra']);
+function renderEnquiry(el){const mods=(typeof MODS!=='undefined'?MODS:[]), sts=INDIA_STATES;
  const inp=(n,l,o={})=>`<div><label>${l}${o.req?' *':''}</label><input class="inp" name="${n}" ${o.max?`maxlength="${o.max}"`:''} ${o.type?`type="${o.type}"`:''} ${o.ph?`placeholder="${o.ph}"`:''} ${o.mode?`inputmode="${o.mode}"`:''} ${o.up?'style="text-transform:uppercase"':''}></div>`;
  el.innerHTML=`<div style="max-width:700px;margin:0 auto;padding:24px 16px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><h1 style="margin:0;flex:1">LV People · ${L('Tell us about your company','अपनी कंपनी के बारे में बताएँ')}</h1></div><p style="color:var(--muted);margin:0 0 16px">${L('Please fill this form. Our team will check it and contact you.','कृपया यह फ़ॉर्म भरें। हमारी टीम जाँचकर आपसे संपर्क करेगी।')}</p>
  <div class="card" id="enqForm"><form id="enqf" novalidate>
