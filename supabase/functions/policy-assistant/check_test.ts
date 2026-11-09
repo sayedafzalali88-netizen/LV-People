@@ -41,3 +41,17 @@ Deno.test("not found and out of scope give the fixed texts", () => {
   assertEquals(checkAnswer({ result: "answered", answer: NOT_FOUND, source_ids: ["S1"] }, ctx, "q").status, "not_found");
   assertEquals(checkAnswer({ result: "answered", answer: "Source: Leave Policy", source_ids: ["S1"] }, ctx, "q").status, "rejected");
 });
+
+Deno.test("list numbering at a line start is not checked as a number", () => {
+  const r = checkAnswer({ result: "answered", answer: "Aise apply karein:\n1. Leave kholein\n2. 12 din tak chunein", source_ids: ["S1"] }, ctx, "CL kaise lun?");
+  assertEquals(r.status, "answered");
+  const r2 = checkAnswer({ result: "answered", answer: "1. Aapko 15 CL milti hain", source_ids: ["S1"] }, ctx, "CL?");
+  assertEquals(r2.status, "rejected");
+});
+
+Deno.test("a User Guide source gets its own source line", () => {
+  const g = [{ id: "S1", kind: "guide" as const, policy_name: "LV People User Guide", version: "", heading: null, label: "Leave › Apply leave", content: "Open Leave > Apply. Choose the type and the dates. Press Submit." }];
+  const r = checkAnswer({ result: "answered", answer: "Leave menu kholein, Apply dabayein, type aur tareekh chunein, Submit karein.", source_ids: ["S1"] }, g, "leave kaise apply karun");
+  assertEquals(r.status, "answered");
+  assert(r.text.endsWith("Source: LV People User Guide – Leave › Apply leave"), r.text);
+});

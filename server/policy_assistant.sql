@@ -1,5 +1,5 @@
--- Policy Assistant ("Policy Sahayak"): employees ask about company policy, the answer comes ONLY from the policies
--- their own company uploaded. Tables, security (RLS), search, rate limit and the background job queue.
+-- HR Assistant (Policy Assistant module): employees ask about company policy, the answer comes ONLY from the policies
+-- their own company uploaded, plus the ERP User Guide (same for every company). Tables, security (RLS), search, rate limit, job queue.
 -- Run once in Supabase > SQL Editor. Safe to run again. No existing table is changed.
 -- Needs the extensions vector, pg_cron and pg_net (all available on Supabase; they are switched on below).
 
@@ -379,3 +379,87 @@ select cron.schedule('policy-assistant-jobs', '* * * * *', $cron$
     body := '{"action":"process"}'::jsonb)
   where exists (select 1 from public.policy_jobs where status in ('queued','running') and (locked_until is null or locked_until < now()))
 $cron$);
+
+-- ================================================================ ERP User Guide in the HR Assistant
+-- The User Guide (app/guide/g*.js) is the SAME for every company, so it is stored ONCE, without client_id.
+-- Company policies stay per company (policy_chunks.client_id). On every question the server function searches:
+--   that company's policies  +  the guide entries of the modules that company has, for that person's role.
+-- Each guide entry carries the licence module it belongs to (null = core, always on) and the roles that may see it.
+-- Re-indexing writes a complete new version first and then switches to it in one step, so a question never sees half a guide.
+create table if not exists public.guide_chunks (
+  id uuid primary key default gen_random_uuid(),
+  guide_version text not null,
+  module_id text not null,                 -- the guide module = the app page id (for example 'payroll')
+  entry_id text not null,                  -- the tab key of the entry
+  app_module text,                         -- licence module (clients.modules); null = core, every company has it
+  allowed_roles text[] not null check (allowed_roles <@ array['admin','hr','manager','employee']),
+  module_name text not null default '',
+  title text not null default '',
+  path text not null default '',
+  content_en text not null,
+  content_hi text not null default '',
+  embedding extensions.vector(1024),
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (guide_version, module_id, entry_id)
+);
+create index if not exists guide_chunks_version_idx on public.guide_chunks (guide_version);
+
+create table if not exists public.guide_index_state (
+  id integer primary key default 1 check (id = 1),
+  live_version text,
+  entries integer not null default 0,
+  indexed_at timestamptz,
+  indexed_by uuid,
+  updated_at timestamptz not null default now()
+);
+insert into public.guide_index_state (id) values (1) on conflict (id) do nothing;
+
+alter table public.guide_chunks enable row level security;       -- no rule: only the server function reads and writes it
+alter table public.guide_index_state enable row level security;
+revoke all on public.guide_chunks, public.guide_index_state from anon, authenticated;
+drop trigger if exists pa_touch on public.guide_chunks;
+create trigger pa_touch before update on public.guide_chunks for each row execute function app_private.pa_touch();
+
+-- search in the live guide version: only entries of modules the company has, and only for the person's role
+create or replace function public.guide_match(p_role text, p_modules text[], p_query extensions.vector, p_count int default 6)
+returns table (chunk_id uuid, module_id text, entry_id text, module_name text, title text, path text, content_en text, content_hi text, score real)
+language sql stable security definer set search_path = '' as $$
+  select g.id, g.module_id, g.entry_id, g.module_name, g.title, g.path, g.content_en, g.content_hi,
+         (1 - (g.embedding operator(extensions.<=>) p_query))::real
+  from public.guide_chunks g
+  join public.guide_index_state s on s.id = 1 and s.live_version = g.guide_version
+  where g.embedding is not null
+    and p_role = any (g.allowed_roles)
+    and (g.app_module is null or g.app_module = any (coalesce(p_modules, '{}')))
+  order by g.embedding operator(extensions.<=>) p_query
+  limit least(greatest(coalesce(p_count, 6), 1), 20)
+$$;
+
+-- saves the embeddings of many guide entries in one call
+create or replace function public.guide_set_embeddings(p_ids uuid[], p_vectors text[]) returns void
+language sql security definer set search_path = '' as $$
+  update public.guide_chunks c set embedding = x.v::extensions.vector
+  from unnest(p_ids, p_vectors) as x(id, v) where c.id = x.id
+$$;
+
+-- switches to a fully written new guide version and removes the old ones (one transaction)
+create or replace function public.guide_switch_version(p_version text, p_by uuid) returns integer
+language plpgsql security definer set search_path = '' as $$
+declare n int; missing int;
+begin
+  select count(*), count(*) filter (where embedding is null) into n, missing from public.guide_chunks where guide_version = p_version;
+  if n = 0 then raise exception 'Guide version % has no entries', p_version; end if;
+  if missing > 0 then raise exception 'Guide version % is not complete (% entries without embedding)', p_version, missing; end if;
+  update public.guide_index_state set live_version = p_version, entries = n, indexed_at = now(), indexed_by = p_by, updated_at = now() where id = 1;
+  delete from public.guide_chunks where guide_version <> p_version;
+  return n;
+end $$;
+
+do $$ declare f text; begin
+  foreach f in array array['public.guide_match(text, text[], extensions.vector, int)', 'public.guide_switch_version(text, uuid)', 'public.guide_set_embeddings(uuid[], text[])'] loop
+    execute format('revoke all on function %s from public, anon, authenticated', f);
+    execute format('grant execute on function %s to service_role', f);
+  end loop;
+end $$;

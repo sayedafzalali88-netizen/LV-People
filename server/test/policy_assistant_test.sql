@@ -73,3 +73,32 @@ reset role;
 insert into policy_jobs(client_id,version_id) select client_id,id from policy_versions limit 1;
 select stage,status,runs from policy_claim_job();
 select count(*) as second_claim_empty from policy_claim_job();
+
+\echo '=== ERP User Guide (same for every company) ==='
+create or replace function pg_temp.v(i int) returns extensions.vector language sql as $$ select (array_fill(0::real, array[i-1]) || array[1::real] || array_fill(0::real, array[1024-i]))::extensions.vector $$;
+insert into guide_chunks(guide_version,module_id,entry_id,app_module,allowed_roles,title,content_en,embedding) values
+ ('g1','leave','apply',null,'{admin,hr,manager,employee}','Apply leave','How to apply leave',pg_temp.v(2)),
+ ('g1','payroll','run','payroll','{admin,hr}','Run payroll','How to run payroll',pg_temp.v(2)),
+ ('g1','payroll','mine','payroll','{admin,hr,manager,employee}','My payslip','Where is my payslip',pg_temp.v(2));
+select guide_switch_version('g1', null);
+\echo '--- employee, company WITHOUT payroll module: expect only Apply leave'
+select title from guide_match('employee', '{policy}', pg_temp.v(2)) order by 1;
+\echo '--- employee, company WITH payroll: expect Apply leave + My payslip (not Run payroll, HR only)'
+select title from guide_match('employee', '{policy,payroll}', pg_temp.v(2)) order by 1;
+\echo '--- hr, company WITH payroll: expect all three'
+select title from guide_match('hr', '{payroll}', pg_temp.v(2)) order by 1;
+\echo '--- new version g2 written but not switched: search still uses g1 (3 rows for hr)'
+insert into guide_chunks(guide_version,module_id,entry_id,app_module,allowed_roles,title,content_en,embedding) values ('g2','leave','apply',null,'{admin,hr,manager,employee}','Apply leave v2','new',pg_temp.v(2));
+select count(*) from guide_match('hr', '{payroll}', pg_temp.v(2));
+\echo '--- incomplete version cannot be switched'
+insert into guide_chunks(guide_version,module_id,entry_id,app_module,allowed_roles,title,content_en) values ('g2','leave','x',null,'{admin}','No embedding yet','x');
+do $$ begin perform guide_switch_version('g2', null); raise notice 'LEAK: switched an incomplete version'; exception when others then raise notice 'ok: incomplete version refused'; end $$;
+delete from guide_chunks where guide_version='g2' and entry_id='x';
+select guide_switch_version('g2', null) as switched_entries;
+select title from guide_match('employee', '{}', pg_temp.v(2));
+select count(*) as old_version_rows_left from guide_chunks where guide_version='g1';
+\echo '--- browser cannot read the guide table or call the search'
+set role authenticated; set request.jwt.sub = '1a000000-0000-0000-0000-000000000000';
+do $$ begin perform count(*) from guide_chunks; raise notice 'LEAK: table readable'; exception when insufficient_privilege then raise notice 'ok: table not readable'; end $$;
+do $$ begin perform guide_match('admin','{}',(array_fill(0::real,array[1024]))::extensions.vector); raise notice 'LEAK'; exception when insufficient_privilege then raise notice 'ok: search not callable'; end $$;
+reset role;
