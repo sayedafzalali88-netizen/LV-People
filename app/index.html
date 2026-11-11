@@ -1233,7 +1233,7 @@ function setModal(id){
     audit('Org Master',id?'Edit':'Add',`${t(key)}: ${v.name}`,id?diffTxt(r,v):'');
     if(id)Object.assign(r,v);else{const nid=Math.max(0,...DATA[key].map(x=>+x.id||0))+1;DATA[key].push({id:nid,...(ORGCODE[key]?{code:orgCodeNext(key)}:{}),...v});
      /* every new division gets a "General" sub-division, so people and plan rows can use it at once */
-     if(key==='divisions')DATA.subdivs.push({id:Math.max(0,...DATA.subdivs.map(x=>+x.id||0))+1,code:orgCodeNext('subdivs'),name:'General',parents:[nid]})}
+     if(key==='divisions'){const g=DATA.subdivs.find(x=>!x.off&&x.name==='General');if(g)g.parents=[...(g.parents||[]),nid];else DATA.subdivs.push({id:Math.max(0,...DATA.subdivs.map(x=>+x.id||0))+1,code:orgCodeNext('subdivs'),name:'General',parents:[nid]})}}
     close();toast(t('saved'));render()});
 }
 function delSet(id){
