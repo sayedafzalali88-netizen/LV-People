@@ -368,3 +368,14 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - HR side: on opening the app, what candidates sent is merged into the candidate (details shown with PAN, Aadhaar and account masked; documents marked Received with a link to the file; the Mark joined form starts from it and the full numbers go into the employee record).
 - Career portal: `#careers=<company code>` shows the company's open vacancies from the real data and saves applications (with a resume file or link) for HR. Employee referral now goes through the server too.
 - Test files left in Storage (tiny): 8 from the portal tests, plus the earlier test image; delete them in Supabase > Storage > files if you like.
+
+## Forty-first List (11 Nov 2026) - Inbox last dates and KPI-399
+- Every Inbox item has a last date (Due column, with "due tomorrow", "due today", "overdue"). Own last date if the item has one; otherwise the day it came plus working days from SLA-053: approval or other work 2, acknowledgement 3, notice to read 2 (Sundays and holidays not counted).
+- New store IBL (Inbox ledger): one line per person and item of the other modules (first seen, last date, done on). Approvals and notices are read from TASKS; a notice now keeps the date it was read. Employees can write only their own lines; first-seen date, last date and a done date cannot be changed afterwards (server rule in `server/inbox_tat.sql`).
+- KPI-399 "Inbox Tasks Done Before Due %" (Auto, monthly, Common, module pms): on time ÷ items whose last date has come × 100. Counted for items due from 1 December 2026. Assigned by hand in PMS > KPI assignment (the user's rule: KPIs are never assigned automatically). In the pack of all three clients.
+- Left out of the KPI: To Do items, Today's Challenge (own KPI) and the biometric machine alerts.
+- Reports > PMS: Inbox TAT report (employee-wise), Inbox items (item-wise). Scheduler job: one reminder a day for items due tomorrow or overdue (the reminder itself is not counted).
+- Known limit: an item of another module is written when the person opens the app, so "came on" and "done on" are the days the app was opened. Finished lines older than six months are removed.
+- Fix: a client's saved SLA list no longer drops SLA values added by a newer version of the app (the demo client had lost followT, trafT, engRateT).
+- Not done: the Excel KPI library file was not regenerated with KPI-399.
+

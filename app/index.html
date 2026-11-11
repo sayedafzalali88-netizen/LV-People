@@ -5312,7 +5312,7 @@ INBOX_SRC.push((id,out)=>{
   SRC.tsess.length&&stockOwners(CUR_P).forEach(e=>{if((SMAP[e.id]||[]).includes(id)&&!SREV[e.id+'|'+id+'|'+CUR_P])ibAdd(out,{kind:'stock',title:L('Stock ageing review','स्टॉक एजिंग रिव्यू'),subject:e.id,page:'stock',tab:'tasks'})});
   RC.iv.filter(x=>x.st==='Scheduled'&&x.interviewer===id&&x.date<=TODAY_S).forEach(x=>ibAdd(out,{kind:'iv',title:`${L('Interview feedback','इंटरव्यू फ़ीडबैक')}: ${candById(x.cand).name}`,subject:0,page:'recruit',tab:'int',due:x.date}));
 });
-function ibVirtual(){const id=me();if(!id)return [];const out=[];INBOX_SRC.forEach(f=>{try{f(id,out)}catch(e){}});return out.filter(x=>can(x.page,'V'))}
+function ibVirtual(){const id=me();if(!id)return [];const out=[];INBOX_SRC.forEach(f=>{try{f(id,out)}catch(e){ibVirtual.bad=true}});return out.filter(x=>can(x.page,'V'))}
 const ibStored=()=>TASKS.filter(t=>t.to.includes(me()));
 const ibPendingCount=()=>{if(state.role==='platform'||!me())return 0;try{return ibVirtual().length+ibStored().filter(t=>t.status==='Pending'&&!(t.kind==='notice'&&t.read[me()])).length}catch(e){return 0}};
 const TABKEY={pms:'pmtab',payroll:'paytab',marketing:'mxtab',training:'tntab',recruit:'rctab',crm:'crtab',decision:'dtab',library:'libtab',workforce:'wftab',stock:'sttab'};
@@ -5376,10 +5376,10 @@ bindExtra=function(){
   _bindExtra20();
   const m=$('#main'), on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
   on('[data-ibtab]',b=>b.onclick=()=>{state.ibtab=b.dataset.ibtab;render()});on('[data-ibf]',b=>b.onclick=()=>{state.ibf=b.dataset.ibf;render()});
-  on('[data-ibgo]',b=>b.onclick=()=>{const [p,tb]=b.dataset.ibgo.split(':');if(b.dataset.ibread1){const t_=TASKS.find(x=>x.id==b.dataset.ibread1);if(t_)t_.read[me()]=true}goTo(p,tb)});
+  on('[data-ibgo]',b=>b.onclick=()=>{const [p,tb]=b.dataset.ibgo.split(':');if(b.dataset.ibread1){const t_=TASKS.find(x=>x.id==b.dataset.ibread1);if(t_&&!t_.read[me()])t_.read[me()]=TODAY_S}goTo(p,tb)});
   on('[data-ibwf]',b=>b.onclick=()=>wfTaskModal(+b.dataset.ibwf));
-  on('[data-ibdone]',b=>b.onclick=()=>{const t_=TASKS.find(x=>x.id==b.dataset.ibdone);if(t_&&t_.status==='Pending'&&t_.kind==='notice'){t_.status='Completed';t_.read[me()]=true;t_.log.push({at:TODAY_S,by:nm_(me()),act:'Done'});render()}});
-  on('[data-ibread]',b=>b.onclick=()=>{ibStored().filter(t_=>t_.kind==='notice').forEach(t_=>{t_.read[me()]=true;t_.status='Completed'});render()});
+  on('[data-ibdone]',b=>b.onclick=()=>{const t_=TASKS.find(x=>x.id==b.dataset.ibdone);if(t_&&t_.status==='Pending'&&t_.kind==='notice'){t_.status='Completed';if(typeof t_.read[me()]!=='string')t_.read[me()]=TODAY_S;t_.log.push({at:TODAY_S,by:nm_(me()),act:'Done'});render()}});
+  on('[data-ibread]',b=>b.onclick=()=>{ibStored().filter(t_=>t_.kind==='notice'&&t_.status==='Pending').forEach(t_=>{if(typeof t_.read[me()]!=='string')t_.read[me()]=TODAY_S;t_.status='Completed';t_.log.push({at:TODAY_S,by:nm_(me()),act:'Read'})});render()});
   on('[data-ibinst]',b=>b.onclick=()=>instModal(+b.dataset.ibinst));
   on('[data-sched]',b=>b.onclick=()=>{const n=runJob(+b.dataset.sched);toast(`${n} ${L('new','नए')}`);render()});
   on('[data-schedall]',b=>b.onclick=()=>{let n=0;SCHEDJOBS.forEach((j,i)=>n+=runJob(i));toast(`${n} ${L('new','नए')}`);render()});
@@ -9754,12 +9754,12 @@ function ibWhy(r){const g=r.cls.g;
 function ibList(){
  const id=me(), f=state.ibf;
  const sv=lang;let vEn=[];try{lang='en';vEn=ibVirtual()}catch(e){vEn=[]}finally{lang=sv}
- const v=ibVirtual().map((x,i)=>({...x,when:x.due||'',en:(vEn[i]||{}).title||''}));
- const s=ibStored().map(t=>({virtual:false,id:t.id,kind:t.kind,title:t.title,en:t.title,subject:t.subject,status:t.status,when:t.at,tk:t,page:t.opener&&t.opener.page,tab:t.opener&&t.opener.tab,unread:t.kind==='notice'&&!t.read[id]}));
+ const v=ibVirtual().map((x,i)=>{const l=vEn[i]?IBL[id+'|'+ibKeyOf(vEn[i])]:null;return{...x,when:x.due||'',due:l?l.due:(x.due||''),en:(vEn[i]||{}).title||''}});
+ const s=ibStored().map(t=>({virtual:false,id:t.id,kind:t.kind,title:t.title,en:t.title,subject:t.subject,status:t.status,when:t.at,due:t.status==='Pending'?ibTaskDue(t):'',tk:t,page:t.opener&&t.opener.page,tab:t.opener&&t.opener.tab,unread:t.kind==='notice'&&!t.read[id]}));
  const rows0=[...s.filter(x=>x.status==='Pending'),...v,...(f==='all'?s.filter(x=>x.status!=='Pending'):[])].filter(x=>f==='all'||x.status==='Pending');
  rows0.forEach(r=>{r.cls=r.status==='Pending'?ibClass(r):{g:'done',v:['Done','पूरा'],b:['','']}});
  const cnt={decide:0,do:0,info:0};rows0.forEach(r=>{if(cnt[r.cls.g]!=null)cnt[r.cls.g]++});
- const late=r=>r.virtual&&r.when&&r.when<TODAY_S, key=r=>['decide','do','info','done'].indexOf(r.cls.g)+(late(r)?'0':'1')+(r.when||'9999');
+ const late=r=>r.status==='Pending'&&r.due&&r.due<TODAY_S, key=r=>['decide','do','info','done'].indexOf(r.cls.g)+(late(r)?'0':'1')+(r.due||'9999');
  const rows=rows0.filter(r=>!state.ibg||r.cls.g===state.ibg).sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
  const card=(g)=>`<div class="card" data-ibg="${g}" style="cursor:pointer;${state.ibg===g?'outline:2px solid var(--teal)':''}"><small style="color:var(--muted)">${L(IBGRP[g].en,IBGRP[g].hi)}</small><div style="font-size:26px;font-weight:700">${cnt[g]}</div></div>`;
  const wfRows=rows.filter(r=>r.kind==='wf'&&r.status==='Pending');
@@ -9772,7 +9772,7 @@ function ibList(){
   const sub=[r.tk?`${L('from','से')} ${esc(r.tk.by)} · ${ibAge(r.tk.at)}`:'',ibWhy(r)].filter(Boolean).join(' · ');
   body+=`<tr style="${r.unread?'font-weight:600':''}"><td style="width:28px">${r.kind==='wf'&&r.status==='Pending'?`<input type="checkbox" data-ibsel="${r.id}">`:''}</td><td><span class="pill ${IBGRP[g].pill}">${L(...r.cls.v)}</span></td>
    <td><b style="font-weight:500">${esc(r.title)}</b><small style="display:block;color:var(--muted)">${sub}</small>${r.subject?`<small style="display:block">${L('About','किसके बारे में')}: ${nmE(r.subject)}</small>`:''}</td>
-   <td>${r.when?`${r.virtual?fmtS(r.when):''}${late(r)?` <span class="pill p-bad">${L('late','देर')}</span>`:''}`:'—'}</td><td style="text-align:right;white-space:nowrap">${btn(r)}</td></tr>`});
+   <td style="white-space:nowrap">${ibDueCell(r)}</td><td style="text-align:right;white-space:nowrap">${btn(r)}</td></tr>`});
  return `<div class="grid g4" style="margin-bottom:12px">${card('decide')}${card('do')}${card('info')}<div class="card"><small style="color:var(--muted)">${L('Start from the top: decisions first, then work, then information. You see only what is with you.','ऊपर से शुरू करें: पहले फ़ैसले, फिर काम, फिर जानकारी। आपको सिर्फ़ वही दिखता है जो आपके पास है।')}</small></div></div>
   <div class="tools"><div class="seg">${[['pend',L('Waiting','बाकी')],['all',L('Including done','पूरे हुए सहित')]].map(([k,l])=>`<button data-ibf="${k}" class="${f===k?'on':''}">${l}</button>`).join('')}</div>${state.ibg?`<button class="pill p-teal" data-ibg="" style="cursor:pointer;border:0">${L('Show all','सब दिखाएँ')}</button>`:''}<div style="flex:1"></div>
    ${wfRows.length?`<label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ibSelAll"> ${L('Select all approvals','सभी मंज़ूरियाँ चुनें')}</label><button class="btn btn-p btn-s" data-ibbulk>${L('Approve selected','चुनी हुई मंज़ूर करें')} (<span id="ibSelN">0</span>)</button>`:''}<button class="btn btn-o btn-s" data-ibread>${L('Mark notices read','सूचनाएँ पढ़ी करें')}</button></div>
@@ -9785,6 +9785,58 @@ function ibList(){
  on('#ibSelAll',c=>c.onchange=()=>{m.querySelectorAll('[data-ibsel]').forEach(x=>x.checked=c.checked);cnt()});
  on('[data-ibbulk]',b=>b.onclick=()=>{const ids=[...m.querySelectorAll('[data-ibsel]:checked')].map(x=>+x.dataset.ibsel);if(!ids.length)return toast(L('Select at least one approval','कम से कम एक मंज़ूरी चुनें'));
   if(!confirm(`${L('Approve','मंज़ूर करें')} ${ids.length} ${L('item(s)?','?')}`))return;let n=0;ids.forEach(i=>{if(wfDecide(i,true,'',me()))n++});toast(`${n} ${L('approved','मंज़ूर हुईं')}`);render()})}}
+/* ================= Inbox TAT: every Inbox item has a last date; KPI-399 Inbox Tasks Done Before Due % ================= */
+/* IBL keeps one line for every item that showed in a person's Inbox from the other modules (they leave the Inbox when done, so they are written here):
+   key = employee|item, {emp, kind, t (title), at (first seen), due, done}. Approvals and notices are already kept in TASKS. */
+const IBL={};
+const IB_FROM='2026-12-01'; /* scoring starts with the items due from this date; earlier items are only listed */
+const IB_SKIP=new Set(['todo','chal','chal-m','bio']); /* own KPI (To Do, Challenge) or only information for HR */
+const IB_ACK=new Set(['letter','dec-ack','doc','ind-c','asg-c','sup-c','ast','eng']);
+Object.assign(SLA,{ibAppr:2,ibAck:3,ibNote:2});
+SLAR.push({id:'SLA-053',kpi:'KPI-399',name:['Inbox: working days to finish an item','इनबॉक्स: आइटम पूरा करने के कार्य दिन'],dir:'max',note:'Every Inbox item gets a last date: the day it came plus these working days (Sundays and holidays are not counted). An item that has its own last date (for example a training test or a trip report) keeps that date. KPI-399 counts the items finished on or before the last date.',
+ params:[P('ibAppr','Approval or any other work: working days','मंज़ूरी या कोई और काम: कार्य दिन','days',{max:30}),P('ibAck','Acknowledgement (letter, decision, document, asset, notice board): working days','पावती (पत्र, निर्णय, दस्तावेज़, एसेट, नोटिस बोर्ड): कार्य दिन','days',{max:30}),P('ibNote','Notice to read: working days','पढ़ने की सूचना: कार्य दिन','days',{max:30})],
+ versions:[{ver:1,effective:'2026-04-01',by:'System',note:'Initial value',values:{ibAppr:2,ibAck:3,ibNote:2}}]});
+const ibT=k=>{const v=+SLA[k];return v>=0&&SLA[k]!=null&&SLA[k]!==''?v:{ibAppr:2,ibAck:3,ibNote:2}[k]};
+const ibKeyOf=x=>[x.kind,x.subject||0,x.page||'',x.tab||'',x.ref||String(x.title||'').replace(/^\d+\s+/,'')].join('|');
+const ibTaskDue=t=>tWork(t.at,ibT(t.kind==='wf'?'ibAppr':'ibNote'));
+/* the items of the other modules, read in English so the key is the same in both languages */
+function ibVEn(){const sv=lang;let v=[];ibVirtual.bad=false;try{lang='en';v=ibVirtual()}catch(e){ibVirtual.bad=true}finally{lang=sv}return v}
+let ibTrackAt=0;
+function ibTrack(force){
+ try{if(state.role==='platform')return;const id=me();if(!id)return;
+  if(typeof LIVE!=='undefined'&&(!LIVE.on||LIVE.platform||LIVE.asOf||LIVE.refreshing))return;
+  if(!force&&Date.now()-ibTrackAt<4000)return;ibTrackAt=Date.now();
+  const v=ibVEn(), bad=ibVirtual.bad, seen=new Set();
+  v.forEach(x=>{if(IB_SKIP.has(x.kind))return;const key=id+'|'+ibKeyOf(x);seen.add(key);if(IBL[key])return;
+   const at=x.from&&x.from<=TODAY_S?x.from:TODAY_S;IBL[key]={emp:id,kind:x.kind,t:String(x.title||'').slice(0,160),at,due:x.due||tWork(at,ibT(IB_ACK.has(x.kind)?'ibAck':'ibAppr')),done:''}});
+  /* an item that is no longer in the Inbox is finished today; never when a part of the Inbox could not be read */
+  if(!bad)Object.keys(IBL).forEach(key=>{const r=IBL[key];if(r&&r.emp===id&&!r.done&&!seen.has(key))r.done=TODAY_S});
+  /* HR keeps the list short: finished lines older than six months go */
+  if(canManage()){const old=addD(TODAY_S,-180);Object.keys(IBL).forEach(key=>{const r=IBL[key];if(r&&r.done&&r.due<old)delete IBL[key]})}
+ }catch(e){}}
+/* every Inbox line of a person: approvals and notices (TASKS) and the lines kept above */
+function ibRecs(empId){const out=[];
+ TASKS.forEach(t=>{if(!t||!Array.isArray(t.to)||!t.to.includes(empId)||String(t.key||'').startsWith('ibr'))return;const wf=t.kind==='wf', last=((t.log||[])[(t.log||[]).length-1]||{}).at||t.at;let done='';
+  if(wf){if(t.status!=='Pending')done=last}else{const r=t.read&&t.read[empId];if(typeof r==='string')done=r;else if(r)done=t.at;else if(t.status!=='Pending')done=last}
+  out.push({kind:t.kind,title:t.title,at:t.at,due:ibTaskDue(t),done})});
+ Object.keys(IBL).forEach(k=>{const r=IBL[k];if(r&&r.emp===empId)out.push({kind:r.kind,title:r.t,at:r.at,due:r.due,done:r.done||''})});
+ return out}
+const ibState=r=>r.done?(r.done<=r.due?'ok':'late'):(r.due<TODAY_S?'over':'open');
+function ibStat(empId,mk,all){const s={tot:0,ok:0,late:0,over:0,open:0};ibRecs(empId).forEach(r=>{if(String(r.due).slice(0,7)!==mk||(!all&&r.due<IB_FROM))return;s.tot++;s[ibState(r)]++});return s}
+function ibDueCell(r){if(r.status!=='Pending'||!r.due)return '—';const n=Math.round((Date.parse(r.due)-Date.parse(TODAY_S))/864e5);
+ return `${fmtS(r.due)} ${n<0?`<span class="pill p-bad">${L('overdue','समय निकल गया')}</span>`:n===0?`<span class="pill p-warn">${L('due today','आज आख़िरी दिन')}</span>`:n===1?`<span class="pill p-warn">${L('due tomorrow','कल आख़िरी दिन')}</span>`:''}`}
+KPI.push({id:'KPI-399',name:'Inbox Tasks Done Before Due %',cat:'Common (All Designations)',level:'Data',max:10,freq:'Monthly',method:'Auto',rule:'Inbox — Every item that comes to the person\'s Inbox (approvals, work to do, acknowledgements of letters, decisions, documents and assets, notices to read) has a last date: its own last date, or the day it came plus the working days of SLA-053 (approval or other work 2, acknowledgement 3, notice 2; Sundays and holidays are not counted). Items whose last date is in the month and has passed, or that are already finished: finished on or before the last date ÷ such items × 100. Finished late, or still open after the last date = late. To Do items and Today\'s Challenge are left out (they have their own KPI). No item in the month = not counted. Counted for items due from 1 December 2026.',active:true});
+AUTO2['KPI-399']=(e,k,p)=>{const s=ibStat(e.id,payKey(p)), n=s.ok+s.late+s.over;if(!n)return kN(payKey(p)<IB_FROM.slice(0,7)?L('Counted for items due from 1 December 2026','1 दिसंबर 2026 से देय आइटम गिने जाते हैं'):L('No Inbox item was due in the month','इस महीने कोई इनबॉक्स आइटम देय नहीं था'));
+ return kS(k,s.ok/n*k.max,`${s.ok} / ${n} ${L('on time','समय पर')}${s.late+s.over?` · ${s.late+s.over} ${L('late','देर से')}`:''}`)};AUTO_IMPL.add('KPI-399');KPIMOD['KPI-399']='pms';
+rp('pm_ibtat','pms','Inbox TAT report (employee-wise)','इनबॉक्स TAT रिपोर्ट (कर्मचारी-वार)','month','M',f=>{const mk=f.mk||curMk();return{cols:[L('Code','कोड'),L('Name','नाम'),L('Items due in the month','महीने में देय आइटम'),L('Done on time','समय पर पूरे'),L('Done late','देर से पूरे'),L('Overdue, still open','समय निकला, अभी बाकी'),L('Open, not yet due','बाकी, अभी समय है'),L('On time %','समय पर %')],
+ rows:rActive(rptEmps(f)).map(e=>{const s=ibStat(e.id,mk,true), n=s.ok+s.late+s.over;return[e.code,e.name,s.tot,s.ok,s.late,s.over,s.open,n?r2(s.ok/n*100):'']})}});
+rp('pm_ibitems','pms','Inbox items (item-wise, with last date)','इनबॉक्स आइटम (आइटम-वार, आख़िरी तारीख़ के साथ)','month','M',f=>{const mk=f.mk||curMk(), st={ok:L('Done on time','समय पर पूरा'),late:L('Done late','देर से पूरा'),over:L('Overdue','समय निकल गया'),open:L('Open','बाकी')}, rows=[];
+ rActive(rptEmps(f)).forEach(e=>ibRecs(e.id).filter(r=>String(r.due).slice(0,7)===mk).sort((a,b)=>a.due<b.due?-1:1).forEach(r=>rows.push([e.code,e.name,L(...(KINDL[r.kind]||[r.kind,r.kind])),r.title,r.at,r.due,r.done||'',st[ibState(r)]])));
+ return{cols:[L('Code','कोड'),L('Name','नाम'),L('Type','प्रकार'),L('Item','आइटम'),L('Came on','कब आया'),L('Last date','आख़िरी तारीख़'),L('Done on','कब पूरा हुआ'),tx('status')],rows}});
+/* scheduler: one reminder a day to the people who have an item due tomorrow or already overdue (this reminder itself is not counted) */
+SCHEDJOBS.push(['Inbox: remind about items due tomorrow or overdue','इनबॉक्स: कल देय या समय निकले आइटम की याद',()=>{let n=0;const tm=addD(TODAY_S,1);DATA.emps.filter(e=>e.active).forEach(e=>{const l=ibRecs(e.id).filter(r=>!r.done&&r.due<=tm);if(!l.length)return;const ov=l.filter(r=>r.due<TODAY_S).length, b=TASKS.length;
+ notify([e.id],`${L('Inbox','इनबॉक्स')}: ${l.length} ${L('item(s) need you','आइटम आपका इंतज़ार कर रहे हैं')}${ov?` · ${ov} ${L('overdue','का समय निकल गया')}`:''}`,{page:'inbox'},'ibr'+TODAY_S);n+=TASKS.length-b});return n}]);
+{const _rIb=render;render=function(){const r=_rIb.apply(this,arguments);ibTrack();return r}}
 /* ================= Batch 58: Asset Management (Inventory, Issue, My Asset, Request, Acknowledgement, Exit handover) ================= */
 Object.assign(T.en,{assets:'Assets',myasset:'My Asset'});Object.assign(T.hi,{assets:'एसेट',myasset:'मेरा एसेट'});
 MODS.push({id:'assets',name:['Asset Management','एसेट मैनेजमेंट'],desc:['Asset inventory, who holds what, employee requests with approval, acknowledgement on receipt, and the handover at exit','एसेट इन्वेंटरी, किसके पास क्या है, मंज़ूरी वाली माँग, मिलने पर पुष्टि, और एक्ज़िट पर हैंडओवर'],pages:['assets','myasset'],needs:[]});
