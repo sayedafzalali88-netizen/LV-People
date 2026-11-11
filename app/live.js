@@ -98,10 +98,12 @@ async function syncAttendance(){
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
-const CONFIG=['SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT','ALTSET','BIOSET','CRULE','EMPCODE','ORGS','SERIES','SYSSERX','STKSET','TRULE','WAUTO','MINW','MINWSK','MINWZ','OFFPAY','ALWR','ATTWV','PVER','ROLES'];
+/* the career framework (level names, pass marks) has defaults; a new client must never start with it empty, or the dashboard fails */
+let CF0=null;try{CF0=JSON.parse(JSON.stringify(CF))}catch(e){}
+const CONFIG=['CF','SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT','ALTSET','BIOSET','CRULE','EMPCODE','ORGS','SERIES','SYSSERX','STKSET','TRULE','WAUTO','MINW','MINWSK','MINWZ','OFFPAY','ALWR','ATTWV','PVER','ROLES'];
 /* SYSSER has functions inside, so only its plain values (prefix, digits, next number...) are kept */
 window.SYSSERX={};const sysToX=()=>{try{SYSSER.forEach(s=>{const o={};Object.keys(s).forEach(k=>{if(typeof s[k]!=='function')o[k]=s[k]});SYSSERX[s.key]=o})}catch(e){}};const sysFromX=()=>{try{SYSSER.forEach(s=>{const o=SYSSERX[s.key];if(o)Object.keys(o).forEach(k=>{if(typeof s[k]!=='function')s[k]=o[k]})})}catch(e){}};sysToX();
-const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','CF','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','KRULES','SSTR','TGR','AST','AUDIT','TDSD','ATTARR','SALREV'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','KRULES','SSTR','TGR','AST','AUDIT','TDSD','ATTARR','SALREV'];
 try{Object.keys(SRC).filter(k=>Array.isArray(SRC[k])).forEach(k=>DATASTORES.push('SRC.'+k))}catch(e){}
 const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','FBT','CFB','ASG','TODO','DAILYT','SLP','SLASG','SLLOG','SLT','SLCERT','CREQ','XADV','XREP','XRES','XTRIP','UREQ','WISH','CHE','POLL','RECOG','SRC.content','SRC.campaign','SRC.post','SRC.creview','SRC.ttest','SRC.audience','AUDIT','TDSD'];
 const involved=(x,me,team,store,key)=>{if(store==='MRATE'||store==='CT')return team.has(+String(key).slice(2).split('|')[0]);if(store==='KYC')return +String(key).slice(2).split('|')[0]===me;if(!x||typeof x!=='object')return false;
@@ -123,6 +125,7 @@ async function loadStores(){
     else{Object.keys(v).forEach(k=>delete v[k]);mine.forEach(r=>{v[r.key.slice(2)]=r.data})}
     LIVE.stSnap[n]={};mine.forEach(r=>LIVE.stSnap[n][r.key]=JSON.stringify(r.data))}
   try{if(typeof syncHoli==='function')syncHoli()}catch(e){}
+  try{if(CF0)Object.keys(CF0).forEach(k=>{if(CF[k]===undefined||CF[k]===null||(Array.isArray(CF0[k])&&(!Array.isArray(CF[k])||(k==='lv'&&!CF[k].length))))CF[k]=JSON.parse(JSON.stringify(CF0[k]))})}catch(e){}
   sysFromX();
   /* a month with no saved state is a draft: never "processed" by default */
   try{Object.keys(PMON).forEach(m=>{if(!PAYRUN[m])PAYRUN[m]='draft'})}catch(e){}
@@ -602,7 +605,8 @@ async function startSession(user){
   const e=DATA.emps.find(x=>LIVE.map.emps[x.id]===LIVE.profile.employee_id);if(!e)throw new Error(L('No employee record is linked to this login','इस लॉगिन से कोई कर्मचारी रिकॉर्ड नहीं जुड़ा'));
   try{if(typeof CO==='object'&&LIVE.client)CO.name=LIVE.client.name}catch(x){}
   if(LIVE.profile.must_change_password){LV.view='change';LV.pend={first:true,emp:e,role:LIVE.profile.role,live:true};drawLogin();return}
-  enterApp(e,LIVE.profile.role,false);
+  /* a screen error while the first page is drawn must never close the session: it used to sign the person out while the page stayed on screen, so nothing was saved */
+  try{enterApp(e,LIVE.profile.role,false)}catch(x){console.error('enterApp',x);LIVE.err=L('A part of this screen could not be drawn: ','इस स्क्रीन का एक हिस्सा नहीं बन सका: ')+(x&&x.message||x)}
   try{LIVE.afterLoad&&LIVE.afterLoad()}catch(x){}
 }
 const fail=m=>{LV.msg=m;const u=$('#lgU')&&$('#lgU').value, c=$('#lgC')&&$('#lgC').value;drawLogin();if($('#lgU'))$('#lgU').value=u||'';if($('#lgC'))$('#lgC').value=c||''};
