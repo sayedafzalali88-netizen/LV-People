@@ -418,14 +418,15 @@ async function syncNow(){
   if(LIVE.busy){LIVE.queued=true;return}
   LIVE.busy=true;let n=0;
   try{
-    sysToX();try{snapKpis()}catch(x){}await syncAttendance();await syncStores();await syncKpis();
+    /* the organization and the people are saved FIRST, so nothing that fails later (attendance, stores, KPIs) can stop them; a failure names the table */
     if(isHRrole())for(const k of KINDS){const t=TBL[k];
-      for(const o of DATA[k]){const s=sig(k,o);if(LIVE.snap[k][o.id]===s)continue;
+      for(const o of DATA[k]){let s;try{s=sig(k,o)}catch(x){x.message=t+': '+x.message;throw x}if(LIVE.snap[k][o.id]===s)continue;
         const row=toRow(k,o);let uuid=LIVE.map[k][o.id];
-        if(uuid){const r=await sb.from(t).update(row).eq('id',uuid);if(r.error)throw r.error}
-        else{const r=await sb.from(t).insert(row).select('id').single();if(r.error)throw r.error;uuid=r.data.id;LIVE.map[k][o.id]=uuid;LIVE.rev[k][uuid]=o.id;if(k==='emps')(LIVE.newEmp=LIVE.newEmp||[]).push(o.id)}
+        if(uuid){const r=await sb.from(t).update(row).eq('id',uuid);if(r.error){r.error.message=t+': '+r.error.message;throw r.error}}
+        else{const r=await sb.from(t).insert(row).select('id').single();if(r.error){r.error.message=t+': '+r.error.message;throw r.error}uuid=r.data.id;LIVE.map[k][o.id]=uuid;LIVE.rev[k][uuid]=o.id;if(k==='emps')(LIVE.newEmp=LIVE.newEmp||[]).push(o.id)}
         if(k==='emps'){const r=await sb.from('employee_private').upsert({employee_id:uuid,...toPriv(o)});if(r.error)throw r.error}
         LIVE.snap[k][o.id]=sig(k,o);n++}}
+    sysToX();try{snapKpis()}catch(x){}await syncAttendance();await syncStores();await syncKpis();
     /* a manager set before the manager was saved: fill it now */
     if(isHRrole())for(const o of DATA.emps){if(o.mgr&&LIVE.map.emps[+o.mgr]){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){await sb.from('employees').update({manager_id:LIVE.map.emps[+o.mgr]}).eq('id',LIVE.map.emps[o.id]);LIVE.snap.emps[o.id]=s}}}
     if(LIVE.newEmp&&LIVE.newEmp.length){const ids=LIVE.newEmp;LIVE.newEmp=[];await ensureLogins(ids)}
@@ -617,7 +618,12 @@ doChange=async function(){const p=LV.pend;if(!p||!p.live)return _doChange();
   const r=await sb.auth.updateUser({password:n});if(r.error){LV.msg=r.error.message;drawLogin();return}
   await sb.from('profiles').update({must_change_password:false}).eq('user_id',LIVE.profile.user_id);LIVE.profile.must_change_password=false;LV.view='signin';LV.msg='';enterApp(p.emp,p.role,false)};
 const _logout=doLogout;
-doLogout=async function(){try{await sb.auth.signOut()}catch(e){}LIVE.on=false;LIVE.profile=null;location.reload()};
+doLogout=async function(){
+  /* save what is still waiting before the session ends, and sign out of this device only (a global sign-out also closed the same login on other devices) */
+  try{clearTimeout(syncT);for(let i=0;i<20&&LIVE.busy;i++)await new Promise(r=>setTimeout(r,250));await syncNow()}catch(e){}
+  try{await sb.auth.signOut({scope:'local'})}catch(e){}LIVE.on=false;LIVE.profile=null;location.reload()};
+/* leaving the page with changes that are not saved yet: ask first */
+window.addEventListener('beforeunload',e=>{try{if(!LIVE.on||LIVE.platform||!isHRrole())return;if(KINDS.some(k=>DATA[k].some(o=>LIVE.snap[k][o.id]!==sig(k,o)))){e.preventDefault();e.returnValue=''}}catch(x){}});
 const lo=document.getElementById('logout');if(lo)lo.onclick=doLogout;
 /* the prototype's forgot-password and demo buttons are not used in the live app */
 const lf=document.getElementById('loginForm');if(lf)lf.addEventListener('click',e=>{const b=e.target.closest('[data-lg]');if(b&&(b.dataset.lg==='forgot'||b.dataset.lg.startsWith('demo:')||b.dataset.lg==='mailbox')){e.stopImmediatePropagation();e.preventDefault();toast(L('Ask your HR to reset the password.','पासवर्ड रीसेट के लिए अपने HR से कहें।'))}},true);
