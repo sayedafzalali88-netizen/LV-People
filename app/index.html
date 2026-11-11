@@ -1136,6 +1136,7 @@ const ORG={
 };
 const CHAIN={func:'functions',dept:'depts',branch:'branches',division:'divisions',subdiv:'subdivs',desig:'desigs'};
 const CHAIN_ORDER=['func','dept','branch','division','subdiv','desig'];
+Object.assign(T.en,{e_divsel:'Select at least one division'});Object.assign(T.hi,{e_divsel:'कम से कम एक डिवीज़न चुनें'});
 Object.assign(T.en,{subdivs:'Sub-divisions',fn1:'Function',div1:'Division',sub1:'Sub-division'});Object.assign(T.hi,{subdivs:'सब-डिवीज़न',fn1:'फ़ंक्शन',div1:'डिवीज़न',sub1:'सब-डिवीज़न'});
 /* move the demo data to the new order. Ids of branch, division, department, function and designation stay the same (sales targets, KPI and reports use them) */
 DATA.subdivs=[];
@@ -1150,14 +1151,18 @@ function orgMigrate(){const D=DATA, has=(x,id)=>(x.parents||[]).includes(id), T0
  D.depts.forEach(dp=>nDept[dp.id]=uniq(T0.filter(t=>t.dp===dp.id).map(t=>t.f)));
  D.branches.forEach(b=>nBr[b.id]=uniq(T0.filter(t=>t.b===b.id).map(t=>t.dp)));
  D.functions.forEach(f=>f.parents=[]);D.depts.forEach(dp=>dp.parents=nDept[dp.id]);D.branches.forEach(b=>b.parents=nBr[b.id]);
- D.divisions.forEach(v=>v.depts=vDepts[v.id]);D.desigs.forEach(d=>{d.funcs=dFuncs[d.id];d.parents=nDes[d.id]});
+ D.divisions.forEach(v=>v.depts=vDepts[v.id]);D.desigs.forEach(d=>{d.funcs=dFuncs[d.id];d.parents=[];d.divs=uniq(nDes[d.id].map(s=>D.subdivs.find(x=>x.id===s).parents[0]))});
  D.emps.forEach(e=>e.subdiv=sub[e.division]);SRC.plan.forEach(r=>r.subdiv=sub[r.division]);}
 const subOf=v=>((DATA.subdivs.find(s=>(s.parents||[]).includes(+v))||{}).id);
 /* allowed items of one level, given what is chosen above it */
 function orgOpts(k,c){const has=(x,id)=>(x.parents||[]).includes(+id), a=DATA[CHAIN[k]].filter(x=>!x.off);
  if(k==='func')return a;if(k==='dept')return a.filter(x=>has(x,c.func));if(k==='branch')return a.filter(x=>has(x,c.dept));
  if(k==='division')return a.filter(x=>has(x,c.branch)&&(!x.depts||x.depts.includes(+c.dept)));if(k==='subdiv')return a.filter(x=>has(x,c.division));
- return a.filter(x=>has(x,c.subdiv)&&(!x.funcs||x.funcs.includes(+c.func)))}
+ return a.filter(x=>desigIn(x,c)&&(!x.funcs||x.funcs.includes(+c.func)))}
+/* a designation is mapped under Divisions (all their sub-divisions); ticking some sub-divisions of a division narrows it to those. Old data with no division list keeps using its sub-division list */
+function desigIn(x,c){const dv=+c.division, sd=+c.subdiv;if(!x.divs)return (x.parents||[]).includes(sd);if(!x.divs.includes(dv))return false;
+ const nar=(x.parents||[]).filter(p=>{const s=DATA.subdivs.find(z=>z.id===p);return s&&(s.parents||[]).includes(dv)});return nar.length?nar.includes(sd):true}
+const orgParents=(key,r)=>key==='desigs'?(r.divs?r.divs.map(i=>{const nar=(r.parents||[]).filter(p=>{const s=DATA.subdivs.find(z=>z.id===p);return s&&(s.parents||[]).includes(i)});return `<span class="pill p-teal" style="margin:1px">${esc(nm('divisions',i))}${nar.length?' › '+nar.map(p=>esc(nm('subdivs',p))).join(', '):''}</span>`}).join(' '):(r.parents||[]).map(i=>`<span class="pill p-teal" style="margin:1px">${esc(nm('subdivs',i))}</span>`).join(' ')):(r.parents||[]).map(i=>`<span class="pill p-teal" style="margin:1px">${esc(nm(ORG[key].par,i))}</span>`).join(' ');
 const orgOk=c=>CHAIN_ORDER.every(k=>c[k]&&orgOpts(k,c).some(x=>x.id==c[k]));
 
 /* audit log: append only */
@@ -1197,7 +1202,7 @@ function settingsPage(){
   const s=ORG[tab], rows=DATA[tab];
   return head+`<div class="card tw"><table class="tbl"><thead><tr>${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}${s.par?`<th>${t('parent_t')}</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>`<tr style="${r.off?'opacity:.55':''}">${s.cols.map(c=>`<td>${c[0]==='name'?`<b>${esc(r[c[0]])}</b>`:esc(r[c[0]]||'')}</td>`).join('')}
-   ${s.par?`<td>${(r.parents||[]).map(i=>`<span class="pill p-teal" style="margin:1px">${esc(nm(s.par,i))}</span>`).join(' ')}</td>`:''}
+   ${s.par?`<td>${orgParents(tab,r)}</td>`:''}
    <td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
    <td><span class="pill ${r.off?'p-bad':'p-ok'}">${r.off?t('inactive_i'):t('active')}</span></td>
    <td style="text-align:right;white-space:nowrap">${can('settings','E')?`<button class="btn btn-o btn-s" data-sed="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${r.off?'':'btn-d'}" data-sdel="${r.id}">${r.off?t('activate'):t('inactivate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
@@ -1206,18 +1211,24 @@ function setModal(id){
   const key=state.stab, s=ORG[key], r=id?DATA[key].find(x=>x.id===id):{parents:[]};
   const par=s.par?DATA[s.par].filter(x=>!x.off):[];
   openModal(`<h3>${id?t('edit'):t('add')} · ${t(key)}</h3>${s.cols.map(c=>key==='desigs'&&c[0]==='level'?`<label>${t(c[1])}</label><select class="inp" name="level"><option value="">—</option>${Array.from({length:12},(_,i)=>'L'+(i+1)).map(l=>`<option value="${l}" ${r.level===l?'selected':''}>${l}</option>`).join('')}</select>`:`<label>${t(c[1])}</label><input class="inp" name="${c[0]}" value="${esc(r[c[0]]||'')}">`).join('')}
-   ${s.par?`<label>${t('parent_t')} (${t(s.par)})</label><div style="display:flex;flex-wrap:wrap;gap:8px 14px">${par.map(p=>`<label style="margin:0;font-weight:400;display:flex;gap:6px"><input type="checkbox" name="par" value="${p.id}" ${(r.parents||[]).includes(p.id)?'checked':''}> ${esc(p.name)}</label>`).join('')}</div>`:''}
+   ${key==='desigs'?`<label>${t('parent_t')} (${t('divisions')}) *</label><div>${DATA.divisions.filter(x=>!x.off).map(dv=>{const subs=DATA.subdivs.filter(x=>!x.off&&(x.parents||[]).includes(dv.id)), on=(r.divs||[]).includes(dv.id)||(!r.divs&&subs.some(z=>(r.parents||[]).includes(z.id))), nar=r.divs?(r.parents||[]):[];
+     return `<div style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;margin-bottom:6px"><label style="margin:0;font-weight:500;display:flex;gap:6px"><input type="checkbox" name="dv" value="${dv.id}" ${on?'checked':''}> ${esc(dv.name)} <span style="font-weight:400;color:var(--muted);font-size:12px">${L('all sub-divisions','सभी सब-डिवीज़न')}</span></label>${subs.length>1||(subs[0]&&subs[0].name!=='General')?`<div style="margin:4px 0 0 22px;font-size:12px;color:var(--muted)">${L('Only some? Narrow down (optional):','सिर्फ़ कुछ में? चुनें (वैकल्पिक):')}<div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:2px">${subs.map(z=>`<label style="margin:0;font-weight:400;display:flex;gap:6px"><input type="checkbox" name="par" data-dv="${dv.id}" value="${z.id}" ${nar.includes(z.id)?'checked':''}> ${esc(z.name)}</label>`).join('')}</div></div>`:''}</div>`}).join('')}</div>`:
+   s.par?`<label>${t('parent_t')} (${t(s.par)})</label><div style="display:flex;flex-wrap:wrap;gap:8px 14px">${par.map(p=>`<label style="margin:0;font-weight:400;display:flex;gap:6px"><input type="checkbox" name="par" value="${p.id}" ${(r.parents||[]).includes(p.id)?'checked':''}> ${esc(p.name)}</label>`).join('')}</div>`:''}
    <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
    <div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{
     const fd=new FormData(f), v=Object.fromEntries(s.cols.map(c=>[c[0],(fd.get(c[0])||'').trim()])), err=k=>{bg.querySelector('#me').textContent=t(k)};
     if(!v.name)return err('e_req');
     if(key==='desigs'&&!/^L([1-9]|1[0-2])$/.test(v.level))return err('e_req');
-    if(s.par){v.parents=fd.getAll('par').map(Number);if(!v.parents.length)return err('e_parent')}
+    if(key==='desigs'){v.divs=fd.getAll('dv').map(Number);if(!v.divs.length)return err('e_divsel');v.parents=fd.getAll('par').map(Number).filter(p=>{const z=DATA.subdivs.find(x=>x.id===p);return z&&(z.parents||[]).some(d=>v.divs.includes(d))})}
+    else if(s.par){v.parents=fd.getAll('par').map(Number);if(!v.parents.length)return err('e_parent')}
     if(DATA[key].some(x=>x.id!==id&&x.name.toLowerCase()===v.name.toLowerCase()&&(key!=='subdivs'||(x.parents||[]).some(p=>(v.parents||[]).includes(p)))))return err('e_dup');
-    if(id&&s.par&&JSON.stringify([...(r.parents||[])].sort())!==JSON.stringify([...v.parents].sort())){const old=r.parents;r.parents=v.parents;const broke=SRC.plan.some(p=>p.status!=='Inactive'&&!chainOk(p));r.parents=old;if(broke){close();return orgBlock(key,id,'change')||listModal(L('Cannot change the parent: a running plan row would lose its chain','पैरेंट नहीं बदल सकते: चल रही प्लान पंक्ति की चेन टूट जाएगी'),[])}}
+    const sg=o=>JSON.stringify([[...(o.parents||[])].sort(),[...(o.divs||[])].sort()]);
+    if(id&&s.par&&sg(r)!==sg(v)){const old=r.parents, oldD=r.divs;r.parents=v.parents;if(key==='desigs')r.divs=v.divs;const broke=SRC.plan.some(p=>p.status!=='Inactive'&&!chainOk(p));r.parents=old;if(key==='desigs')r.divs=oldD;if(broke){close();return orgBlock(key,id,'change')||listModal(L('Cannot change the parent: a running plan row would lose its chain','पैरेंट नहीं बदल सकते: चल रही प्लान पंक्ति की चेन टूट जाएगी'),[])}}
     audit('Org Master',id?'Edit':'Add',`${t(key)}: ${v.name}`,id?diffTxt(r,v):'');
-    if(id)Object.assign(r,v);else DATA[key].push({id:Math.max(0,...DATA[key].map(x=>+x.id||0))+1,...v});
+    if(id)Object.assign(r,v);else{const nid=Math.max(0,...DATA[key].map(x=>+x.id||0))+1;DATA[key].push({id:nid,...v});
+     /* every new division gets a "General" sub-division, so people and plan rows can use it at once */
+     if(key==='divisions')DATA.subdivs.push({id:Math.max(0,...DATA.subdivs.map(x=>+x.id||0))+1,name:'General',parents:[nid]})}
     close();toast(t('saved'));render()});
 }
 function delSet(id){
@@ -3948,7 +3959,7 @@ function settingsPage(){
   const s=ORG[tab], rows=DATA[tab];
   return head+`<div class="card tw"><table class="tbl"><thead><tr>${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}${s.par?`<th>${t('parent_t')}</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>`<tr style="${r.off?'opacity:.55':''}">${s.cols.map(c=>`<td>${c[0]==='name'?`<b>${esc(r[c[0]])}</b>`:esc(r[c[0]]||'')}</td>`).join('')}
-   ${s.par?`<td>${(r.parents||[]).map(i=>`<span class="pill p-teal" style="margin:1px">${esc(nm(s.par,i))}</span>`).join(' ')}</td>`:''}
+   ${s.par?`<td>${orgParents(tab,r)}</td>`:''}
    <td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
    <td><span class="pill ${r.off?'p-bad':'p-ok'}">${r.off?t('inactive_i'):t('active')}</span></td>
    <td style="text-align:right;white-space:nowrap">${can('settings','E')?`<button class="btn btn-o btn-s" data-sed="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${r.off?'':'btn-d'}" data-sdel="${r.id}">${r.off?t('activate'):t('inactivate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
@@ -4030,7 +4041,7 @@ function wfOrgOld(){
  <p class="rule" style="font-size:13px;margin:6px 0 12px">${L('This is the base of the company. A designation can enter the Manpower plan, then Requisition, then Recruitment, only if it is here.','यह कंपनी का आधार है। कोई पद तभी Manpower plan, फिर Requisition और Recruitment में आ सकता है जब वह यहाँ हो।')}</p>
  <div class="grid g4" style="margin-bottom:14px">${[[L('Divisions','डिवीज़न'),kids('divisions',bsel.id).length],[L('Departments','विभाग'),nDp],[L('Functions','फ़ंक्शन'),nFn],[L('Designations','पद'),nDes]].map(([l,n])=>`<div class="card"><small style="color:var(--muted)">${l}</small><div style="font-size:26px;font-weight:700">${n}</div></div>`).join('')}</div>
  <div class="card" style="overflow:auto"><div style="display:flex;align-items:center;min-width:max-content">${box('#FAEEDA','#854F0B','#633806',esc(bsel.name),L('Branch','शाखा')+(bsel.city?' · '+esc(bsel.city):'')+add('divisions',bsel.id,'Division','डिवीज़न'))}<div style="width:22px;border-top:${LN};flex:none"></div><div style="display:flex;flex-direction:column;border-left:${LN}">${tree||`<div style="padding:8px 14px;color:var(--muted)">${L('No division is set up for this branch yet.','इस शाखा में अभी कोई डिवीज़न नहीं है।')}</div>`}</div></div></div>`}
-{const _bo=bindExtra;bindExtra=function(){_bo();const m=$('#main'), b=m.querySelector('#ocb');if(b)b.onchange=()=>{state.ocb=b.value;render()};m.querySelectorAll('[data-ocadd]').forEach(x=>x.onclick=()=>{const [k,p]=x.dataset.ocadd.split(':');const back=state.page;state.stab=k;setModal();const bg=[...document.querySelectorAll('.modal-bg')].pop(), c=bg&&bg.querySelector(`[name=par][value="${p}"]`);if(c)c.checked=true;const f=bg&&bg.querySelector('form');if(f)f.addEventListener('submit',()=>setTimeout(()=>{state.page=back;render()},0))});
+{const _bo=bindExtra;bindExtra=function(){_bo();const m=$('#main'), b=m.querySelector('#ocb');if(b)b.onchange=()=>{state.ocb=b.value;render()};m.querySelectorAll('[data-ocadd]').forEach(x=>x.onclick=()=>{const [k,p]=x.dataset.ocadd.split(':');const back=state.page;state.stab=k;setModal();const bg=[...document.querySelectorAll('.modal-bg')].pop(), c=bg&&bg.querySelector(`[name=par][value="${p}"]`);if(c){c.checked=true;if(k==='desigs'){const dv=bg.querySelector(`[name=dv][value="${c.dataset.dv}"]`);if(dv)dv.checked=true}}else if(k==='desigs'&&bg){const sd=DATA.subdivs.find(x=>x.id==p), dv=sd&&bg.querySelector(`[name=dv][value="${(sd.parents||[])[0]}"]`);if(dv)dv.checked=true}const f=bg&&bg.querySelector('form');if(f)f.addEventListener('submit',()=>setTimeout(()=>{state.page=back;render()},0))});
    const s=m.querySelector('[data-ocset]');if(s)s.onclick=()=>{state.page='settings';state.stab='divisions';render()}}}
 /* ---- manpower plan ---- */
 {const fb={4:{division:3,dept:2,func:3},3:{division:3,dept:2,func:3},1:{division:1,dept:1,func:1},2:{division:1,dept:1,func:1},5:{division:1,dept:4,func:2}};
