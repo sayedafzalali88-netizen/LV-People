@@ -6276,7 +6276,7 @@ bindExtra=function(){_bindExtraRC29();const m=$('#main'), on=(s,fn)=>m.querySele
  on('[data-rcreqnew]',b=>b.onclick=()=>rcReqModal(+b.dataset.rcreqnew||0));on('[data-addreq]',b=>b.onclick=addReqModal);on('[data-addplan]',b=>b.onclick=()=>addPlanModal(+b.dataset.addplan));
  on('[data-cpcopy]',b=>b.onclick=()=>{try{navigator.clipboard.writeText(b.dataset.cpcopy)}catch(x){}toast(L('Link copied','लिंक कॉपी हुआ'))})};
 
-careersBoot();
+setTimeout(careersBoot,0); /* not at once: the page is drawn after the whole script has run (it used the later "lnum" before it was ready and stopped the app) */
 /* ---------- Batch 30: SaaS quotation, client creation, seat limit with hard cap, and GST billing ---------- */
 const SAAS={name:'Welcome Enterprises',address:'Narayanpur, Chhattisgarh',gstin:'22AAHCS7925Q1ZA',state:'Chhattisgarh',sac:'998431',gst:18,prefix:'INV',dueDays:15,hardPct:20,valid:15};
 const QUOTES=[], INVS=[], PEAK={};
