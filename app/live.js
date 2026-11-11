@@ -20,16 +20,16 @@ function toRow(kind,o){const r=toRow0(kind,o);r.num_id=+o.id||null;return r}
 function toRow0(kind,o){const M=LIVE.map, c=LIVE.profile.client_id;
   const ids=(k,a)=>(a||[]).map(i=>M[k][i]).filter(Boolean), act=o.off?false:true;
   /* Organization structure order: Function > Department > Branch > Division > Sub-division > Designation. Each level keeps the ids of the level above */
-  if(kind==='functions')return{client_id:c,name:o.name,active:act};
-  if(kind==='depts')return{client_id:c,name:o.name,parent_ids:ids('functions',o.parents),active:act};
-  if(kind==='branches')return{client_id:c,name:o.name,city:nz(o.city),state:nz(o.state),pin:nz(o.pin),address:nz(o.line),zone:nz(o.zone),parent_ids:ids('depts',o.parents),active:act};
-  if(kind==='divisions')return{client_id:c,name:o.name,parent_ids:ids('branches',o.parents),dept_ids:o.depts?ids('depts',o.depts):null,active:act};
-  if(kind==='subdivs')return{client_id:c,name:o.name,parent_ids:ids('divisions',o.parents),active:act};
-  if(kind==='desigs')return{client_id:c,name:o.name,parent_ids:ids('subdivs',o.parents),division_ids:o.divs?ids('divisions',o.divs):null,function_ids:o.funcs?ids('functions',o.funcs):null,active:act};
+  if(kind==='functions')return{client_id:c,code:nz(o.code),name:o.name,active:act};
+  if(kind==='depts')return{client_id:c,code:nz(o.code),name:o.name,parent_ids:ids('functions',o.parents),active:act};
+  if(kind==='branches')return{client_id:c,code:nz(o.code),name:o.name,city:nz(o.city),state:nz(o.state),pin:nz(o.pin),address:nz(o.line),zone:nz(o.zone),parent_ids:ids('depts',o.parents),active:act};
+  if(kind==='divisions')return{client_id:c,code:nz(o.code),name:o.name,parent_ids:ids('branches',o.parents),dept_ids:o.depts?ids('depts',o.depts):null,active:act};
+  if(kind==='subdivs')return{client_id:c,code:nz(o.code),name:o.name,parent_ids:ids('divisions',o.parents),active:act};
+  if(kind==='desigs')return{client_id:c,code:nz(o.code),name:o.name,parent_ids:ids('subdivs',o.parents),division_ids:o.divs?ids('divisions',o.divs):null,function_ids:o.funcs?ids('functions',o.funcs):null,active:act};
   const em=[1,2].filter(i=>o['ec'+i+'_name']).map(i=>({name:o['ec'+i+'_name'],relation:o['ec'+i+'_rel']||'',mobile:o['ec'+i+'_mob']||''}));
   return{client_id:c,code:o.code,name:o.name,mobile:nz(o.mobile),email:nz(o.email),dob:nz(o.dob),gender:['M','F','O'].includes(o.gender)?o.gender:null,doj:nz(o.doj),
     branch_id:M.branches[o.branch]||null,division_id:M.divisions[o.division]||null,sub_division_id:M.subdivs[o.subdiv]||null,department_id:M.depts[o.dept]||null,function_id:M.functions[o.func]||null,designation_id:M.desigs[o.desig]||null,
-    manager_id:o.mgr?(M.emps[+o.mgr]||null):null,level:+o.level||1,status:o.status||'Working',lwd:nz(o.lwd),active:o.active!==false,caste:nz(o.caste),marital_status:nz(o.marital),weekly_off:nz(o.wo),emergency:em}}
+    manager_id:o.mgr?(M.emps[+o.mgr]||null):null,functional_manager_id:o.fm?(M.emps[+o.fm]||null):null,level:+o.level||1,status:o.status||'Working',lwd:nz(o.lwd),active:o.active!==false,caste:nz(o.caste),marital_status:nz(o.marital),weekly_off:nz(o.wo),emergency:em}}
 function toPriv(o){return{client_id:LIVE.profile.client_id,ctc:+o.ctc||0,pan:nz(o.pan),aadhaar:nz(o.aadhaar),uan:nz(o.uan),esi:nz(o.esi),bank_name:nz(o.bank),ifsc:nz(o.ifsc),account_no:nz(o.acc)}}
 const sig=(kind,o)=>JSON.stringify(kind==='emps'?[toRow(kind,o),isHRrole()?toPriv(o):null]:toRow(kind,o));
 
@@ -49,12 +49,12 @@ async function loadLive(){
   const nmKey=x=>String(x.name||'').trim().toLowerCase();
   /* the levels are loaded top down, because each one points to the level above it */
   const up=(kind,a)=>(a||[]).map(u=>LIVE.rev[kind][u]).filter(Boolean);
-  pick('functions',fn,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:[],off:!r.active}));
-  pick('depts',dp,nmKey,(o,r)=>Object.assign(o,{name:r.name,head:o.head||'',parents:up('functions',r.parent_ids),off:!r.active}));
-  pick('branches',br,nmKey,(o,r)=>Object.assign(o,{name:r.name,city:r.city||'',state:r.state||'',pin:r.pin||'',line:r.address||'',zone:r.zone||'',parents:up('depts',r.parent_ids),off:!r.active}));
-  pick('divisions',dv,nmKey,(o,r)=>{Object.assign(o,{name:r.name,parents:up('branches',r.parent_ids),off:!r.active});if(r.dept_ids)o.depts=up('depts',r.dept_ids);else delete o.depts});
-  pick('subdivs',sd,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:up('divisions',r.parent_ids),off:!r.active}));
-  pick('desigs',dg,nmKey,(o,r)=>{Object.assign(o,{name:r.name,parents:up('subdivs',r.parent_ids),off:!r.active});if(r.division_ids)o.divs=up('divisions',r.division_ids);else delete o.divs;if(r.function_ids)o.funcs=up('functions',r.function_ids);else delete o.funcs});
+  pick('functions',fn,nmKey,(o,r)=>Object.assign(o,{name:r.name,code:r.code||o.code||'',parents:[],off:!r.active}));
+  pick('depts',dp,nmKey,(o,r)=>Object.assign(o,{name:r.name,code:r.code||o.code||'',head:o.head||'',parents:up('functions',r.parent_ids),off:!r.active}));
+  pick('branches',br,nmKey,(o,r)=>Object.assign(o,{name:r.name,code:r.code||o.code||'',city:r.city||'',state:r.state||'',pin:r.pin||'',line:r.address||'',zone:r.zone||'',parents:up('depts',r.parent_ids),off:!r.active}));
+  pick('divisions',dv,nmKey,(o,r)=>{Object.assign(o,{name:r.name,code:r.code||o.code||'',parents:up('branches',r.parent_ids),off:!r.active});if(r.dept_ids)o.depts=up('depts',r.dept_ids);else delete o.depts});
+  pick('subdivs',sd,nmKey,(o,r)=>Object.assign(o,{name:r.name,code:r.code||o.code||'',parents:up('divisions',r.parent_ids),off:!r.active}));
+  pick('desigs',dg,nmKey,(o,r)=>{Object.assign(o,{name:r.name,code:r.code||o.code||'',parents:up('subdivs',r.parent_ids),off:!r.active});if(r.division_ids)o.divs=up('divisions',r.division_ids);else delete o.divs;if(r.function_ids)o.funcs=up('functions',r.function_ids);else delete o.funcs});
   const codeKey=x=>String(x.code||'').toUpperCase();
   pick('emps',em,codeKey,(o,r)=>{const p=pv.find(z=>z.employee_id===r.id)||{}, ec=r.emergency||[];
     Object.assign(o,{code:r.code,name:r.name,mobile:r.mobile||'',email:r.email||'',dob:r.dob||'',gender:r.gender||'',doj:r.doj||'',branch:LIVE.rev.branches[r.branch_id]||'',division:LIVE.rev.divisions[r.division_id]||'',subdiv:LIVE.rev.subdivs[r.sub_division_id]||'',dept:LIVE.rev.depts[r.department_id]||'',func:LIVE.rev.functions[r.function_id]||'',desig:LIVE.rev.desigs[r.designation_id]||'',
@@ -62,8 +62,10 @@ async function loadLive(){
       ctc:+p.ctc||0,pan:p.pan||'',aadhaar:p.aadhaar||'',uan:p.uan||'',esi:p.esi||'',bank:p.bank_name||'',ifsc:p.ifsc||'',acc:p.account_no||'',
       ec1_name:(ec[0]||{}).name||'',ec1_rel:(ec[0]||{}).relation||'',ec1_mob:(ec[0]||{}).mobile||'',ec2_name:(ec[1]||{}).name||'',ec2_rel:(ec[1]||{}).relation||'',ec2_mob:(ec[1]||{}).mobile||'',
       hist:o.hist||[],lvlHist:o.lvlHist||[{from:'0000-00',lvl:r.level||1,desig:LIVE.rev.desigs[r.designation_id]||''}],createdAt:o.createdAt||(r.created_at||'').slice(0,10),fm:o.fm||''})});
-  DATA.emps.forEach(o=>{const r=em.find(z=>z.id===LIVE.map.emps[o.id]);o.mgr=r&&r.manager_id&&LIVE.rev.emps[r.manager_id]?String(LIVE.rev.emps[r.manager_id]):''});
+  DATA.emps.forEach(o=>{const r=em.find(z=>z.id===LIVE.map.emps[o.id]);o.mgr=r&&r.manager_id&&LIVE.rev.emps[r.manager_id]?String(LIVE.rev.emps[r.manager_id]):'';o.fm=r&&r.functional_manager_id&&LIVE.rev.emps[r.functional_manager_id]?String(LIVE.rev.emps[r.functional_manager_id]):''});
   KINDS.forEach(k=>DATA[k].forEach(o=>LIVE.snap[k][o.id]=sig(k,o)));
+  /* an item without a code (older data) gets one now, and is saved by the next sync */
+  try{orgCodesFill()}catch(e){}
   if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
   await loadAttendance();await loadStores();try{if(BIOP.length)bioProcess()}catch(e){console.warn('bio',e)}await loadKpis();await loadAccounts();try{await pullPortal()}catch(e){console.warn('portal',e)}
@@ -100,7 +102,7 @@ async function syncAttendance(){
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
 /* the career framework (level names, pass marks) has defaults; a new client must never start with it empty, or the dashboard fails */
 let CF0=null;try{CF0=JSON.parse(JSON.stringify(CF))}catch(e){}
-const CONFIG=['CF','SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT','ALTSET','BIOSET','CRULE','EMPCODE','ORGS','SERIES','SYSSERX','STKSET','TRULE','WAUTO','MINW','MINWSK','MINWZ','OFFPAY','ALWR','ATTWV','PVER','ROLES'];
+const CONFIG=['CF','ORGCODE','SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT','ALTSET','BIOSET','CRULE','EMPCODE','ORGS','SERIES','SYSSERX','STKSET','TRULE','WAUTO','MINW','MINWSK','MINWZ','OFFPAY','ALWR','ATTWV','PVER','ROLES'];
 /* SYSSER has functions inside, so only its plain values (prefix, digits, next number...) are kept */
 window.SYSSERX={};const sysToX=()=>{try{SYSSER.forEach(s=>{const o={};Object.keys(s).forEach(k=>{if(typeof s[k]!=='function')o[k]=s[k]});SYSSERX[s.key]=o})}catch(e){}};const sysFromX=()=>{try{SYSSER.forEach(s=>{const o=SYSSERX[s.key];if(o)Object.keys(o).forEach(k=>{if(typeof s[k]!=='function')s[k]=o[k]})})}catch(e){}};sysToX();
 const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','KRULES','SSTR','TGR','AST','AUDIT','TDSD','ATTARR','SALREV'];
@@ -433,7 +435,7 @@ async function syncNow(){
         LIVE.snap[k][o.id]=sig(k,o);n++}}
     sysToX();try{snapKpis()}catch(x){}await syncAttendance();await syncStores();await syncKpis();
     /* a manager set before the manager was saved: fill it now */
-    if(isHRrole())for(const o of DATA.emps){if(o.mgr&&LIVE.map.emps[+o.mgr]){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){await sb.from('employees').update({manager_id:LIVE.map.emps[+o.mgr]}).eq('id',LIVE.map.emps[o.id]);LIVE.snap.emps[o.id]=s}}}
+    if(isHRrole())for(const o of DATA.emps){if((o.mgr&&LIVE.map.emps[+o.mgr])||(o.fm&&LIVE.map.emps[+o.fm])){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){const u=await sb.from('employees').update({manager_id:o.mgr?(LIVE.map.emps[+o.mgr]||null):null,functional_manager_id:o.fm?(LIVE.map.emps[+o.fm]||null):null}).eq('id',LIVE.map.emps[o.id]);if(u.error)throw u.error;LIVE.snap.emps[o.id]=s}}}
     if(LIVE.newEmp&&LIVE.newEmp.length){const ids=LIVE.newEmp;LIVE.newEmp=[];await ensureLogins(ids)}
     LIVE.err='';
   }catch(e){LIVE.err=(e&&e.message)||String(e);console.error('LIVE sync',e);try{toast('Not saved to the database: '+LIVE.err)}catch(x){}}
