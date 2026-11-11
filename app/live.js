@@ -415,8 +415,10 @@ dayRec=function(emp,d){const r=_dayRec(emp,d);if(!LIVE.on||LIVE.platform)return 
 /* ---------- save what changed ---------- */
 async function syncNow(){
   if(!LIVE.on||LIVE.platform||!LIVE.profile)return;
+  /* a save that got no answer from the server for 30 seconds is dropped, so that it can never block every later save */
+  if(LIVE.busy&&Date.now()-(LIVE.busyAt||0)>30000){LIVE.busy=false;LIVE.err=L('The last save got no answer from the server and is tried again.','पिछले सेव का सर्वर से जवाब नहीं आया, फिर कोशिश हो रही है।')}
   if(LIVE.busy){LIVE.queued=true;return}
-  LIVE.busy=true;let n=0;
+  LIVE.busy=true;LIVE.busyAt=Date.now();const run=LIVE.runId=(LIVE.runId||0)+1;let n=0;
   try{
     /* the organization and the people are saved FIRST, so nothing that fails later (attendance, stores, KPIs) can stop them; a failure names the table */
     if(isHRrole())for(const k of KINDS){const t=TBL[k];
@@ -432,10 +434,12 @@ async function syncNow(){
     if(LIVE.newEmp&&LIVE.newEmp.length){const ids=LIVE.newEmp;LIVE.newEmp=[];await ensureLogins(ids)}
     LIVE.err='';
   }catch(e){LIVE.err=(e&&e.message)||String(e);console.error('LIVE sync',e);try{toast('Not saved to the database: '+LIVE.err)}catch(x){}}
-  finally{LIVE.busy=false;if(LIVE.queued){LIVE.queued=false;setTimeout(syncNow,50)}}
+  finally{if(run===LIVE.runId){LIVE.busy=false;if(LIVE.queued){LIVE.queued=false;setTimeout(syncNow,50)}}}
   if(n){try{await sb.from('audit_log').insert({client_id:LIVE.profile.client_id,user_id:LIVE.profile.user_id,module:'Sync',action:'Saved',subject:n+' record(s)',detail:''})}catch(e){}}
 }
 let syncT=null;const schedule=()=>{clearTimeout(syncT);syncT=setTimeout(syncNow,600)};
+/* watchdog: a save that hangs is shown at the top of the page and tried again */
+setInterval(()=>{try{if(LIVE.on&&!LIVE.platform&&LIVE.busy&&Date.now()-(LIVE.busyAt||0)>30000){LIVE.err=L('Saving is slow: no answer from the server for 30 seconds. Do not close the page.','सेव धीमा है: 30 सेकंड से सर्वर का जवाब नहीं। पेज बंद न करें।');note();syncNow()}}catch(e){}},10000);
 
 /* ---------- public doors: career portal, candidate joining link, employee referral (server function "portal") ---------- */
 const PORTAL='https://okhikmjugdytahgnddjm.supabase.co/functions/v1/portal';
