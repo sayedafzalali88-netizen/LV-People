@@ -50,8 +50,8 @@ Deno.test("list numbering at a line start is not checked as a number", () => {
 });
 
 Deno.test("a User Guide source gets its own source line", () => {
-  const g = [{ id: "S1", kind: "guide" as const, policy_name: "LV People User Guide", version: "", heading: null, label: "Leave › Apply leave", content: "Open Leave > Apply. Choose the type and the dates. Press Submit." }];
+  const g = [{ id: "S1", kind: "guide" as const, policy_name: "Mirror-HR User Guide", version: "", heading: null, label: "Leave › Apply leave", content: "Open Leave > Apply. Choose the type and the dates. Press Submit." }];
   const r = checkAnswer({ result: "answered", answer: "Leave menu kholein, Apply dabayein, type aur tareekh chunein, Submit karein.", source_ids: ["S1"] }, g, "leave kaise apply karun");
   assertEquals(r.status, "answered");
-  assert(r.text.endsWith("Source: LV People User Guide – Leave › Apply leave"), r.text);
+  assert(r.text.endsWith("Source: Mirror-HR User Guide – Leave › Apply leave"), r.text);
 });

@@ -21,7 +21,7 @@ export const numbersIn = (s: string) =>
   new Set((asciiDigits(s).match(/\d+(?:[.,]\d+)*/g) || []).map((n) => n.replace(/,/g, "").replace(/\.0+$/, "")));
 
 export const sourceText = (c: CheckCtx) =>
-  c.kind === "guide" ? `LV People User Guide – ${c.label}` : `${c.policy_name} (v${c.version})${c.label ? " – " + c.label : ""}`;
+  c.kind === "guide" ? `Mirror-HR User Guide – ${c.label}` : `${c.policy_name} (v${c.version})${c.label ? " – " + c.label : ""}`;
 
 /** A reason for HR in plain words: why an answer was not given. It is saved with the chat and shown in Test Chat and in Chat Logs. */
 export function whyText(why: string): string {
@@ -31,7 +31,7 @@ export function whyText(why: string): string {
   if (why === "no usable answer") return "The AI did not give a usable answer.";
   if (why === "only a source line") return "The AI gave only a source line and no answer.";
   if (why === "model: not in policy") return "The parts that matched do not contain the answer.";
-  if (why === "out of scope") return "The question is not about the company policy or about using LV People.";
+  if (why === "out of scope") return "The question is not about the company policy or about using Mirror-HR.";
   return why;
 }
 

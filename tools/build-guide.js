@@ -14,8 +14,8 @@ const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g,
 function html(lang) {
   const i = lang === 'hi' ? 1 : 0, T = (x) => Array.isArray(x) ? x[i] : (x || '');
   const U = lang === 'hi'
-    ? { title: 'LV People यूज़र गाइड', sub: 'ERP का हर हिस्सा कैसे काम करता है: कहाँ जाना है, क्या दबाना है, यह क्यों है।', toc: 'विषय-सूची', where: 'कहाँ', what: 'यह क्या है', why: 'यह क्यों है', who: 'कौन इस्तेमाल करता है', steps: 'स्टेप बाय स्टेप', notes: 'जानने लायक', hr: 'HR और Admin के लिए', ver: 'तारीख़', n: 'मॉड्यूल', e: 'फ़ंक्शन' }
-    : { title: 'LV People User Guide', sub: 'How every part of the ERP works: where to go, what to click, why it is there.', toc: 'Contents', where: 'Where', what: 'What it is', why: 'Why it is there', who: 'Who uses it', steps: 'Step by step', notes: 'Good to know', hr: 'For HR and Admin', ver: 'Date', n: 'modules', e: 'functions' };
+    ? { title: 'Mirror-HR यूज़र गाइड', sub: 'ERP का हर हिस्सा कैसे काम करता है: कहाँ जाना है, क्या दबाना है, यह क्यों है।', toc: 'विषय-सूची', where: 'कहाँ', what: 'यह क्या है', why: 'यह क्यों है', who: 'कौन इस्तेमाल करता है', steps: 'स्टेप बाय स्टेप', notes: 'जानने लायक', hr: 'HR और Admin के लिए', ver: 'तारीख़', n: 'मॉड्यूल', e: 'फ़ंक्शन' }
+    : { title: 'Mirror-HR User Guide', sub: 'How every part of the ERP works: where to go, what to click, why it is there.', toc: 'Contents', where: 'Where', what: 'What it is', why: 'Why it is there', who: 'Who uses it', steps: 'Step by step', notes: 'Good to know', hr: 'For HR and Admin', ver: 'Date', n: 'modules', e: 'functions' };
   const total = GUIDE.reduce((a, m) => a + m.entries.length, 0);
   let toc = '', body = '';
   GUIDE.forEach((m, mi) => {

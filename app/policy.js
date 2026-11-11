@@ -1,4 +1,4 @@
-/* ================= LV People · HR Assistant =================
+/* ================= Mirror-HR · HR Assistant =================
    A separate module: it only adds things, it changes nothing that exists.
    1. Policy Management (Admin and HR): upload policies, versions, publish, archive, Test Chat, Unanswered Questions, Chat Logs.
    2. HR Assistant: a chat button on every page for every signed-in employee. Answers come only from the company's own policies.
@@ -96,7 +96,7 @@ function chatBody(c){
   if(c.view==='hist'){
     const h=c.hist;return `<div class="ps-msg ps-bot"><b>${L('Your earlier chats','आपकी पिछली चैट')}</b></div>${!h?`<div class="ps-typing"><i></i><i></i><i></i></div>`:h.length?`<div class="ps-hist">${h.map(s=>`<button data-pshist="${s.id}"><b>${esc(s.title||'…')}</b><small>${dtS(s.last_at)}</small></button>`).join('')}</div>`:`<div class="ps-small">${L('No chats yet.','अभी कोई चैट नहीं।')}</div>`}`}
   const first=(USERS[state.role]&&USERS[state.role].name||'').split(' ')[0];
-  let o=`<div class="ps-msg ps-bot">${c.mode==='test'?L('Test Chat: ask the way an employee would. Published and processed (not yet published) versions are searched; the match score is shown.','टेस्ट चैट: वैसे पूछें जैसे कर्मचारी पूछेगा। प्रकाशित और प्रोसेस हो चुके (अभी अप्रकाशित) वर्ज़न खोजे जाते हैं; मिलान स्कोर दिखता है।'):L(`Namaste${first?' '+esc(first):''}! I am your HR Assistant. Ask me about your company's policies (leave, attendance, travel, conduct and more) or how to do something in LV People. I answer only from your company's policies and the LV People User Guide.`,`नमस्ते${first?' '+esc(first):''}! मैं आपका HR सहायक हूँ। कंपनी की पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण और बहुत कुछ) या LV People में कोई काम कैसे करें, यह पूछें। मैं सिर्फ़ आपकी कंपनी की पॉलिसी और LV People यूज़र गाइड से जवाब देता हूँ।`)}</div>`;
+  let o=`<div class="ps-msg ps-bot">${c.mode==='test'?L('Test Chat: ask the way an employee would. Published and processed (not yet published) versions are searched; the match score is shown.','टेस्ट चैट: वैसे पूछें जैसे कर्मचारी पूछेगा। प्रकाशित और प्रोसेस हो चुके (अभी अप्रकाशित) वर्ज़न खोजे जाते हैं; मिलान स्कोर दिखता है।'):L(`Namaste${first?' '+esc(first):''}! I am your HR Assistant. Ask me about your company's policies (leave, attendance, travel, conduct and more) or how to do something in Mirror-HR. I answer only from your company's policies and the Mirror-HR User Guide.`,`नमस्ते${first?' '+esc(first):''}! मैं आपका HR सहायक हूँ। कंपनी की पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण और बहुत कुछ) या Mirror-HR में कोई काम कैसे करें, यह पूछें। मैं सिर्फ़ आपकी कंपनी की पॉलिसी और Mirror-HR यूज़र गाइड से जवाब देता हूँ।`)}</div>`;
   if(!c.msgs.length)o+=`<div class="ps-chips">${SUGGEST[lang==='hi'?'hi':'en'].map(q=>`<button class="ps-chip" data-psq="${esc(q)}">${esc(q)}</button>`).join('')}</div>`;
   c.msgs.forEach((m,i)=>{
     o+=`<div class="ps-msg ps-me">${esc(m.q)}</div>`;
@@ -140,7 +140,7 @@ async function chatAsk(c,q){
   m.pending=false;c.busy=false;chatRefresh(c)}
 
 function showSource(s){if(!s)return;const g=s.kind==='guide', ex=g&&lang==='hi'&&s.excerpt_hi?s.excerpt_hi:(s.excerpt||'');
-  const bg=openModal(`<h3 style="margin-top:0">${g?L('LV People User Guide','LV People यूज़र गाइड'):esc(s.policy_name)+` <span class="pill p-teal">v${esc(s.version)}</span>`}</h3>${s.label?`<p class="ps-small" style="margin:-4px 0 10px">${esc(s.label)}</p>`:''}
+  const bg=openModal(`<h3 style="margin-top:0">${g?L('Mirror-HR User Guide','Mirror-HR यूज़र गाइड'):esc(s.policy_name)+` <span class="pill p-teal">v${esc(s.version)}</span>`}</h3>${s.label?`<p class="ps-small" style="margin:-4px 0 10px">${esc(s.label)}</p>`:''}
   <div class="ps-ex">${esc(ex)}</div><p class="ps-small">${g?L('This is the part of the User Guide the answer was taken from.','यह यूज़र गाइड का वह हिस्सा है जिससे जवाब लिया गया।'):L('This is the part of the policy the answer was taken from.','यह पॉलिसी का वह हिस्सा है जिससे जवाब लिया गया।')}</p>
   <div class="acts">${g&&s.module_id?`<button type="button" class="btn btn-o" data-psguide>${L('Open in User Guide','यूज़र गाइड में खोलें')}</button>`:''}<button type="button" class="btn btn-p" data-close>${L('Close','बंद करें')}</button></div>`,(f,close)=>close());
   bg.querySelector('.modal').style.maxWidth='640px';
@@ -181,7 +181,7 @@ function ensureWidget(){
 function openWidget(){
   let w=document.getElementById('psWin');if(w)return;
   w=document.createElement('div');w.id='psWin';w.className='ps-win';w.setAttribute('role','dialog');w.setAttribute('aria-label','HR Assistant');
-  w.innerHTML=`<div class="ps-head"><div class="ps-av">HR</div><div style="flex:1;min-width:0"><b>HR Assistant</b><small>${L('Company policy and the LV People guide','कंपनी पॉलिसी और LV People गाइड')}</small></div>
+  w.innerHTML=`<div class="ps-head"><div class="ps-av">HR</div><div style="flex:1;min-width:0"><b>HR Assistant</b><small>${L('Company policy and the Mirror-HR guide','कंपनी पॉलिसी और Mirror-HR गाइड')}</small></div>
    <button data-psnew title="${L('New chat','नई चैट')}">＋</button><button data-pshis>${L('History','इतिहास')}</button><button data-psx aria-label="${L('Close','बंद करें')}">✕</button></div>${chatShell(LIVECHAT)}`;
   document.body.appendChild(w);LIVECHAT.el=w;bindChat(LIVECHAT);
   w.querySelector('[data-psx]').onclick=closeWidget;
@@ -220,7 +220,7 @@ function policiesPage(){
   const tab=state.poltab||'list';
   const head=`<div class="page-h"><div><h1>${L('Policy Management','पॉलिसी मैनेजमेंट')}</h1><p>${L('Company policies. HR Assistant answers employees only from the Active policies here, and only to the roles and departments you choose.','कंपनी की पॉलिसी। HR सहायक कर्मचारियों को सिर्फ़ यहाँ की चालू पॉलिसी से जवाब देता है, और सिर्फ़ उन्हीं रोल और विभागों को जो आप चुनें।')}</p></div>${tab==='list'?`<button class="btn btn-p" data-pmup>+ ${L('Upload policy','पॉलिसी अपलोड करें')}</button>`:''}</div>
   <div class="tabs">${[['list',L('Policies','पॉलिसी')],['test',L('Test Chat','टेस्ट चैट')],['unans',L('Unanswered Questions','बिना जवाब के सवाल')],['logs',L('Chat Logs','चैट लॉग')]].map(([k,n])=>`<button data-poltab="${k}" class="${tab===k?'on':''}">${n}</button>`).join('')}</div>`;
-  if(!modOn('policy'))return head+`<div class="card">${L('HR Assistant is not switched on for your company. Ask the LV People team.','HR सहायक आपकी कंपनी के लिए चालू नहीं है। LV People टीम से कहें।')}</div>`;
+  if(!modOn('policy'))return head+`<div class="card">${L('HR Assistant is not switched on for your company. Ask the Mirror-HR team.','HR सहायक आपकी कंपनी के लिए चालू नहीं है। Mirror-HR टीम से कहें।')}</div>`;
   if(!LIVE.on)return head+`<div class="card">${L('Sign in to the live app to use Policy Management.','पॉलिसी मैनेजमेंट के लिए लाइव ऐप में साइन-इन करें।')}</div>`;
   if(tab==='test')return head+testTab();
   if(tab==='unans')return head+unansTab();
@@ -426,7 +426,7 @@ async function guideLoad(){if(GI.loading)return;GI.loading=true;
   GI.loading=false;mountGuideCard()}
 function guideCardHTML(){const s=GI.status, n=(GI.entries||[]).length, same=s&&s.live_version&&s.live_version===GI.ver;
   const pill=!s?'':!s.live_version?`<span class="pill p-warn">${L('Not indexed yet','अभी इंडेक्स नहीं हुई')}</span>`:same?`<span class="pill p-ok">${L('Up to date','अप-टू-डेट')}</span>`:`<span class="pill p-warn">${L('Guide changed: re-index needed','गाइड बदली: दोबारा इंडेक्स करें')}</span>`;
-  return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>${L('HR Assistant · LV People User Guide','HR सहायक · LV People यूज़र गाइड')}</b> ${pill}
+  return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>${L('HR Assistant · Mirror-HR User Guide','HR सहायक · Mirror-HR यूज़र गाइड')}</b> ${pill}
    <div class="ps-small" style="margin-top:4px">${L('One copy for every company. Each company gets only the entries of its own modules, and each person only those their role can open. Company policies stay separate per company.','सभी कंपनियों के लिए एक ही कॉपी। हर कंपनी को सिर्फ़ उसके अपने मॉड्यूल की एंट्री मिलती हैं, और हर व्यक्ति को सिर्फ़ वही जो उसका रोल खोल सकता है। कंपनी की पॉलिसी हर कंपनी की अलग रहती हैं।')}</div>
    <div class="ps-small">${GI.err?`<span style="color:var(--bad)">${esc(GI.err)}</span>`:s?`${L('Indexed','इंडेक्स')}: ${s.entries||0} ${L('entries','एंट्री')}${s.indexed_at?' · '+dtS(s.indexed_at):''} · ${L('In this app','इस ऐप में')}: ${n}`:'…'}</div></div>
    <button class="btn ${same?'btn-o':'btn-p'} btn-s" data-gidx ${GI.busy||!GI.ver?'disabled':''}>${GI.busy?L('Indexing…','इंडेक्स हो रही है…'):L('Re-index User Guide','यूज़र गाइड दोबारा इंडेक्स करें')}</button></div>`}

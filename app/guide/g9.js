@@ -1,4 +1,4 @@
-/* LV People User Guide: HR Assistant (Policy Management for HR and Admin, and the HR Assistant chat for every employee). */
+/* Mirror-HR User Guide: HR Assistant (Policy Management for HR and Admin, and the HR Assistant chat for every employee). */
 G('policies', ['Policy Management', 'पॉलिसी मैनेजमेंट'],
   ['HR and Admin upload the company policies here. HR Assistant (the chat button at the bottom right of every page) answers employees only from these policies, never from general knowledge or the law.',
    'HR और Admin यहाँ कंपनी की पॉलिसी अपलोड करते हैं। HR सहायक (हर पेज पर नीचे दाईं ओर का चैट बटन) कर्मचारियों को सिर्फ़ इन्हीं पॉलिसी से जवाब देता है, कभी सामान्य ज्ञान या क़ानून से नहीं।'],
@@ -68,7 +68,7 @@ G('policies', ['Policy Management', 'पॉलिसी मैनेजमें
   if (!mod || mod.entries.some(function (e) { return e.id === 'policysahayak'; })) return;
   mod.entries.push({ id: 'policysahayak', n: ['HR Assistant (policy chat)', 'HR सहायक (पॉलिसी चैट)'],
     path: ['The "HR Assistant" button at the bottom right of every page', 'हर पेज पर नीचे दाईं ओर "HR Assistant" बटन'],
-    what: ['A chat that answers your questions about company policy (leave, attendance, travel, conduct …) only from the policies your company uploaded, and questions about using LV People (for example how to apply for leave) from this User Guide.', 'एक चैट जो कंपनी पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण …) के बारे में आपके सवालों का जवाब सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से देती है, और LV People चलाने के सवालों (जैसे छुट्टी के लिए आवेदन कैसे करें) का जवाब इसी यूज़र गाइड से।'],
+    what: ['A chat that answers your questions about company policy (leave, attendance, travel, conduct …) only from the policies your company uploaded, and questions about using Mirror-HR (for example how to apply for leave) from this User Guide.', 'एक चैट जो कंपनी पॉलिसी (छुट्टी, हाज़िरी, यात्रा, आचरण …) के बारे में आपके सवालों का जवाब सिर्फ़ आपकी कंपनी की अपलोड की गई पॉलिसी से देती है, और Mirror-HR चलाने के सवालों (जैसे छुट्टी के लिए आवेदन कैसे करें) का जवाब इसी यूज़र गाइड से।'],
     why: ['You get the rule at once, in your own language, with the policy name and section, without waiting for HR.', 'HR का इंतज़ार किए बिना आपको तुरंत नियम मिलता है, आपकी अपनी भाषा में, पॉलिसी के नाम और सेक्शन के साथ।'],
     who: ['Every employee (when the HR Assistant module is on for the company).', 'हर कर्मचारी (जब कंपनी के लिए HR सहायक मॉड्यूल चालू हो)।'],
     steps: [

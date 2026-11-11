@@ -1,6 +1,6 @@
 // Server function "policy-assistant" (Supabase Edge Function).
-// HR Assistant. Employees ask about company policy and about using LV People; the answer comes ONLY from the policies of
-// their own company and from the LV People User Guide (one copy for all companies, filtered by the company's modules and the role).
+// HR Assistant. Employees ask about company policy and about using Mirror-HR; the answer comes ONLY from the policies of
+// their own company and from the Mirror-HR User Guide (one copy for all companies, filtered by the company's modules and the role).
 // Every request: the signed-in person's own profile decides the company, role and department (nothing from the browser is trusted).
 // Deploy: supabase functions deploy policy-assistant --no-verify-jwt   (the function checks the login itself; the cron call has no login)
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
@@ -256,7 +256,7 @@ async function guideIndex(body: Record<string, unknown>, by: string) {
   }
   for (let i = 0; i < entries.length; i += 64) {
     const part = entries.slice(i, i + 64);
-    const vecs = await embed(part.map((e) => `LV People User Guide — ${e.module_name} › ${e.title}\nWhere: ${e.path}\n${e.content_en}\n${e.content_hi}`), "document");
+    const vecs = await embed(part.map((e) => `Mirror-HR User Guide — ${e.module_name} › ${e.title}\nWhere: ${e.path}\n${e.content_en}\n${e.content_hi}`), "document");
     must(await db.rpc("guide_set_embeddings", { p_ids: ids.slice(i, i + 64), p_vectors: vecs.map(vectorLiteral) }), "guide embeddings");
   }
   const n = must(await db.rpc("guide_switch_version", { p_version: version, p_by: by }), "switch guide") as number;
@@ -517,7 +517,7 @@ async function ask(body: Record<string, unknown>, me: Me) {
   const picked = ranked.filter((r) => r.score >= minScore * 0.8).slice(0, SETTINGS.topK());
   const ctx: (Ctx & { h: Hit; effective_date: string | null })[] = picked.map((h, i) => h.kind === "policy"
     ? { id: "S" + (i + 1), kind: "policy", policy_name: h.m!.policy_name, version: h.m!.version, heading: h.m!.heading, label: sourceLabel(h.m!.heading, h.m!.page_from, h.m!.page_to, h.m!.file_type !== "txt"), content: h.m!.content, effective_date: h.m!.effective_date, h }
-    : { id: "S" + (i + 1), kind: "guide", policy_name: "LV People User Guide", version: "", heading: h.g!.title, label: `${h.g!.module_name} › ${h.g!.title}`, content: `Where: ${h.g!.path}\n${h.g!.content_en}${h.g!.content_hi ? "\n\n" + h.g!.content_hi : ""}`, effective_date: null, h });
+    : { id: "S" + (i + 1), kind: "guide", policy_name: "Mirror-HR User Guide", version: "", heading: h.g!.title, label: `${h.g!.module_name} › ${h.g!.title}`, content: `Where: ${h.g!.path}\n${h.g!.content_en}${h.g!.content_hi ? "\n\n" + h.g!.content_hi : ""}`, effective_date: null, h });
   const out = await answer(me.client_name, question, ctx, lang);
   inTok += out.input_tokens; outTok += out.output_tokens;
   const ck = checkAnswer(out, ctx, question, lang);
@@ -530,7 +530,7 @@ async function ask(body: Record<string, unknown>, me: Me) {
     const sc = test ? { score: Math.round(h.score * 1000) / 1000 } : {};
     return h.kind === "policy"
       ? { n: i + 1, kind: "policy", chunk_id: h.m!.chunk_id, policy_id: h.m!.policy_id, policy_name: c.policy_name, version: c.version, label: c.label, excerpt: h.m!.content, ...sc, ...(test ? { version_status: h.m!.version_status } : {}) }
-      : { n: i + 1, kind: "guide", chunk_id: h.g!.chunk_id, policy_id: "", policy_name: "LV People User Guide", version: "", label: c.label, module_id: h.g!.module_id, entry_id: h.g!.entry_id, excerpt: `${h.g!.path ? "Where: " + h.g!.path + "\n\n" : ""}${h.g!.content_en}`, excerpt_hi: h.g!.content_hi, ...sc };
+      : { n: i + 1, kind: "guide", chunk_id: h.g!.chunk_id, policy_id: "", policy_name: "Mirror-HR User Guide", version: "", label: c.label, module_id: h.g!.module_id, entry_id: h.g!.entry_id, excerpt: `${h.g!.path ? "Where: " + h.g!.path + "\n\n" : ""}${h.g!.content_en}`, excerpt_hi: h.g!.content_hi, ...sc };
   });
   return reply("answered", ck.text, sources, out.model);
 }

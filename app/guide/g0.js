@@ -1,4 +1,4 @@
-/* LV People User Guide: the text of the guide.
+/* Mirror-HR User Guide: the text of the guide.
    This is the ONE place where the guide is written. The Guide page in the app and the PDF are both built from the files in this folder.
    RULE: when something in the ERP changes, change its entry here too, then rebuild the PDF (node tools/build-guide.js).
    Every text is a pair [English, Hindi].

@@ -1,11 +1,11 @@
 /* Getting started, Dashboard, Inbox, Employees, Workforce */
-G('start', ['Getting started', 'शुरुआत'], ['The basics that every person using LV People should know.', 'LV People इस्तेमाल करने वाले हर व्यक्ति को ये बुनियादी बातें पता होनी चाहिए।'], [
+G('start', ['Getting started', 'शुरुआत'], ['The basics that every person using Mirror-HR should know.', 'Mirror-HR इस्तेमाल करने वाले हर व्यक्ति को ये बुनियादी बातें पता होनी चाहिए।'], [
   { id: 'login', n: ['Sign in and sign out', 'लॉग-इन और लॉग-आउट'],
     path: ['Login page', 'लॉग-इन पेज'],
     what: ['The first screen. You enter your company code, your employee number (for example E004) and your password.', 'पहली स्क्रीन। यहाँ कंपनी कोड, आपका एम्प्लॉई नंबर (जैसे E004) और पासवर्ड डालते हैं।'],
     why: ['So that every person sees only what belongs to them and to their role.', 'ताकि हर व्यक्ति को सिर्फ़ वही दिखे जो उसका और उसकी भूमिका का है।'],
     who: ['Everyone.', 'सब।'],
-    steps: [['Open the LV People link in your browser.', 'ब्राउज़र में LV People का लिंक खोलें।'], ['Type the company code, your employee number and your password, then press Sign in.', 'कंपनी कोड, एम्प्लॉई नंबर और पासवर्ड डालकर Sign in दबाएँ।'], ['If you forgot the password, press Forgot password and follow the steps.', 'पासवर्ड भूल गए हों तो Forgot password दबाएँ और बताए स्टेप चलें।'], ['To sign out, press the arrow icon at the top right, next to your name.', 'लॉग-आउट के लिए ऊपर दाएँ आपके नाम के पास वाला तीर का आइकन दबाएँ।']],
+    steps: [['Open the Mirror-HR link in your browser.', 'ब्राउज़र में Mirror-HR का लिंक खोलें।'], ['Type the company code, your employee number and your password, then press Sign in.', 'कंपनी कोड, एम्प्लॉई नंबर और पासवर्ड डालकर Sign in दबाएँ।'], ['If you forgot the password, press Forgot password and follow the steps.', 'पासवर्ड भूल गए हों तो Forgot password दबाएँ और बताए स्टेप चलें।'], ['To sign out, press the arrow icon at the top right, next to your name.', 'लॉग-आउट के लिए ऊपर दाएँ आपके नाम के पास वाला तीर का आइकन दबाएँ।']],
     notes: [['After too many wrong passwords the account is locked for a short time. HR can unlock it.', 'कई बार गलत पासवर्ड डालने पर अकाउंट थोड़ी देर के लिए लॉक हो जाता है। HR उसे खोल सकता है।']] },
   { id: 'topbar', n: ['The top bar: language, guide, bell, your name', 'ऊपर की पट्टी: भाषा, गाइड, घंटी, आपका नाम'],
     path: ['Top right of every screen', 'हर स्क्रीन का ऊपर दायाँ हिस्सा'],
