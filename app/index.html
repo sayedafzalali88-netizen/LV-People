@@ -1131,7 +1131,7 @@ const ORG={
  branches:{par:'depts',used:'branch',cols:[['name','name'],['city','city'],['state','state_']]},
  divisions:{par:'branches',used:'division',cols:[['name','name']]},
  subdivs:{par:'divisions',used:'subdiv',cols:[['name','name']]},
- desigs:{par:'subdivs',used:'desig',cols:[['name','name'],['level','level']]},
+ desigs:{par:'subdivs',used:'desig',cols:[['name','name']]},
  levels:{par:null,used:'level',cols:[['name','name']]}
 };
 const CHAIN={func:'functions',dept:'depts',branch:'branches',division:'divisions',subdiv:'subdivs',desig:'desigs'};
@@ -1219,7 +1219,6 @@ function setModal(id){
   (f,close,bg)=>{
     const fd=new FormData(f), v=Object.fromEntries(s.cols.map(c=>[c[0],(fd.get(c[0])||'').trim()])), err=k=>{bg.querySelector('#me').textContent=t(k)};
     if(!v.name)return err('e_req');
-    if(key==='desigs'&&!/^L([1-9]|1[0-2])$/.test(v.level))return err('e_req');
     if(key==='desigs'){v.divs=fd.getAll('dv').map(Number);if(!v.divs.length)return err('e_divsel');v.parents=fd.getAll('par').map(Number).filter(p=>{const z=DATA.subdivs.find(x=>x.id===p);return z&&(z.parents||[]).some(d=>v.divs.includes(d))})}
     else if(s.par){v.parents=fd.getAll('par').map(Number);if(!v.parents.length)return err('e_parent')}
     if(DATA[key].some(x=>x.id!==id&&x.name.toLowerCase()===v.name.toLowerCase()&&(key!=='subdivs'||(x.parents||[]).some(p=>(v.parents||[]).includes(p)))))return err('e_dup');
@@ -4017,7 +4016,7 @@ function wfOrg(){
     orgOpts('division',{branch:b.id,dept:dp.id}).map(dv=>li(box('#EEEDFE','#534AB7','#3C3489',esc(dv.name),L('Division','डिवीज़न')+add('subdivs',dv.id,'Sub-division','सब-डिवीज़न')),
      orgOpts('subdiv',{division:dv.id}).map(sd=>{const ds=orgOpts('desig',{subdiv:sd.id,func:fn.id});
       const stack=`<div class="stk">${ds.map(d=>{const p=SRC.plan.filter(r=>r.status!=='Inactive'&&r.branch==b.id&&r.desig==d.id).reduce((a,r)=>a+r.required,0), h=DATA.emps.filter(e=>e.active&&e.branch==b.id&&e.desig==d.id).length;
-       return box('#FAECE7','#993C1D','#712B13',esc(d.name),`${d.level||''} · ${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`)}).join('')}${add('desigs',sd.id,'Designation','पद')}</div>`;
+       return box('#FAECE7','#993C1D','#712B13',esc(d.name),`${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`)}).join('')}${add('desigs',sd.id,'Designation','पद')}</div>`;
       return li(box('#F1EFE8','#5F5E5A','#444441',esc(sd.name),L('Sub-division','सब-डिवीज़न')),'',stack)}).join(''))).join(''))).join(''))).join(''))).join('');
  return `${st}<div class="tools"><div style="flex:1"></div>${can('settings','E')?`<button class="btn btn-o" data-ocset>${L('Edit structure in Settings','Settings में स्ट्रक्चर बदलें')}</button>`:''}</div>
  <p class="rule" style="font-size:13px;margin:6px 0 12px">${L('This is the base of the company. A designation can enter the Manpower plan, then Requisition, then Recruitment, only if it is here.','यह कंपनी का आधार है। कोई पद तभी Manpower plan, फिर Requisition और Recruitment में आ सकता है जब वह यहाँ हो।')}</p>
@@ -4036,7 +4035,7 @@ function wfOrgOld(){
   kids('depts',dv.id).map(dp=>{nDp++;return node(box('#E1F5EE','#0F6E56','#085041',esc(dp.name),L('Department','विभाग')+add('functions',dp.id,'Function','फ़ंक्शन')),
    kids('functions',dp.id).map(fn=>{nFn++;return node(box('#E6F1FB','#185FA5','#0C447C',esc(fn.name),L('Function','फ़ंक्शन')+add('desigs',fn.id,'Designation','पद')),
     kids('desigs',fn.id).map(d=>{nDes++;const p=plan(d), h=DATA.emps.filter(e=>e.active&&e.branch==bsel.id&&e.desig==d.id).length;
-     return node(box('#FAECE7','#993C1D','#712B13',esc(d.name),`${d.level||''} · ${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`),'')}).join(''))}).join(''))}).join(''))).join('');
+     return node(box('#FAECE7','#993C1D','#712B13',esc(d.name),`${L('Plan','प्लान')} ${p} · ${L('Working','कार्यरत')} ${h}`),'')}).join(''))}).join(''))}).join(''))).join('');
  return `<div class="tools"><span style="color:var(--muted)">${L('Branch','शाखा')}</span><select class="inp" id="ocb">${brs.map(b=>`<option value="${b.id}" ${b.id==bsel.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select><div style="flex:1"></div>${can('settings','E')?`<button class="btn btn-o" data-ocset>${L('Edit structure in Settings','Settings में स्ट्रक्चर बदलें')}</button>`:''}</div>
  <p class="rule" style="font-size:13px;margin:6px 0 12px">${L('This is the base of the company. A designation can enter the Manpower plan, then Requisition, then Recruitment, only if it is here.','यह कंपनी का आधार है। कोई पद तभी Manpower plan, फिर Requisition और Recruitment में आ सकता है जब वह यहाँ हो।')}</p>
  <div class="grid g4" style="margin-bottom:14px">${[[L('Divisions','डिवीज़न'),kids('divisions',bsel.id).length],[L('Departments','विभाग'),nDp],[L('Functions','फ़ंक्शन'),nFn],[L('Designations','पद'),nDes]].map(([l,n])=>`<div class="card"><small style="color:var(--muted)">${l}</small><div style="font-size:26px;font-weight:700">${n}</div></div>`).join('')}</div>

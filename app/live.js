@@ -25,7 +25,7 @@ function toRow0(kind,o){const M=LIVE.map, c=LIVE.profile.client_id;
   if(kind==='branches')return{client_id:c,name:o.name,city:nz(o.city),state:nz(o.state),pin:nz(o.pin),address:nz(o.line),zone:nz(o.zone),parent_ids:ids('depts',o.parents),active:act};
   if(kind==='divisions')return{client_id:c,name:o.name,parent_ids:ids('branches',o.parents),dept_ids:o.depts?ids('depts',o.depts):null,active:act};
   if(kind==='subdivs')return{client_id:c,name:o.name,parent_ids:ids('divisions',o.parents),active:act};
-  if(kind==='desigs')return{client_id:c,name:o.name,level:nz(o.level),parent_ids:ids('subdivs',o.parents),division_ids:o.divs?ids('divisions',o.divs):null,function_ids:o.funcs?ids('functions',o.funcs):null,active:act};
+  if(kind==='desigs')return{client_id:c,name:o.name,parent_ids:ids('subdivs',o.parents),division_ids:o.divs?ids('divisions',o.divs):null,function_ids:o.funcs?ids('functions',o.funcs):null,active:act};
   const em=[1,2].filter(i=>o['ec'+i+'_name']).map(i=>({name:o['ec'+i+'_name'],relation:o['ec'+i+'_rel']||'',mobile:o['ec'+i+'_mob']||''}));
   return{client_id:c,code:o.code,name:o.name,mobile:nz(o.mobile),email:nz(o.email),dob:nz(o.dob),gender:['M','F','O'].includes(o.gender)?o.gender:null,doj:nz(o.doj),
     branch_id:M.branches[o.branch]||null,division_id:M.divisions[o.division]||null,sub_division_id:M.subdivs[o.subdiv]||null,department_id:M.depts[o.dept]||null,function_id:M.functions[o.func]||null,designation_id:M.desigs[o.desig]||null,
@@ -54,7 +54,7 @@ async function loadLive(){
   pick('branches',br,nmKey,(o,r)=>Object.assign(o,{name:r.name,city:r.city||'',state:r.state||'',pin:r.pin||'',line:r.address||'',zone:r.zone||'',parents:up('depts',r.parent_ids),off:!r.active}));
   pick('divisions',dv,nmKey,(o,r)=>{Object.assign(o,{name:r.name,parents:up('branches',r.parent_ids),off:!r.active});if(r.dept_ids)o.depts=up('depts',r.dept_ids);else delete o.depts});
   pick('subdivs',sd,nmKey,(o,r)=>Object.assign(o,{name:r.name,parents:up('divisions',r.parent_ids),off:!r.active}));
-  pick('desigs',dg,nmKey,(o,r)=>{Object.assign(o,{name:r.name,level:r.level||o.level||'',parents:up('subdivs',r.parent_ids),off:!r.active});if(r.division_ids)o.divs=up('divisions',r.division_ids);else delete o.divs;if(r.function_ids)o.funcs=up('functions',r.function_ids);else delete o.funcs});
+  pick('desigs',dg,nmKey,(o,r)=>{Object.assign(o,{name:r.name,parents:up('subdivs',r.parent_ids),off:!r.active});if(r.division_ids)o.divs=up('divisions',r.division_ids);else delete o.divs;if(r.function_ids)o.funcs=up('functions',r.function_ids);else delete o.funcs});
   const codeKey=x=>String(x.code||'').toUpperCase();
   pick('emps',em,codeKey,(o,r)=>{const p=pv.find(z=>z.employee_id===r.id)||{}, ec=r.emergency||[];
     Object.assign(o,{code:r.code,name:r.name,mobile:r.mobile||'',email:r.email||'',dob:r.dob||'',gender:r.gender||'',doj:r.doj||'',branch:LIVE.rev.branches[r.branch_id]||'',division:LIVE.rev.divisions[r.division_id]||'',subdiv:LIVE.rev.subdivs[r.sub_division_id]||'',dept:LIVE.rev.depts[r.department_id]||'',func:LIVE.rev.functions[r.function_id]||'',desig:LIVE.rev.desigs[r.designation_id]||'',
