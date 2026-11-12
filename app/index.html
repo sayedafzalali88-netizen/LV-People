@@ -12814,7 +12814,8 @@ function gvAfter(){const app=document.getElementById('app'), m=document.getEleme
  if(b){b.style.display=state.role==='platform'||!me()?'none':'';b.title=gvOn()?L('Classic view','क्लासिक व्यू'):L('Game view','गेम व्यू');b.setAttribute('aria-label',b.title);b.style.color=gvOn()?'var(--gold,#c9a227)':''}
  const on=gvOn(), home=on&&state.page==='dashboard';app.classList.toggle('gvhome',home);
  if(home){m.innerHTML=gvHome();gvBind(m)}
- else if(on&&!m.querySelector('.gv-back')){const d=document.createElement('button');d.className='gv-back';d.innerHTML='‹ '+L('Map','मैप');d.onclick=()=>{state.page='dashboard';resetViews();render()};m.insertBefore(d,m.firstChild)}}
+ else if(on){if(!m.querySelector('.gv-back')){const d=document.createElement('button');d.className='gv-back';d.innerHTML='‹ '+L('Map','मैप');d.onclick=()=>{state.page='dashboard';resetViews();render()};m.insertBefore(d,m.firstChild)}
+  if(!m.querySelector('.gv-in'))gvModule(m)}}
 {const st=document.createElement('style');st.textContent=`
 #app.gvhome{grid-template-columns:minmax(0,1fr)}#app.gvhome #sb,#app.gvhome #menuBtn{display:none}#app.gvhome main{max-width:none;padding:0}#app.gvhome #liveNote{margin:8px 16px 0!important}
 .gv-back{border:1px solid var(--line);background:var(--card);color:inherit;border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px}
@@ -12844,6 +12845,47 @@ function gvAfter(){const app=document.getElementById('app'), m=document.getEleme
 .gv-dock button{white-space:nowrap;padding:9px 15px;border-radius:13px;background:var(--gc);font-size:13px;font-weight:600;border:1px solid var(--gl)}.gv-dock button.go{background:linear-gradient(var(--ga),var(--ga));color:var(--gat)!important;border:0}
 @media(max-width:1150px){.gv-grid{grid-template-columns:minmax(0,1fr)}.gv-map{order:-1}.gv-rank{max-height:260px}}
 @media(max-width:560px){.gv{padding:10px 10px 90px}.gv-node{width:31%;min-width:98px}.gv-chip{flex:1 1 150px}.gv-sp{display:none}}`;document.head.appendChild(st)}
+/* ---------- Game view (part 2): on top of a module page, the workflow as a path and a card for every section. First module: Leave ---------- */
+const GVMOD={};
+const gvPath=steps=>`<div class="gv-path">${steps.map((s,i)=>`<div class="gv-st ${s.s}"><i>${s.s==='done'?'✓':s.s==='bad'?'✕':s.last?'★':i+1}</i><b>${s.t}</b><small>${s.d||''}</small></div>`).join('')}</div>`;
+const gvCard=c=>`<div class="gv-card"><b>${c.t}</b><span>${c.d}</span>${c.x?`<em>${c.x}</em>`:''}<button data-gvclick="${esc(c.sel)}">${c.b}</button></div>`;
+GVMOD.leave=m=>{const id=me(), e=empById(id)||{}, has=s=>!!m.querySelector(s);
+ const mine=LEAVES.filter(l=>l.emp===id), pend=mine.filter(l=>l.st==='pending').sort((a,b)=>a.from<b.from?-1:1), l=pend[0]||mine.filter(x=>x.to>=addD(TODAY_S,-7)).sort((a,b)=>a.from<b.from?1:-1)[0]||null;
+ const apr=e.mgr&&empById(+e.mgr)?empById(+e.mgr).name:L('HR','HR'), b=leaveBalance(id);
+ let steps, tag='', head=L('Where is your leave now?','आपकी छुट्टी अभी कहाँ है?');
+ if(l){const tn=(()=>{try{return t(LT[l.type].k)}catch(x){return l.type}})();tag=`${esc(tn)} · ${fmtS(l.from)}${l.to!==l.from?' – '+fmtS(l.to):''} · ${l.days} ${L('day(s)','दिन')}`;
+  const st=l.st, cx=l.cx&&l.cx.st==='pending';
+  steps=[{s:'done',t:L('You applied','आपने माँग भेजी'),d:esc(l.reason||'')},
+   {s:st==='pending'?'now':st==='cancelled'?'bad':'done',t:L('Approval','मंज़ूरी'),d:st==='pending'?`${L('Waiting with','अभी इनके पास')}: ${esc(apr)}`:st==='cancelled'?L('Cancelled','रद्द हुई'):st==='rejected'?L('Decision given','फ़ैसला हो गया'):L('Approved','मंज़ूर हुई')},
+   {last:1,s:st==='approved'?'done':st==='rejected'?'bad':'todo',t:st==='rejected'?L('Rejected','अस्वीकृत'):L('Leave granted','छुट्टी मिली'),d:st==='approved'?(cx?L('You asked to cancel it: waiting for approval','आपने रद्द करने को कहा है: मंज़ूरी बाकी'):L('The days are cut from your balance','दिन आपके बैलेंस से कट गए')):st==='rejected'?L('No day is cut from your balance','बैलेंस से कोई दिन नहीं कटा'):L('After approval the days are cut from your balance','मंज़ूरी के बाद दिन बैलेंस से कटेंगे')}]}
+ else{head=L('How a leave moves','छुट्टी कैसे आगे बढ़ती है');tag=L('You have no leave request right now','अभी आपकी कोई छुट्टी की माँग नहीं है');
+  steps=[{s:'todo',t:L('You apply','आप माँग भेजते हैं'),d:L('Type, dates and reason','प्रकार, तारीख़ें और कारण')},{s:'todo',t:L('Approval','मंज़ूरी'),d:`${L('Goes to','इनके पास जाती है')}: ${esc(apr)}`},{last:1,s:'todo',t:L('Leave granted','छुट्टी मिली'),d:L('The days are cut from your balance','दिन आपके बैलेंस से कटते हैं')}]}
+ let bal='';try{bal=ltKeysFor(b).filter(k=>b[k]&&b[k].avail!=null).slice(0,5).map(k=>`${k} ${b[k].avail}`).join(' · ')}catch(x){}
+ let nh='';try{const h=ltHoliList(id).filter(x=>x[0]>=TODAY_S)[0];if(h)nh=`${L('Next','अगली')}: ${esc(h[1])}, ${fmtS(h[0])}`}catch(x){}
+ let toAp=0;try{toAp=pendingFor().filter(a=>a.kind==='L').length}catch(x){}
+ const cards=[];
+ if(has('[data-lapply]'))cards.push({t:L('Apply for leave','छुट्टी लगाएँ'),d:L('Send a new request. It goes to your approver by itself.','नई माँग भेजें। यह अपने आप मंज़ूर करने वाले के पास जाती है।'),b:L('Start','शुरू करें'),sel:'[data-lapply]'});
+ if(has('[data-ltab="mine"]'))cards.push({t:L('My balance and history','मेरा बैलेंस और इतिहास'),d:L('Days left in each leave type, and all your requests. A waiting request can be cancelled here.','हर प्रकार में बचे दिन और आपकी सारी माँगें। बाकी माँग यहीं से रद्द होती है।'),x:bal,b:L('Open','खोलें'),sel:'[data-ltab="mine"]'});
+ if(has('[data-ltab="appr"]'))cards.push({t:L('Approve team leave','टीम की छुट्टी मंज़ूर करें'),d:L('Requests of your team that wait for your decision.','आपकी टीम की माँगें जो आपके फ़ैसले का इंतज़ार कर रही हैं।'),x:toAp?`${toAp} ${L('waiting','बाकी')}`:L('Nothing is waiting','कुछ बाकी नहीं'),b:L('Open','खोलें'),sel:'[data-ltab="appr"]'});
+ if(has('[data-ltab="short"]'))cards.push({t:L('Short leave','शॉर्ट लीव'),d:L('A few hours off in a day, within the monthly limit.','दिन में कुछ घंटे की छुट्टी, महीने की सीमा के अंदर।'),b:L('Open','खोलें'),sel:'[data-ltab="short"]'});
+ if(has('[data-ltab="encash"]'))cards.push({t:L('Encash leave','छुट्टी का नक़दीकरण'),d:L('Take money for unused leave, where the leave type allows it.','बची छुट्टी के बदले पैसा, जहाँ छुट्टी का प्रकार इसकी अनुमति देता है।'),b:L('Open','खोलें'),sel:'[data-ltab="encash"]'});
+ if(has('[data-ltab="hol"]'))cards.push({t:L('Holidays','छुट्टियों की सूची'),d:L('The holiday calendar that applies to you.','आप पर लागू छुट्टियों का कैलेंडर।'),x:nh,b:L('Open','खोलें'),sel:'[data-ltab="hol"]'});
+ let sw=false;try{sw=!!atPolFor(e).sandwich}catch(x){}
+ const tip=sw?L('Sandwich rule: when leave is taken on both sides of a weekly off or holiday, the days in between are counted as leave too.','सैंडविच नियम: साप्ताहिक छुट्टी या अवकाश के दोनों तरफ़ छुट्टी लेने पर बीच के दिन भी छुट्टी गिने जाते हैं।'):L('A request that is still waiting can be cancelled by you. For an approved leave that has not started, ask for cancellation and your approver decides.','जो माँग अभी बाकी है उसे आप ख़ुद रद्द कर सकते हैं। मंज़ूर छुट्टी जो शुरू नहीं हुई, उसके लिए रद्द करने की माँग भेजें; फ़ैसला मंज़ूर करने वाला करता है।');
+ return `<div class="gv-panel"><h3>${head}<span class="gv-pill t">${tag}</span></h3>${gvPath(steps)}</div><div class="gv-cards">${cards.map(gvCard).join('')}</div><div class="gv-tip"><b>${L('Good to know','जानने लायक')}</b> ${tip}</div>`};
+function gvModule(m){const fn=GVMOD[state.page];if(!fn)return;let h='';try{h=fn(m)}catch(e){console.warn('game view module',e);return}if(!h)return;
+ const d=document.createElement('div');d.className='gv gv-in gv-'+(GV.get().skin==='day'?'day':'night');d.innerHTML=h;const bk=m.querySelector('.gv-back');m.insertBefore(d,bk?bk.nextSibling:m.firstChild);
+ d.querySelectorAll('[data-gvclick]').forEach(b=>b.onclick=()=>{const x=[...m.querySelectorAll(b.dataset.gvclick)].find(el=>!d.contains(el));if(x)x.click()})}
+{const st=document.createElement('style');st.textContent=`
+.gv.gv-in{min-height:0;padding:16px;border-radius:18px;margin-bottom:16px}
+.gv-path{display:flex;margin-top:6px}.gv-st{flex:1;text-align:center;position:relative;font-size:13px;padding:0 6px}.gv-st i{width:50px;height:50px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:18px;border:3px solid var(--gl);background:var(--gc);color:var(--gm);position:relative;z-index:1}
+.gv-st:not(:first-child):before{content:"";position:absolute;left:-50%;right:50%;top:22px;height:6px;background:var(--gl);border-radius:3px}.gv-st.done:before,.gv-st.now:before,.gv-st.bad:before{background:var(--ga2)}
+.gv-st.done i{background:#1f9d6b;border-color:#fff;color:#fff}.gv-st.now i{background:#d99a26;border-color:#fff;color:#fff;box-shadow:0 0 0 7px rgba(242,192,78,.28)}.gv-st.bad i{background:#d9534f;border-color:#fff;color:#fff}.gv-st b{display:block}
+.gv-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:14px}
+.gv-card{background:var(--gp);border:1px solid var(--gl);border-radius:16px;padding:14px;font-size:13px;display:flex;flex-direction:column;gap:6px}.gv-card b{font-size:15px}.gv-card span{color:var(--gm);flex:1}.gv-card em{font-style:normal;font-weight:700;color:var(--ga)}
+.gv-card button{align-self:flex-start;margin-top:4px;padding:7px 16px;border-radius:10px;background:var(--ga);color:var(--gat)!important;font-weight:700;font-size:12.5px;border:0}
+.gv-tip{margin-top:14px;background:var(--gc);border:1px dashed var(--gl);border-radius:14px;padding:12px 14px;font-size:13px}.gv-tip b{color:var(--ga);margin-right:6px}
+@media(max-width:560px){.gv-st{font-size:12px}.gv-st i{width:42px;height:42px}.gv-st:not(:first-child):before{top:18px}}`;document.head.appendChild(st)}
 {const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
