@@ -12745,6 +12745,106 @@ function guidePage(){
   const q=m.querySelector('#gq');if(q)q.oninput=e=>{state.gq=e.target.value;clearTimeout(state.gt);state.gt=setTimeout(()=>{render();const x=$('#gq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},250)}}}
 {const b=document.getElementById('guideBtn');if(b)b.onclick=()=>{state.page='guide';try{resetViews()}catch(e){}render();window.scrollTo(0,0)}}
 /* module names, menu items, tabs and page titles are written with a capital first letter in every word (KPI Dashboard, Growth and Discipline) */
+/* ================= Game view (part 1): the home page as a map, missions from the Inbox, division ranking. Every person chooses Game view or Classic view. ================= */
+const gvKey=()=>'mh_gv_'+(me()||0);
+const GV={get(){try{return JSON.parse(localStorage.getItem(gvKey())||'{}')||{}}catch(e){return{}}},set(o){try{localStorage.setItem(gvKey(),JSON.stringify({...GV.get(),...o}))}catch(e){}}};
+const gvOn=()=>state.role!=='platform'&&!!me()&&GV.get().on===true;
+const GVZ=[
+ ['My work','मेरा काम','#16a085',['inbox','decision','myreq','profile','myasset']],
+ ['Daily work','रोज़ का काम','#1f9d6b',['attendance','attreq','locreq','leave','timeoffice']],
+ ['Money','पैसा','#c9841f',['payroll','expense']],
+ ['Growth','ग्रोथ','#d35454',['pms','training','library','analytics','reports']],
+ ['People','लोग','#2e86c1',['team','employees','workforce','recruit','cockpit','exits']],
+ ['Company','कंपनी','#8e44ad',['engage','assets','support','crm','marketing','stock','bizdata','import']],
+ ['Setup','सेटअप','#5d6d7e',['settings','licensing']]];
+const GVD={inbox:['Everything waiting for you','जो कुछ आपका इंतज़ार कर रहा है'],decision:['To Do, tasks, daily forms','टू-डू, टास्क, रोज़ के फ़ॉर्म'],myreq:['All your requests in one list','आपकी सारी माँगें एक जगह'],profile:['Your details and documents','आपका विवरण और दस्तावेज़'],myasset:['Things given to you','आपको मिला सामान'],
+ attendance:['Punch in, punch out, your days','पंच इन, पंच आउट, आपके दिन'],attreq:['Correct a punch, on duty','पंच सुधार, ऑन ड्यूटी'],locreq:['Punch from outside the branch','ब्रांच के बाहर से पंच'],leave:['Ask for leave, see balance','छुट्टी माँगें, बैलेंस देखें'],timeoffice:['Shifts, holidays, month processing','शिफ़्ट, छुट्टियाँ, महीने की प्रोसेसिंग'],
+ payroll:['Salary, payslip, advance','सैलरी, पे-स्लिप, एडवांस'],expense:['Expense, travel, claims','ख़र्च, यात्रा, क्लेम'],
+ pms:['KPI, targets, ratings','KPI, टारगेट, रेटिंग'],training:['Courses, tests, certificates','कोर्स, टेस्ट, सर्टिफ़िकेट'],library:['Policies and documents to read','पढ़ने की नीतियाँ और दस्तावेज़'],analytics:['Charts of every module','हर मॉड्यूल के चार्ट'],reports:['Reports to view and download','देखने और डाउनलोड की रिपोर्ट'],
+ team:['Your team today','आज आपकी टीम'],employees:['Employee records','कर्मचारियों का रिकॉर्ड'],workforce:['Manpower plan, onboarding','मैनपावर प्लान, ऑनबोर्डिंग'],recruit:['Vacancies, candidates, offers','वैकेंसी, कैंडिडेट, ऑफ़र'],cockpit:['One desk for all HR work','HR के सारे काम की एक डेस्क'],exits:['Resignation and exit','इस्तीफ़ा और एक्ज़िट'],
+ engage:['Notices, polls, letters','नोटिस, पोल, पत्र'],assets:['Asset stock, issue, return','एसेट स्टॉक, देना, वापसी'],support:['Tickets, grievance, help','टिकट, शिकायत, मदद'],crm:['Customer feedback, complaints','ग्राहक फ़ीडबैक, शिकायतें'],marketing:['Content, campaigns, posts','कंटेंट, कैंपेन, पोस्ट'],stock:['Old stock review','पुराने स्टॉक की समीक्षा'],bizdata:['Sales and business numbers','बिक्री और बिज़नेस के आँकड़े'],import:['Upload data files','डेटा फ़ाइल अपलोड'],
+ settings:['Company setup and rules','कंपनी का सेटअप और नियम'],licensing:['Plan and modules','प्लान और मॉड्यूल']};
+function gvScore(id){try{const rows=monthState(id,CUR_P).rows.filter(x=>x.r.state==='SCORED');if(!rows.length)return null;const mx=rows.reduce((a,x)=>a+x.k.max,0);return mx?Math.round(rows.reduce((a,x)=>a+(x.r.score||0),0)/mx*100):null}catch(e){return null}}
+function gvStreak(id){let n=0;try{for(let d=TODAY_D;d>=1;d--){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)n++;else if(r.st==='L'||r.half||(r.st==='A'&&d<TODAY_D))break}}catch(e){}return n}
+const gvRankC={};
+function gvRank(e){const k=[CUR_P,TODAY_S,e.division||0].join('|');if(gvRankC.k===k&&Date.now()-gvRankC.at<60000)return gvRankC.rows;
+ const grp=DATA.emps.filter(x=>x.active&&(e.division?x.division===e.division:true));
+ const rows=grp.map(x=>({id:x.id,name:x.name,s:gvScore(x.id)})).sort((a,b)=>(b.s==null?-1:b.s)-(a.s==null?-1:a.s)||(a.name<b.name?-1:1));
+ Object.assign(gvRankC,{k,at:Date.now(),rows});return rows}
+function gvMissions(){const id=me();let v=[],en=[];try{v=ibVirtual();en=lang==='en'?v:ibVEn()}catch(e){}
+ const rows=v.map((x,i)=>{const l=en[i]&&en.length===v.length?IBL[id+'|'+ibKeyOf(en[i])]:null;return{title:x.title,due:l?l.due:(x.due||''),go:x.page+':'+(x.tab||'')}});
+ try{ibStored().filter(t=>t.status==='Pending'&&!(t.kind==='notice'&&t.read[id])).forEach(t=>rows.push({title:t.title,due:ibTaskDue(t),go:'inbox:'}))}catch(e){}
+ return rows.sort((a,b)=>(a.due||'9999')<(b.due||'9999')?-1:1)}
+function gvHome(){
+ const id=me(), e=empById(id)||{}, g=GV.get(), skin=g.skin==='day'?'day':'night', sc=gvScore(id), st=gvStreak(id), ms=gvMissions();
+ let doneT=0;try{doneT=ibRecs(id).filter(r=>r.done===TODAY_S).length}catch(x){}
+ const over=ms.filter(m=>m.due&&m.due<TODAY_S).length, cnt={};ms.forEach(m=>{const p=m.go.split(':')[0];cnt[p]=(cnt[p]||0)+1});cnt.inbox=ms.length;
+ const pill=m=>{if(!m.due)return '';const n=Math.round((Date.parse(m.due)-Date.parse(TODAY_S))/864e5);return n<0?`<span class="gv-pill r">${L('overdue','समय निकल गया')}</span>`:n===0?`<span class="gv-pill y">${L('today','आज')}</span>`:n===1?`<span class="gv-pill y">${L('tomorrow','कल')}</span>`:`<span class="gv-pill g">${fmtS(m.due)}</span>`};
+ const vis=NAV.filter(n=>n.id!=='dashboard'&&can(n.id,'V')&&(n.built||n.id==='pms')), used=new Set();
+ const tile=(n,col)=>`<button class="gv-node" data-gvgo="${n.id}:"><span class="gv-tile" style="background:${col}">${cnt[n.id]?`<i class="gv-cnt">${cnt[n.id]}</i>`:''}${svg(n.ic)}</span><b>${t(n.id)}</b><small>${GVD[n.id]?L(...GVD[n.id]):''}</small></button>`;
+ let zones='';GVZ.forEach(([en,hi,col,ids])=>{const ns=ids.map(i=>vis.find(n=>n.id===i)).filter(Boolean);ns.forEach(n=>used.add(n.id));if(ns.length)zones+=`<div class="gv-zone"><div class="gv-zh">${L(en,hi)}</div><div class="gv-row">${ns.map(n=>tile(n,col)).join('')}</div></div>`});
+ const rest=vis.filter(n=>!used.has(n.id));if(rest.length)zones+=`<div class="gv-zone"><div class="gv-zh">${L('More','और')}</div><div class="gv-row">${rest.map(n=>tile(n,'#5d6d7e')).join('')}</div></div>`;
+ const rank=gvRank(e), dock=[['attendance:',L('Punch in / out','पंच इन / आउट'),1],['leave:',L('Apply for leave','छुट्टी लगाएँ')],['payroll:mine',L('Payslip','पे-स्लिप')],['support:',L('Raise a ticket','टिकट बनाएँ')],['inbox:',L('Inbox','इनबॉक्स')]].filter(d=>can(d[0].split(':')[0],'V'));
+ return `<div class="gv gv-${skin}">
+ <div class="gv-hud"><div class="gv-chip"><div class="gv-av">${esc((e.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())}</div><div><b>${esc(e.name||'')}</b><small>${L('Level','लेवल')} ${e.level||1} · ${esc(nm('desigs',e.desig)||'')}</small></div></div>
+  <div class="gv-chip"><div><small>${L('KPI score this month, so far','इस महीने का KPI स्कोर, अब तक')}</small><div class="gv-barrow"><div class="gv-bar"><i style="width:${sc==null?0:sc}%"></i></div><b class="gv-acc">${sc==null?'—':sc+' / 100'}</b></div></div></div>
+  <div class="gv-chip"><b class="gv-acc gv-big">${st}</b><div>${L('days in a row','दिन लगातार')}<small>${L('on time this month','इस महीने समय पर')}</small></div></div>
+  <div class="gv-chip"><b class="gv-acc gv-big">${ms.length}</b><div>${L('missions waiting','मिशन बाकी')}<small>${over?`${over} ${L('overdue','का समय निकल गया')}`:L('none overdue','कोई देर नहीं')}</small></div></div>
+  <div class="gv-sp"></div>
+  <div class="gv-chip gv-skins"><small>${L('Colour','रंग')}</small><button data-gvskin="night" class="${skin==='night'?'on':''}" title="Teal Night + Gold" style="background:linear-gradient(135deg,#0a2c2f 50%,#f2c04e 50%)"></button><button data-gvskin="day" class="${skin==='day'?'on':''}" title="Sky Day + Coral" style="background:linear-gradient(135deg,#dff1ff 50%,#ff7a45 50%)"></button></div>
+  <button class="gv-chip gv-btn" data-gvoff>${L('Classic view','क्लासिक व्यू')}</button></div>
+ <div class="gv-grid">
+  <div class="gv-panel"><h3>${L("Today's missions",'आज के मिशन')}<span class="gv-pill t">${doneT} ${L('done today','आज पूरे')}</span></h3>
+   ${ms.slice(0,7).map(m=>`<button class="gv-ms ${m.due&&m.due<TODAY_S?'r':m.due&&m.due<=addD(TODAY_S,1)?'y':''}" data-gvgo="${esc(m.go)}"><span>${esc(m.title)}</span>${pill(m)}</button>`).join('')||`<p class="gv-mut">${L('All caught up. Nothing is waiting for you.','सब काम निपट गए। कुछ बाकी नहीं।')}</p>`}
+   ${ms.length>7?`<button class="gv-link" data-gvgo="inbox:">${L('See all','सब देखें')} (${ms.length})</button>`:''}
+   <p class="gv-mut">${L('Missions are your Inbox. Finish each one before its last date.','मिशन आपका इनबॉक्स हैं। हर एक को उसकी आख़िरी तारीख़ से पहले पूरा करें।')}</p></div>
+  <div class="gv-map">${zones}</div>
+  <div class="gv-panel"><h3>${e.division?esc(nm('divisions',e.division)||''):L('Company','कंपनी')} · ${L('ranking','रैंकिंग')}<small>${L('KPI so far','KPI अब तक')}</small></h3>
+   <div class="gv-rank">${rank.map((r,i)=>`<div class="gv-rr ${r.id===id?'me':''}"><i class="${i<3&&r.s!=null?'top':''}">${i+1}</i><span>${esc(r.name)}${r.id===id?` (${L('you','आप')})`:''}</span><b>${r.s==null?'—':r.s}</b></div>`).join('')}</div></div>
+ </div>
+ <div class="gv-dock">${dock.map(d=>`<button data-gvgo="${d[0]}" class="${d[2]?'go':''}">${d[1]}</button>`).join('')}<button data-gvask>${L('Ask HR Assistant','HR Assistant से पूछें')}</button></div></div>`}
+function gvBind(root){root.querySelectorAll('[data-gvgo]').forEach(b=>b.onclick=()=>{const [p,tb]=b.dataset.gvgo.split(':');goTo(p,tb)});
+ root.querySelectorAll('[data-gvskin]').forEach(b=>b.onclick=()=>{GV.set({skin:b.dataset.gvskin});render()});
+ root.querySelectorAll('[data-gvoff]').forEach(b=>b.onclick=()=>{GV.set({on:false});render()});
+ root.querySelectorAll('[data-gvask]').forEach(b=>b.onclick=()=>{const f=document.getElementById('psFab');if(f)f.click();else toast(L('HR Assistant is not switched on for your company','आपकी कंपनी के लिए HR Assistant चालू नहीं है'))})}
+function gvAfter(){const app=document.getElementById('app'), m=document.getElementById('main');if(!app||!m)return;
+ let b=document.getElementById('gvBtn');const gb=document.getElementById('guideBtn');
+ if(!b&&gb){b=document.createElement('button');b.className='ic';b.id='gvBtn';b.innerHTML=svg('M6 12h4M8 10v4M15 13h.01M18 11h.01M17.3 5H6.7a4 4 0 00-4 3.6L2 16a3 3 0 005.3 2l1.4-2h6.6l1.4 2A3 3 0 0022 16l-.7-7.4a4 4 0 00-4-3.6z');gb.parentNode.insertBefore(b,gb);
+  b.onclick=()=>{const on=!gvOn();GV.set({on});if(on){state.page='dashboard';resetViews()}render();toast(on?L('Game view is on. The same button brings Classic view back.','गेम व्यू चालू है। इसी बटन से क्लासिक व्यू वापस आता है।'):L('Classic view is on','क्लासिक व्यू चालू है'))}}
+ if(b){b.style.display=state.role==='platform'||!me()?'none':'';b.title=gvOn()?L('Classic view','क्लासिक व्यू'):L('Game view','गेम व्यू');b.setAttribute('aria-label',b.title);b.style.color=gvOn()?'var(--gold,#c9a227)':''}
+ const on=gvOn(), home=on&&state.page==='dashboard';app.classList.toggle('gvhome',home);
+ if(home){m.innerHTML=gvHome();gvBind(m)}
+ else if(on&&!m.querySelector('.gv-back')){const d=document.createElement('button');d.className='gv-back';d.innerHTML='‹ '+L('Map','मैप');d.onclick=()=>{state.page='dashboard';resetViews();render()};m.insertBefore(d,m.firstChild)}}
+{const st=document.createElement('style');st.textContent=`
+#app.gvhome{grid-template-columns:minmax(0,1fr)}#app.gvhome #sb,#app.gvhome #menuBtn{display:none}#app.gvhome main{max-width:none;padding:0}#app.gvhome #liveNote{margin:8px 16px 0!important}
+.gv-back{border:1px solid var(--line);background:var(--card);color:inherit;border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.gv{--gb:radial-gradient(1200px 700px at 50% 30%,#12484a 0,#0a2c2f 45%,#061a1c 100%);--gp:rgba(8,38,41,.94);--gl:#1f6b6e;--gt:#e8f4f1;--gm:#9fc4bf;--ga:#f2c04e;--ga2:#3ddc97;--gc:#0f3d40;--gat:#2e1c00;--gdot:rgba(242,192,78,.7);
+ background:var(--gb);color:var(--gt);min-height:calc(100vh - 60px);padding:16px 18px 96px;position:relative}
+.gv.gv-day{--gb:linear-gradient(180deg,#cfeaff 0,#eef7ff 45%,#fff8f1 100%);--gp:#ffffff;--gl:#c9dcef;--gt:#16324a;--gm:#5b7690;--ga:#ff7a45;--ga2:#2f80ed;--gc:#eef5fc;--gat:#ffffff;--gdot:rgba(47,128,237,.55)}
+.gv button{font:inherit;color:inherit;cursor:pointer}.gv small{display:block;color:var(--gm);font-size:11.5px;font-weight:400}.gv-mut{color:var(--gm);font-size:12px;margin-top:8px}.gv-acc{color:var(--ga)}.gv-big{font-size:22px}.gv-sp{flex:1}
+.gv-hud{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:14px}
+.gv-chip{display:flex;align-items:center;gap:10px;background:var(--gc);border:1px solid var(--gl);border-radius:14px;padding:8px 14px;font-size:13px}
+.gv-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f2c04e,#e08a2e);display:grid;place-items:center;font-weight:800;color:#3a2400;border:2px solid #fff3c9;flex:none}
+.gv-barrow{display:flex;gap:8px;align-items:center;margin-top:3px}.gv-bar{width:190px;max-width:38vw;height:12px;border-radius:8px;background:rgba(0,0,0,.18);overflow:hidden;border:1px solid var(--gl)}.gv-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ga2),var(--ga))}
+.gv-skins button{width:22px;height:22px;border-radius:50%;border:2px solid var(--gl);padding:0}.gv-skins button.on{outline:2px solid var(--ga);outline-offset:2px}.gv-btn{font-weight:600}
+.gv-grid{display:grid;grid-template-columns:290px minmax(0,1fr) 270px;gap:16px;align-items:start}
+.gv-panel{background:var(--gp);border:1px solid var(--gl);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.gv-panel h3{font-size:15px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gv-ms{display:flex;width:100%;text-align:left;gap:10px;align-items:flex-start;justify-content:space-between;padding:10px;border-radius:12px;background:var(--gc);margin-bottom:8px;border:0;border-left:4px solid var(--ga2);font-size:13px}.gv-ms.y{border-left-color:#e0a82e}.gv-ms.r{border-left-color:#ff5d5d}
+.gv-pill{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap;flex:none}.gv-pill.g{background:rgba(61,220,151,.18);color:var(--ga2)}.gv-pill.y{background:rgba(224,168,46,.22);color:#c98a12}.gv-night .gv-pill.y{color:#ffd978}.gv-pill.r{background:rgba(255,93,93,.2);color:#e04848}.gv-night .gv-pill.r{color:#ffb0b0}.gv-pill.t{background:var(--gc);color:var(--gm);border:1px solid var(--gl)}
+.gv-link{background:none;border:0;color:var(--ga)!important;font-weight:700;font-size:13px;padding:4px 0}
+.gv-zone{margin-bottom:6px}.gv-zh{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ga);font-weight:700;margin:0 0 2px 8px}
+.gv-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 6px;position:relative;padding:12px 0 6px;width:fit-content;max-width:100%}.gv-row:before{content:"";position:absolute;left:60px;right:60px;top:50px;border-top:5px dotted var(--gdot)}
+.gv-node{width:138px;background:none;border:0;text-align:center;padding:0 4px 8px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}.gv-node b{display:block;font-size:13.5px;margin-top:12px}.gv-node small{line-height:1.3}
+.gv-tile{width:72px;height:72px;margin:0 auto;border-radius:22px;display:grid;place-items:center;position:relative;border:3px solid rgba(255,255,255,.9);box-shadow:0 6px 0 rgba(0,0,0,.28),0 0 22px rgba(242,192,78,.18);transform:rotate(45deg);transition:transform .15s}
+.gv-node:hover .gv-tile,.gv-node:focus-visible .gv-tile{transform:rotate(45deg) scale(1.08)}.gv-tile svg{transform:rotate(-45deg);width:34px;height:34px;color:#fff}
+.gv-cnt{position:absolute;top:-10px;right:-10px;transform:rotate(-45deg);background:#ff5d5d;color:#fff;font-size:11.5px;font-weight:800;font-style:normal;min-width:23px;height:23px;border-radius:12px;display:grid;place-items:center;border:2px solid #fff;padding:0 4px}
+.gv-rank{max-height:430px;overflow:auto}.gv-rr{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 4px;border-bottom:1px dashed var(--gl)}.gv-rr span{flex:1}.gv-rr b{color:var(--ga)}.gv-rr i{font-style:normal;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;background:var(--gc);border:1px solid var(--gl);flex:none}.gv-rr i.top{background:var(--ga);color:var(--gat);border-color:var(--ga)}.gv-rr.me{background:var(--gc);border-radius:10px;font-weight:700}
+.gv-dock{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;background:var(--gp);border:2px solid var(--ga);border-radius:20px;padding:8px 10px;z-index:6;max-width:calc(100vw - 20px);overflow-x:auto}
+.gv-dock button{white-space:nowrap;padding:9px 15px;border-radius:13px;background:var(--gc);font-size:13px;font-weight:600;border:1px solid var(--gl)}.gv-dock button.go{background:linear-gradient(var(--ga),var(--ga));color:var(--gat)!important;border:0}
+@media(max-width:1150px){.gv-grid{grid-template-columns:minmax(0,1fr)}.gv-map{order:-1}.gv-rank{max-height:260px}}
+@media(max-width:560px){.gv{padding:10px 10px 90px}.gv-node{width:31%;min-width:98px}.gv-chip{flex:1 1 150px}.gv-sp{display:none}}`;document.head.appendChild(st)}
+{const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};

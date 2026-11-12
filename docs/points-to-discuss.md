@@ -379,3 +379,9 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - Fix: a client's saved SLA list no longer drops SLA values added by a newer version of the app (the demo client had lost followT, trafT, engRateT).
 - Not done: the Excel KPI library file was not regenerated with KPI-399.
 
+## Forty-second List (12 Nov 2026) - Game view, part 1 (home map)
+- Decided by the user: both views stay and each person chooses (Game view or Classic view); the ranking shows the full division list; two colours in Game view.
+- Built: game button in the top bar; home page as a map (zones My work, Daily work, Money, Growth, People, Company, Setup; a tile per page the person may open, one line of what it is for, red number of waiting items); top strip (career level, KPI score so far, days in a row on time this month, missions waiting); Today's missions = Inbox with last dates; division ranking (KPI so far, full list); bottom bar of quick actions; colours Teal Night + Gold and Sky Day + Coral; "Map" button on module pages; phone layout.
+- The choice (view and colour) is kept in the browser per employee, not on the server. Classic view is the default.
+- Not built yet: part 2 (workflow shown as a path on top of each module, section cards), part 3 (badges, level-up animation). Salary and disciplinary pages stay plain.
+
