@@ -12747,7 +12747,10 @@ function guidePage(){
 /* module names, menu items, tabs and page titles are written with a capital first letter in every word (KPI Dashboard, Growth and Discipline) */
 /* ================= Game view (part 1): the home page as a map, missions from the Inbox, division ranking. Every person chooses Game view or Classic view. ================= */
 const gvKey=()=>'mh_gv_'+(me()||0);
-const GV={get(){try{return JSON.parse(localStorage.getItem(gvKey())||'{}')||{}}catch(e){return{}}},set(o){try{localStorage.setItem(gvKey(),JSON.stringify({...GV.get(),...o}))}catch(e){}}};
+/* GVP: the person's choice (view, colour, hidden guides, badges already celebrated), one line per employee, saved on the server; the browser copy is used until the server line exists */
+const GVP={}, BDG={};
+const GV={get(){const id=me()||0;if(id&&GVP[id])return GVP[id];try{return JSON.parse(localStorage.getItem(gvKey())||'{}')||{}}catch(e){return{}}},
+ set(o){const id=me()||0, n={...GV.get(),...o,emp:id};if(id)GVP[id]=n;try{localStorage.setItem(gvKey(),JSON.stringify(n))}catch(e){}}};
 const gvOn=()=>state.role!=='platform'&&!!me()&&GV.get().on===true;
 const GVZ=[
  ['My work','मेरा काम','#16a085',['inbox','decision','myreq','profile','myasset']],
@@ -12767,10 +12770,10 @@ const GVD={inbox:['Everything waiting for you','जो कुछ आपका �
 function gvScore(id){try{const rows=monthState(id,CUR_P).rows.filter(x=>x.r.state==='SCORED');if(!rows.length)return null;const mx=rows.reduce((a,x)=>a+x.k.max,0);return mx?Math.round(rows.reduce((a,x)=>a+(x.r.score||0),0)/mx*100):null}catch(e){return null}}
 function gvStreak(id){let n=0;try{for(let d=TODAY_D;d>=1;d--){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)n++;else if(r.st==='L'||r.half||(r.st==='A'&&d<TODAY_D))break}}catch(e){}return n}
 const gvRankC={};
-function gvRank(e){const k=[CUR_P,TODAY_S,e.division||0].join('|');if(gvRankC.k===k&&Date.now()-gvRankC.at<60000)return gvRankC.rows;
+function gvRank(e){const k=[CUR_P,TODAY_S,e.division||0].join('|'), c=gvRankC[k];if(c&&Date.now()-c.at<60000)return c.rows;
  const grp=DATA.emps.filter(x=>x.active&&(e.division?x.division===e.division:true));
  const rows=grp.map(x=>({id:x.id,name:x.name,s:gvScore(x.id)})).sort((a,b)=>(b.s==null?-1:b.s)-(a.s==null?-1:a.s)||(a.name<b.name?-1:1));
- Object.assign(gvRankC,{k,at:Date.now(),rows});return rows}
+ gvRankC[k]={at:Date.now(),rows};return rows}
 function gvMissions(){const id=me();let v=[],en=[];try{v=ibVirtual();en=lang==='en'?v:ibVEn()}catch(e){}
  const rows=v.map((x,i)=>{const l=en[i]&&en.length===v.length?IBL[id+'|'+ibKeyOf(en[i])]:null;return{title:x.title,due:l?l.due:(x.due||''),go:x.page+':'+(x.tab||'')}});
  try{ibStored().filter(t=>t.status==='Pending'&&!(t.kind==='notice'&&t.read[id])).forEach(t=>rows.push({title:t.title,due:ibTaskDue(t),go:'inbox:'}))}catch(e){}
@@ -12929,7 +12932,7 @@ function gvGeneric(m,d0){const pg=state.page, li=lang==='hi'?1:0, g=(window.GUID
   path=`<div class="gv-panel"><h3>${r?L('Where is your request now?','आपकी माँग अभी कहाँ है?'):L('How the work moves here','यहाँ काम कैसे चलता है')}${r?`<span class="gv-pill t">${esc(r.no)}</span>`:''}</h3>${gvPath(steps)}</div>`}
  const cards=[];const strip=[...m.querySelectorAll('.tabs')].find(x=>!x.closest('.gv-in'));
  if(strip&&g)[...strip.querySelectorAll('button')].forEach(b=>{const a=[...b.attributes].find(x=>x.name.startsWith('data-'));if(!a)return;const en=g.entries.find(e=>e.id===a.value);if(!en||!en.what)return;
-  cards.push({t:esc((b.childNodes[0]&&b.childNodes[0].nodeType===3?b.childNodes[0].nodeValue:b.textContent).replace(/\s*\(\d+\)\s*$/,'').trim()),d:esc(gvFirst(en.what[li])),b:b.classList.contains('on')?L('You are here','आप यहीं हैं'):L('Open','खोलें'),sel:`[${a.name}="${a.value}"]`,cur:b.classList.contains('on')})});
+  const ov=state.role==='employee'?GVEMP[pg+':'+a.value]:null;cards.push({t:esc((b.childNodes[0]&&b.childNodes[0].nodeType===3?b.childNodes[0].nodeValue:b.textContent).replace(/\s*\(\d+\)\s*$/,'').trim()),d:esc(ov?ov[li]:gvFirst(en.what[li])),b:b.classList.contains('on')?L('You are here','आप यहीं हैं'):L('Open','खोलें'),sel:`[${a.name}="${a.value}"]`,cur:b.classList.contains('on')})});
  const all=gvAll[pg]||cards.length<=8, show=all?cards:cards.slice(0,8);
  return path+(cards.length>1?`<div class="gv-cards">${show.map(c=>gvCard(c).replace('class="gv-card"',`class="gv-card${c.cur?' cur':''}"`)).join('')}</div>${cards.length>8?`<button class="gv-link" data-gvall>${all?L('Show fewer sections','कम हिस्से दिखाएँ'):`${L('Show all sections','सभी हिस्से दिखाएँ')} (${cards.length})`}</button>`:''}`:'')}
 gvModule=function(m){const pg=state.page;if(pg==='dashboard'||state.role==='platform')return;let h='';try{h=(GVMOD[pg]||gvGeneric)(m)}catch(e){console.warn('game view module',e);return}if(!h)return;
@@ -12978,7 +12981,25 @@ function gvBadgeUI(id,e){const bs=gvBadges(id), g=GV.get(), mk=curMk(), have=bs.
 .gv-celc{background:#0d3437;color:#fff;border:3px solid #f2c04e;border-radius:22px;padding:26px 34px;text-align:center;max-width:88vw;animation:gvpop .45s cubic-bezier(.2,1.6,.4,1)}.gv-celc span{display:block;font-size:44px;color:#f2c04e;line-height:1}.gv-celc b{display:block;font-size:22px;margin:8px 0 4px}.gv-celc small{color:#b9d6d1;font-size:13px}
 @keyframes gvfall{to{transform:translateY(110vh) rotate(540deg)}}@keyframes gvpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){.gv-celc{animation:none}.gv-node:hover .gv-tile{transform:rotate(45deg)}}`;document.head.appendChild(st)}
-{const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
+/* ---------- Game view: the choice is kept with the person on the server (GVP), badges of the month are kept for HR (BDG), employee wording of some cards ---------- */
+function gvSnapOne(id){const keys=gvBadges(id).filter(b=>b.on).map(b=>b.k), k=id+'|'+curMk(), o=BDG[k];if(!o||o.d!==TODAY_S||(o.keys||[]).join()!==keys.join())BDG[k]={emp:id,mk:curMk(),keys,d:TODAY_S};return keys}
+let gvSnapDay='';
+function gvSnapAll(){try{if(!canManage()||gvSnapDay===TODAY_S)return;if(typeof LIVE!=='undefined'&&(!LIVE.on||LIVE.platform||LIVE.refreshing))return;gvSnapDay=TODAY_S;
+ const mk=curMk(), emps=DATA.emps.filter(e=>e.active);if(emps.length>150||Object.keys(BDG).some(k=>BDG[k]&&BDG[k].mk===mk&&BDG[k].d===TODAY_S))return;emps.forEach(e=>{try{gvSnapOne(e.id)}catch(x){}})}catch(e){}}
+rp('pm_badges','pms','Badges of the month (employee-wise)','इस महीने के बैज (कर्मचारी-वार)','month','M',f=>{const mk=f.mk||curMk(), cur=mk===curMk(), emps=rActive(rptEmps(f)), defs=emps.length?gvBadges(emps[0].id):[];let any=cur;
+ const rows=emps.map(e=>{const rec=BDG[e.id+'|'+mk], keys=cur?(canManage()?gvSnapOne(e.id):gvBadges(e.id).filter(b=>b.on).map(b=>b.k)):(rec?rec.keys:null);if(keys)any=true;
+  return[e.code,e.name,...defs.map(d=>keys?(keys.includes(d.k)?L('Yes','हाँ'):''):'—'),keys?keys.length:'',cur?TODAY_S:(rec?rec.d:'')]});
+ return{cols:[L('Code','कोड'),L('Name','नाम'),...defs.map(d=>L(...d.n)),L('Badges','बैज'),L('As on','किस दिन तक')],rows,note:any?'':L('No badges were saved for this month. They are saved when Admin or HR opens Mirror-HR in that month.','इस महीने के बैज सेव नहीं हुए। ये तब सेव होते हैं जब Admin या HR उस महीने Mirror-HR खोलते हैं।')}});
+SCHEDJOBS.push(['Save the badges of the month for every employee','हर कर्मचारी के इस महीने के बैज सेव करें',()=>{let n=0;DATA.emps.filter(e=>e.active).forEach(e=>{try{gvSnapOne(e.id);n++}catch(x){}});return n}]);
+const GVEMP={'payroll:earned':['What your salary structure promised, what you earned in the month and why they differ (absence, KPI).','आपके सैलरी स्ट्रक्चर में क्या तय था, महीने में आपने क्या कमाया और फ़र्क़ क्यों है (अनुपस्थिति, KPI)।'],
+ 'payroll:adv':['Ask for part of your salary in advance; it is repaid in installments from your coming salaries.','अपनी सैलरी का कुछ हिस्सा एडवांस में माँगें; यह आने वाली सैलरी से किस्तों में कटता है।'],
+ 'training:ind':['Your induction plan as a new joiner: what HR, your manager and you must do, and the progress.','नए व्यक्ति के रूप में आपका इंडक्शन प्लान: HR, आपके मैनेजर और आपको क्या करना है, और कितना हो चुका।'],
+ 'training:hist':['Your training record: assigned, attended, excused, absent and your average test percentage.','आपका ट्रेनिंग रिकॉर्ड: असाइन, शामिल, छूट, अनुपस्थित और आपका औसत टेस्ट प्रतिशत।'],
+ 'pms:audit':['Your KPIs that an auditor scores against a checklist, with the result and the score.','आपकी वे KPI जिन्हें ऑडिटर चेकलिस्ट से स्कोर करता है, नतीजे और स्कोर के साथ।'],
+ 'pms:survey':['Surveys about a manager that you are invited to answer.','मैनेजर के बारे में वे सर्वे जिनका जवाब देने के लिए आपको बुलाया गया है।'],
+ 'pms:recog':['Appreciation you received: the type, the title, the points and who gave it.','आपको मिली सराहना: प्रकार, शीर्षक, पॉइंट और किसने दी।'],
+ 'support:fb':['Rate a ticket of yours after it is resolved.','अपनी टिकट हल होने के बाद उसकी रेटिंग दें।']};
+{const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);if(gvSnapDay!==TODAY_S&&canManage())setTimeout(gvSnapAll,4000);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
