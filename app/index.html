@@ -12784,12 +12784,13 @@ function gvHome(){
  const tile=(n,col)=>`<button class="gv-node" data-gvgo="${n.id}:"><span class="gv-tile" style="background:${col}">${cnt[n.id]?`<i class="gv-cnt">${cnt[n.id]}</i>`:''}${svg(n.ic)}</span><b>${t(n.id)}</b><small>${GVD[n.id]?L(...GVD[n.id]):''}</small></button>`;
  let zones='';GVZ.forEach(([en,hi,col,ids])=>{const ns=ids.map(i=>vis.find(n=>n.id===i)).filter(Boolean);ns.forEach(n=>used.add(n.id));if(ns.length)zones+=`<div class="gv-zone"><div class="gv-zh">${L(en,hi)}</div><div class="gv-row">${ns.map(n=>tile(n,col)).join('')}</div></div>`});
  const rest=vis.filter(n=>!used.has(n.id));if(rest.length)zones+=`<div class="gv-zone"><div class="gv-zh">${L('More','और')}</div><div class="gv-row">${rest.map(n=>tile(n,'#5d6d7e')).join('')}</div></div>`;
- const rank=gvRank(e), dock=[['attendance:',L('Punch in / out','पंच इन / आउट'),1],['leave:',L('Apply for leave','छुट्टी लगाएँ')],['payroll:mine',L('Payslip','पे-स्लिप')],['support:',L('Raise a ticket','टिकट बनाएँ')],['inbox:',L('Inbox','इनबॉक्स')]].filter(d=>can(d[0].split(':')[0],'V'));
+ const rank=gvRank(e), bd=gvBadgeUI(id,e);gvHome.bl=bd.list;const dock=[['attendance:',L('Punch in / out','पंच इन / आउट'),1],['leave:',L('Apply for leave','छुट्टी लगाएँ')],['payroll:mine',L('Payslip','पे-स्लिप')],['support:',L('Raise a ticket','टिकट बनाएँ')],['inbox:',L('Inbox','इनबॉक्स')]].filter(d=>can(d[0].split(':')[0],'V'));
  return `<div class="gv gv-${skin}">
  <div class="gv-hud"><div class="gv-chip"><div class="gv-av">${esc((e.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())}</div><div><b>${esc(e.name||'')}</b><small>${L('Level','लेवल')} ${e.level||1} · ${esc(nm('desigs',e.desig)||'')}</small></div></div>
   <div class="gv-chip"><div><small>${L('KPI score this month, so far','इस महीने का KPI स्कोर, अब तक')}</small><div class="gv-barrow"><div class="gv-bar"><i style="width:${sc==null?0:sc}%"></i></div><b class="gv-acc">${sc==null?'—':sc+' / 100'}</b></div></div></div>
   <div class="gv-chip"><b class="gv-acc gv-big">${st}</b><div>${L('days in a row','दिन लगातार')}<small>${L('on time this month','इस महीने समय पर')}</small></div></div>
   <div class="gv-chip"><b class="gv-acc gv-big">${ms.length}</b><div>${L('missions waiting','मिशन बाकी')}<small>${over?`${over} ${L('overdue','का समय निकल गया')}`:L('none overdue','कोई देर नहीं')}</small></div></div>
+  <button class="gv-chip" data-gvbadge><b class="gv-acc gv-big">${bd.n}</b><div style="text-align:left">${L('badges','बैज')}<small>${L('of','में से')} ${bd.tot} ${L('this month','इस महीने')}</small></div></button>
   <div class="gv-sp"></div>
   <div class="gv-chip gv-skins"><small>${L('Colour','रंग')}</small><button data-gvskin="night" class="${skin==='night'?'on':''}" title="Teal Night + Gold" style="background:linear-gradient(135deg,#0a2c2f 50%,#f2c04e 50%)"></button><button data-gvskin="day" class="${skin==='day'?'on':''}" title="Sky Day + Coral" style="background:linear-gradient(135deg,#dff1ff 50%,#ff7a45 50%)"></button></div>
   <button class="gv-chip gv-btn" data-gvoff>${L('Classic view','क्लासिक व्यू')}</button></div>
@@ -12799,12 +12800,13 @@ function gvHome(){
    ${ms.length>7?`<button class="gv-link" data-gvgo="inbox:">${L('See all','सब देखें')} (${ms.length})</button>`:''}
    <p class="gv-mut">${L('Missions are your Inbox. Finish each one before its last date.','मिशन आपका इनबॉक्स हैं। हर एक को उसकी आख़िरी तारीख़ से पहले पूरा करें।')}</p></div>
   <div class="gv-map">${zones}</div>
-  <div class="gv-panel"><h3>${e.division?esc(nm('divisions',e.division)||''):L('Company','कंपनी')} · ${L('ranking','रैंकिंग')}<small>${L('KPI so far','KPI अब तक')}</small></h3>
-   <div class="gv-rank">${rank.map((r,i)=>`<div class="gv-rr ${r.id===id?'me':''}"><i class="${i<3&&r.s!=null?'top':''}">${i+1}</i><span>${esc(r.name)}${r.id===id?` (${L('you','आप')})`:''}</span><b>${r.s==null?'—':r.s}</b></div>`).join('')}</div></div>
+  <div><div class="gv-panel"><h3>${e.division?esc(nm('divisions',e.division)||''):L('Company','कंपनी')} · ${L('ranking','रैंकिंग')}<small>${L('KPI so far','KPI अब तक')}</small></h3>
+   <div class="gv-rank">${rank.map((r,i)=>`<div class="gv-rr ${r.id===id?'me':''}"><i class="${i<3&&r.s!=null?'top':''}">${i+1}</i><span>${esc(r.name)}${r.id===id?` (${L('you','आप')})`:''}</span><b>${r.s==null?'—':r.s}</b></div>`).join('')}</div></div>${bd.html}</div>
  </div>
  <div class="gv-dock">${dock.map(d=>`<button data-gvgo="${d[0]}" class="${d[2]?'go':''}">${d[1]}</button>`).join('')}<button data-gvask>${L('Ask HR Assistant','HR Assistant से पूछें')}</button></div></div>`}
 function gvBind(root){root.querySelectorAll('[data-gvgo]').forEach(b=>b.onclick=()=>{const [p,tb]=b.dataset.gvgo.split(':');goTo(p,tb)});
  root.querySelectorAll('[data-gvskin]').forEach(b=>b.onclick=()=>{GV.set({skin:b.dataset.gvskin});render()});
+ root.querySelectorAll('[data-gvbadge]').forEach(b=>b.onclick=()=>{if(gvHome.bl)gvHome.bl()});
  root.querySelectorAll('[data-gvoff]').forEach(b=>b.onclick=()=>{GV.set({on:false});render()});
  root.querySelectorAll('[data-gvask]').forEach(b=>b.onclick=()=>{const f=document.getElementById('psFab');if(f)f.click();else toast(L('HR Assistant is not switched on for your company','आपकी कंपनी के लिए HR Assistant चालू नहीं है'))})}
 function gvAfter(){const app=document.getElementById('app'), m=document.getElementById('main');if(!app||!m)return;
@@ -12944,6 +12946,38 @@ gvModule=function(m){const pg=state.page;if(pg==='dashboard'||state.role==='plat
 .gv.gv-in.gv-hid{padding:8px 14px}.gv-hid .gv-mh{margin:0;align-items:center}.gv-hid .gv-mh b{font-size:14px}
 .gv-card.cur{outline:2px solid var(--ga);outline-offset:-2px}.gv-card.cur button{background:var(--gc);color:var(--gm)!important;border:1px solid var(--gl)}
 .gv-in .gv-st b{font-weight:600}.gv-in .gv-link{margin-top:8px}`;document.head.appendChild(st)}
+/* ---------- Game view (part 3): badges of the month from the real records, and a short celebration for a new badge or a new career level ---------- */
+const GVBI={time:'M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z',full:'M22 11.1V12a10 10 0 11-5.9-9.1M22 4L12 14l-3-3',fire:'M13 2L3 14h9l-1 8 10-12h-9l1-8z',inbox:'M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.5-6.9A2 2 0 0016.8 4H7.2a2 2 0 00-1.7 1.1z',kpi:'M12 22a10 10 0 100-20 10 10 0 000 20zM12 18a6 6 0 100-12 6 6 0 000 12zM12 14a2 2 0 100-4 2 2 0 000 4z',top:'M12 15a7 7 0 100-14 7 7 0 000 14zM8.2 13.9L7 23l5-3 5 3-1.2-9.1',learn:'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z'};
+function gvBadges(id){const e=empById(id)||{};let pres=0,late=0,abs=0;
+ try{for(let d=1;d<=TODAY_D;d++){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)pres++;else if(r.st==='L'){pres++;late++}else if(r.half){pres++;abs+=.5}else if(r.st==='A'&&d<TODAY_D)abs++}}catch(x){}
+ let ib={ok:0,late:0,over:0};try{ib=ibStat(id,curMk(),true)}catch(x){}
+ const sc=gvScore(id), st=gvStreak(id);let pos=0,n=0;try{const rk=gvRank(e);n=rk.length;const i=rk.findIndex(r=>r.id===id);pos=i>=0&&rk[i].s!=null?i+1:0}catch(x){}
+ let cert=0;try{cert=SLCERT.filter(c=>c.emp===id&&String(c.date).slice(0,7)===curMk()).length}catch(x){}
+ return[
+  {k:'time',n:['On time','समय का पक्का'],how:['No late day this month, with at least 5 days present','इस महीने एक भी दिन देर नहीं, कम से कम 5 दिन उपस्थित'],on:pres>=5&&late===0,p:`${pres} ${L('days present','दिन उपस्थित')} · ${late} ${L('late','देर')}`},
+  {k:'full',n:['Full attendance','पूरी हाज़िरी'],how:['No absent day this month, with at least 5 days present','इस महीने एक भी दिन अनुपस्थित नहीं, कम से कम 5 दिन उपस्थित'],on:pres>=5&&abs===0,p:`${abs} ${L('absent','अनुपस्थित')}`},
+  {k:'fire',n:['7-day streak','7 दिन लगातार'],how:['7 working days in a row on time this month','इस महीने लगातार 7 कार्य दिन समय पर'],on:st>=7,p:`${st} / 7`},
+  {k:'inbox',n:['Inbox hero','इनबॉक्स हीरो'],how:['At least 3 Inbox items finished this month and none late or overdue','इस महीने कम से कम 3 इनबॉक्स आइटम पूरे और कोई देर से या बाकी नहीं'],on:ib.ok>=3&&ib.late+ib.over===0,p:`${ib.ok} ${L('on time','समय पर')} · ${ib.late+ib.over} ${L('late','देर')}`},
+  {k:'kpi',n:['KPI 90+','KPI 90+'],how:['KPI score of the month so far is 90 or more','इस महीने का अब तक का KPI स्कोर 90 या ज़्यादा'],on:sc!=null&&sc>=90,p:sc==null?'—':`${sc} / 100`},
+  {k:'top',n:['Top 3','टॉप 3'],how:['In the first three of your division ranking (4 or more people)','अपने डिवीज़न की रैंकिंग में पहले तीन में (4 या ज़्यादा लोग)'],on:n>=4&&pos>0&&pos<=3,p:pos?`${L('rank','रैंक')} ${pos} / ${n}`:'—'},
+  {k:'learn',n:['Learner','सीखने वाला'],how:['A course certificate earned this month','इस महीने एक कोर्स सर्टिफ़िकेट मिला'],on:cert>0,p:`${cert} ${L('certificate(s)','सर्टिफ़िकेट')}`}]}
+function gvCelebrate(title,sub){try{document.querySelectorAll('.gv-cel').forEach(x=>x.remove());const d=document.createElement('div');d.className='gv-cel';
+ const still=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches, col=['#f2c04e','#3ddc97','#ff7a45','#2f80ed','#ff5d5d','#ffffff'];
+ d.innerHTML=(still?'':Array.from({length:44},(_,i)=>`<i style="left:${(i*37)%100}%;background:${col[i%6]};animation-delay:${(i%11)*.09}s;animation-duration:${2.2+(i%5)*.3}s;width:${6+i%4*2}px;height:${10+i%3*4}px"></i>`).join(''))+`<div class="gv-celc"><span>★</span><b>${title}</b><small>${sub||''}</small></div>`;
+ d.onclick=()=>d.remove();document.body.appendChild(d);setTimeout(()=>d.remove(),4500)}catch(e){}}
+function gvBadgeUI(id,e){const bs=gvBadges(id), g=GV.get(), mk=curMk(), have=bs.filter(b=>b.on).map(b=>b.k);
+ /* a celebration only for what is new since the last look in this browser; the first look only notes what is there */
+ try{if(!g.bd||g.bd.mk!==mk)GV.set({bd:{mk,keys:have}});else{const nw=bs.filter(b=>b.on&&!g.bd.keys.includes(b.k));if(nw.length){GV.set({bd:{mk,keys:[...new Set([...g.bd.keys,...have])]}});setTimeout(()=>gvCelebrate(`${L('New badge','नया बैज')}: ${nw.map(b=>L(...b.n)).join(', ')}`,nw.length===1?L(...nw[0].how):L('Press the badges to see how each one is earned','हर बैज कैसे मिलता है यह देखने के लिए बैज दबाएँ')),80)}}
+  const lv=+e.level||1;if(g.lv&&lv>g.lv)setTimeout(()=>gvCelebrate(`${L('Level up','लेवल बढ़ा')}: ${L('Level','लेवल')} ${lv}`,L('Your career level has moved up','आपका करियर लेवल ऊपर गया')),80);if(g.lv!==lv)GV.set({lv})}catch(x){}
+ return{n:have.length,tot:bs.length,html:`<div class="gv-panel" style="margin-top:16px"><h3>${L('Badges of the month','इस महीने के बैज')}<small>${have.length} / ${bs.length}</small></h3><div class="gv-bds">${bs.map(b=>`<button class="gv-bd ${b.on?'on':''}" data-gvbadge title="${esc(L(...b.how))}">${svg(GVBI[b.k])}<span>${L(...b.n)}</span></button>`).join('')}</div><button class="gv-link" data-gvbadge>${L('How to earn them','ये कैसे मिलते हैं')}</button></div>`,
+  list:()=>listModal(L('Badges of the month','इस महीने के बैज'),bs.map(b=>`<div class="grow"><b>${b.on?'★ ':''}${L(...b.n)}</b><small>${L(...b.how)} · ${L('now','अभी')}: ${b.p}</small></div><span class="pill ${b.on?'p-ok':'p-warn'}">${b.on?L('Earned','मिल गया'):L('Not yet','अभी नहीं')}</span>`))}}
+{const st=document.createElement('style');st.textContent=`
+.gv-bds{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}.gv-bd{background:none;border:0;padding:0;text-align:center;font-size:10.5px;line-height:1.25;opacity:.38;filter:grayscale(1)}
+.gv-bd svg{width:46px;height:46px;padding:11px;border-radius:50%;border:2px solid var(--gl);background:var(--gc);display:block;margin:0 auto 4px}.gv-bd.on{opacity:1;filter:none}.gv-bd.on svg{border-color:var(--ga);color:var(--ga);box-shadow:0 0 14px rgba(242,192,78,.35)}
+.gv-cel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(0,0,0,.45);overflow:hidden;cursor:pointer}.gv-cel i{position:absolute;top:-30px;border-radius:2px;animation:gvfall linear forwards}
+.gv-celc{background:#0d3437;color:#fff;border:3px solid #f2c04e;border-radius:22px;padding:26px 34px;text-align:center;max-width:88vw;animation:gvpop .45s cubic-bezier(.2,1.6,.4,1)}.gv-celc span{display:block;font-size:44px;color:#f2c04e;line-height:1}.gv-celc b{display:block;font-size:22px;margin:8px 0 4px}.gv-celc small{color:#b9d6d1;font-size:13px}
+@keyframes gvfall{to{transform:translateY(110vh) rotate(540deg)}}@keyframes gvpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.gv-celc{animation:none}.gv-node:hover .gv-tile{transform:rotate(45deg)}}`;document.head.appendChild(st)}
 {const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
