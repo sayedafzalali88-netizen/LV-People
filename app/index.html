@@ -1282,7 +1282,7 @@ function employeesPage(){
 }
 const RULES2={
  name:v=>v.trim()?'':'e_req', mobile:v=>/^[6-9]\d{9}$/.test(v)?'':'e_mobile', email:v=>/^\S+@\S+\.\S+$/.test(v)?'':'e_email',
- doj:v=>v?'':'e_req', branch:v=>v?'':'e_req', division:v=>v?'':'e_req', subdiv:v=>v?'':'e_req', dept:v=>v?'':'e_req', func:v=>v?'':'e_req', desig:v=>v?'':'e_req', level:v=>v?'':'e_req',
+ doj:v=>v?'':'e_req', branch:v=>v?'':'e_req', division:v=>v?'':'e_req', subdiv:v=>v?'':'e_req', dept:v=>v?'':'e_req', func:v=>v?'':'e_req', desig:v=>v?'':'e_req',
  pan:v=>!v||/^[A-Z]{5}\d{4}[A-Z]$/.test(v)?'':'e_pan', aadhaar:v=>!v||/^\d{12}$/.test(v)?'':'e_aadhaar', ifsc:v=>!v||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v)?'':'e_ifsc'
 };
 function empForm(id,back,draft,errs){
@@ -1306,7 +1306,7 @@ function empForm(id,back,draft,errs){
     <div><label>${t('gender')}</label><select class="inp" name="gender"><option value="M" ${e.gender==='M'?'selected':''}>${t('male')}</option><option value="F" ${e.gender==='F'?'selected':''}>${t('female')}</option><option value="O" ${e.gender==='O'?'selected':''}>${t('other')}</option></select></div></div>
    <div class="sec-t">${t('sec_job')}</div><div class="fgrid">
     ${inp('doj','doj','date')}${cas('func','fn1')}${cas('dept','dept')}${cas('branch','branch')}${cas('division','div1')}${cas('subdiv','sub1')}${cas('desig','desig')}
-    <div><label>${t('career_level')} *</label><select class="inp ${errs.level?'bad':''}" name="level"><option value="">—</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select>${er('level')}</div>
+    <div><label>${t('career_level')}</label><select class="inp" name="level"><option value="">${id?'—':L('Set later (salary structure)','बाद में तय होगा (सैलरी स्ट्रक्चर)')}</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select></div>
     ${emp('mgr','manager')}${emp('fm','fm')}${inp('ctc','ctc','number','min="0" step="1000"')}${ctcHint(e)}</div>
    ${id?`<div class="sec-t">${t('emp_status')}</div><div class="fgrid">
     <div><label>${t('emp_status')}</label><select class="inp" name="status">${['Working','Relieved','Abscond','Terminated'].map(s=>`<option value="${s}" ${e.status===s?'selected':''}>${t('st_'+s)}</option>`).join('')}</select></div>
@@ -1347,7 +1347,7 @@ function saveForm(form){
   } else {
     if(seatsFull()){toast(seatMsg());return}
     const e={id:Math.max(0,...DATA.emps.map(x=>+x.id||0))+1,code:takeEmpCode(),status:'Working',lwd:'',hist:[],...f};
-    if(SSTR[e.desig])e.lvlHist=[{from:'0000-00',lvl:e.level,desig:e.desig}];e.active=isActive(e);DATA.emps.push(e);audit('Employee','Add',`${e.code} ${e.name}`,'');
+    if(e.level&&SSTR[e.desig])e.lvlHist=[{from:'0000-00',lvl:e.level,desig:e.desig}];e.active=isActive(e);DATA.emps.push(e);audit('Employee','Add',`${e.code} ${e.name}`,'');
   }
   toast(t('saved'));state.view=null;render();
 }
@@ -8660,8 +8660,8 @@ function ckActModal(emp){const e=empById(emp), l=ACTS.filter(a=>a.emp&&ckActOk(a
 /* ---------- Imports ---------- */
 const CKB={text:'',res:null,file:''};
 /* Employee bulk upload: codes of the organization and of the managers. No CTC: the salary comes from the salary structure, and HR gets a task to set it */
-const CKH=['employee code','name','mobile','email','dob','gender','doj','function code','department code','branch code','division code','sub-division code','designation code','career level','reporting manager code','functional manager code'];
-const CKH_T=['Employee Code','Name','Mobile','Email','DOB','Gender','DOJ','Function Code','Department Code','Branch Code','Division Code','Sub-division Code','Designation Code','Career Level','Reporting Manager Code','Functional Manager Code'];
+const CKH=['employee code','name','mobile','email','dob','gender','doj','function code','department code','branch code','division code','sub-division code','designation code','reporting manager code','functional manager code'];
+const CKH_T=['Employee Code','Name','Mobile','Email','DOB','Gender','DOJ','Function Code','Department Code','Branch Code','Division Code','Sub-division Code','Designation Code','Reporting Manager Code','Functional Manager Code'];
 const reEsc=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const empCodeRule=c=>EMPCODE.mode==='numeric'?/^\d+$/.test(c):new RegExp('^'+reEsc(EMPCODE.prefix)+reEsc(EMPCODE.sep||'')+'\\d+$','i').test(c);
 const empCodeHint=()=>EMPCODE.mode==='numeric'?L('Employee code must be numbers only (like '+empCodeBuild(1)+')','कर्मचारी कोड सिर्फ़ अंक हो (जैसे '+empCodeBuild(1)+')'):L('Employee code must look like '+empCodeBuild(1)+' (letters and numbers, as set in Code series)','कर्मचारी कोड '+empCodeBuild(1)+' जैसा हो (अक्षर और अंक, Code series के अनुसार)');
@@ -8678,28 +8678,28 @@ function ckBulkParse(text){const lines=text.replace(/\r/g,'').split('\n').filter
   if(mob.has(c[2]))return er(L('This mobile is already used','यह मोबाइल पहले से है'));if(mail.has(c[3].toLowerCase()))return er(L('This email is already used','यह ईमेल पहले से है'));
   const dob=c[4]?pd(c[4]):'';if(c[4]&&!dob)return er(L('DOB must be DD/MM/YYYY','DOB DD/MM/YYYY में हो'));const doj=pd(c[6]);if(!doj)return er(L('DOJ must be DD/MM/YYYY','DOJ DD/MM/YYYY में हो'));if(doj>addD(TODAY_S,60))return er(L('DOJ is too far ahead','DOJ बहुत आगे है'));
   const g=(c[5]||'').toUpperCase();if(!['M','F','O'].includes(g))return er(L('Gender must be M, F or O','लिंग M, F या O हो'));
-  const fn=byCode('functions',c[7]), dp=byCode('depts',c[8]), br=byCode('branches',c[9]), dv=byCode('divisions',c[10]), sd0=byCode('subdivs',c[11]), ds2=byCode('desigs',c[12]), lv=DATA.levels.find(x=>String(x.name).toLowerCase()===(c[13]||'').toLowerCase());
-  if(!fn)return er(L('Function code not found: ','फ़ंक्शन कोड नहीं मिला: ')+(c[7]||'—'));if(!dp)return er(L('Department code not found: ','डिपार्टमेंट कोड नहीं मिला: ')+(c[8]||'—'));if(!br)return er(L('Branch code not found: ','ब्रांच कोड नहीं मिला: ')+(c[9]||'—'));if(!dv)return er(L('Division code not found: ','डिवीज़न कोड नहीं मिला: ')+(c[10]||'—'));if(!sd0)return er(L('Sub-division code not found: ','सब-डिवीज़न कोड नहीं मिला: ')+(c[11]||'—'));if(!ds2)return er(L('Designation code not found: ','पद कोड नहीं मिला: ')+(c[12]||'—'));if(!lv)return er(L('Career level not found','करियर लेवल नहीं मिला'));
+  const fn=byCode('functions',c[7]), dp=byCode('depts',c[8]), br=byCode('branches',c[9]), dv=byCode('divisions',c[10]), sd0=byCode('subdivs',c[11]), ds2=byCode('desigs',c[12]);
+  if(!fn)return er(L('Function code not found: ','फ़ंक्शन कोड नहीं मिला: ')+(c[7]||'—'));if(!dp)return er(L('Department code not found: ','डिपार्टमेंट कोड नहीं मिला: ')+(c[8]||'—'));if(!br)return er(L('Branch code not found: ','ब्रांच कोड नहीं मिला: ')+(c[9]||'—'));if(!dv)return er(L('Division code not found: ','डिवीज़न कोड नहीं मिला: ')+(c[10]||'—'));if(!sd0)return er(L('Sub-division code not found: ','सब-डिवीज़न कोड नहीं मिला: ')+(c[11]||'—'));if(!ds2)return er(L('Designation code not found: ','पद कोड नहीं मिला: ')+(c[12]||'—'));
   if(!orgOk({func:fn.id,dept:dp.id,branch:br.id,division:dv.id,subdiv:sd0.id,desig:ds2.id}))return er(L('Function, department, branch, division, sub-division and designation do not belong together','फ़ंक्शन, विभाग, शाखा, डिवीज़न, सब-डिवीज़न और पद आपस में नहीं जुड़ते'));
-  const mc=(c[14]||'').toUpperCase(), fc=(c[15]||'').toUpperCase(), known=x=>DATA.emps.some(e=>String(e.code).toUpperCase()===x)||inFile.has(x);
+  const mc=(c[13]||'').toUpperCase(), fc=(c[14]||'').toUpperCase(), known=x=>DATA.emps.some(e=>String(e.code).toUpperCase()===x)||inFile.has(x);
   if(mc&&(mc===ec||!known(mc)))return er(L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+mc);
   if(fc&&(fc===ec||!known(fc)))return er(L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+fc);
   if(ok.some(x=>x.mobile===c[2]||x.email.toLowerCase()===c[3].toLowerCase()))return er(L('Repeated in this file','इस फ़ाइल में दोहराया'));
-  ok.push({code:ec,name:c[1],mobile:c[2],email:c[3],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sd0.id,dept:dp.id,func:fn.id,desig:ds2.id,level:lv.id,mgrCode:mc,fmCode:fc,row})});
+  ok.push({code:ec,name:c[1],mobile:c[2],email:c[3],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sd0.id,dept:dp.id,func:fn.id,desig:ds2.id,mgrCode:mc,fmCode:fc,row})});
  /* a manager must be a person already in the system or a row of this file that is ready; repeat until nothing changes */
  let list=ok.slice(), again=true;while(again){again=false;const have=new Set(list.map(x=>x.code).filter(Boolean)), exists=c=>DATA.emps.some(e=>String(e.code).toUpperCase()===c)||have.has(c);
   list=list.filter(x=>{const m=x.mgrCode&&!exists(x.mgrCode)?L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+x.mgrCode:x.fmCode&&!exists(x.fmCode)?L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+x.fmCode:'';if(m){bad.push({row:x.row,msg:m});again=true;return false}return true})}
  bad.sort((a,b)=>a.row-b.row);return{ok:list,bad}}
 /* the template and the list of master codes are made from the data of this company */
 function ckTplRows(){const e=DATA.emps.find(x=>x.func&&x.dept&&x.branch&&x.division&&x.subdiv&&x.desig)||{}, cd=(k,id)=>((DATA[k].find(x=>x.id==id)||{}).code||'');
- return [CKH_T,['','Asha Rao','9876543210','asha@example.com','14/05/1998','F','01/11/2026',cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),nm('levels',e.level)||'',(DATA.emps[0]||{}).code||'','']]}
+ return [CKH_T,['','Asha Rao','9876543210','asha@example.com','14/05/1998','F','01/11/2026',cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),(DATA.emps[0]||{}).code||'','']]}
 function ckMasterRows(){const rows=[['Type','Code','Name','Under']], PK={depts:'functions',branches:'depts',divisions:'branches',subdivs:'divisions'}, par=(k,x)=>(x.parents||[]).map(i=>nm(PK[k],i)).join('; ');
  const T={functions:'Function',depts:'Department',branches:'Branch',divisions:'Division',subdivs:'Sub-division',desigs:'Designation'};
  Object.keys(T).forEach(k=>DATA[k].filter(x=>!x.off).forEach(x=>rows.push([T[k],x.code||'',x.name,k==='functions'?'':k==='desigs'?(x.divs||[]).map(i=>nm('divisions',i)).join('; '):par(k,x)])));
  DATA.levels.forEach(x=>rows.push(['Career Level',x.name,x.name,'']));DATA.emps.filter(e=>e.active).forEach(e=>rows.push(['Employee',e.code,e.name,'']));return rows}
 /* a task for HR: set the salary structure of every designation and level that has people but no structure */
-INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&e.level&&!splitFor(+e.desig,+e.level,0)).forEach(e=>{const k=e.desig+'|'+e.level;(g[k]=g[k]||[]).push(e)});
- Object.keys(g).forEach(k=>{const a=g[k], e=a[0];ibAdd(out,{kind:'salstr',title:`${L('Set the salary structure','सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${nm('levels',e.level)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'struct'})})});
+INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&(!e.level||!splitFor(+e.desig,+e.level,0))).forEach(e=>{const k=e.desig+'|'+(e.level||0);(g[k]=g[k]||[]).push(e)});
+ Object.keys(g).forEach(k=>{const a=g[k], e=a[0], noLvl=!e.level;ibAdd(out,{kind:'salstr',title:noLvl?`${L('Set the career level and salary structure','करियर लेवल और सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`:`${L('Set the salary structure','सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${nm('levels',e.level)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'struct'})})});
 KINDL.salstr=['Salary','सैलरी'];
 function ckImports(){const E=can('ck_imp','E'), r=CKB.res, last=(a)=>a&&a[0]?` · ${L('last','आख़िरी')}: ${a[0].at}`:'';
  const card=(ic,en,hi,desc,btn,go)=>`<div class="card"><h3>${ic} ${L(en,hi)}</h3><p style="font-size:13px;color:var(--muted);min-height:48px">${desc}</p>${E?`<button class="btn btn-o btn-s" data-ckimp="${go}">${btn}</button>`:''}</div>`;
