@@ -403,3 +403,9 @@ KPIs: map KPI-223 (Claims within TAT) to Auto; new KPIs agreed: on-time advance 
 - The Appearance tab's preview card is generic and needed no change; it builds itself from each look's own data.
 - Not built: bespoke decorative flourishes from the mockups (Warli dancing-figure border, paper torn edges, sand layers, watercolour blobs, clay inset shadows) beyond colour and corner/button shape — those were only built for the mockup images, not carried into the live app, since applying them by hand to every one of the ERP's screens is a much larger design pass. Login screen was not given special art treatment beyond the shared theme colours it already inherits.
 
+## Forty-fifth List (13 Nov 2026) - Statutory assignment and onboarding both get Inbox tasks now
+- New Inbox task "Set the statutory assignment" (Payroll > Statutory assignment), grouped by designation like the salary-structure task, for every active employee with no statutory record yet (PF, ESIC, PT, TDS, LWF) -- fires the same way for bulk upload, + Add employee and recruitment hires.
+- New Inbox task "Complete onboarding" (Workforce > Onboarding) for a recent joiner (joined on or after 1 Sep 2026) who still has an onboarding step open other than salary or statutory (those two already have their own task above, so left out here): KYC, KPI, reporting manager, shift or appointment letter, named in the task title. The Onboarding checklist page itself is unchanged; this only adds a push notice for what used to be a pull-only tracker.
+- The user's reasoning: payroll cannot be processed for an employee with no statutory assignment, so this should not depend on HR remembering to open a tracker page.
+- Guide updated (Employees > Add or edit an employee, the note on the career-level/salary-structure task).
+

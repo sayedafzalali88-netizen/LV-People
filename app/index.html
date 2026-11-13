@@ -8701,6 +8701,15 @@ function ckMasterRows(){const rows=[['Type','Code','Name','Under']], PK={depts:'
 INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&(!e.level||!splitFor(+e.desig,+e.level,0))).forEach(e=>{const k=e.desig+'|'+(e.level||0);(g[k]=g[k]||[]).push(e)});
  Object.keys(g).forEach(k=>{const a=g[k], e=a[0], noLvl=!e.level;ibAdd(out,{kind:'salstr',title:noLvl?`${L('Set the career level and salary structure','करियर लेवल और सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`:`${L('Set the salary structure','सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${nm('levels',e.level)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'struct'})})});
 KINDL.salstr=['Salary','सैलरी'];
+/* a task for HR: set the statutory assignment (PF, ESIC, PT, TDS, LWF) of every employee who has none yet, by bulk upload, + Add employee or recruitment alike */
+INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&!statAt(e,curMk())).forEach(e=>(g[e.desig]=g[e.desig]||[]).push(e));
+ Object.keys(g).forEach(k=>{const a=g[+k], e=a[0];ibAdd(out,{kind:'stasg',title:`${L('Set the statutory assignment','स्टेट्यूटरी असाइनमेंट तय करें')}: ${nm('desigs',e.desig)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'stasg'})})});
+KINDL.stasg=['Statutory','स्टेट्यूटरी'];
+/* a task for HR: every other onboarding step still open for a recent joiner (salary and statutory already have their own task above, so they are left out here) */
+INBOX_SRC.push((id,out)=>{if(!canManage())return;onbJoiners().forEach(e=>{const s=onbStatus(e);if(s.done)return;
+ const rest=s.items.filter(i=>!s.o[i.check]&&!['salary','statutory'].includes(i.check));if(!rest.length)return;
+ ibAdd(out,{kind:'onb',title:`${L('Complete onboarding','ऑनबोर्डिंग पूरी करें')}: ${e.name} (${rest.map(i=>i.name).join(', ')})`,subject:e.id,page:'workforce',tab:'onb',due:s.dl})})});
+KINDL.onb=['Onboarding','ऑनबोर्डिंग'];
 function ckImports(){const E=can('ck_imp','E'), r=CKB.res, last=(a)=>a&&a[0]?` · ${L('last','आख़िरी')}: ${a[0].at}`:'';
  const card=(ic,en,hi,desc,btn,go)=>`<div class="card"><h3>${ic} ${L(en,hi)}</h3><p style="font-size:13px;color:var(--muted);min-height:48px">${desc}</p>${E?`<button class="btn btn-o btn-s" data-ckimp="${go}">${btn}</button>`:''}</div>`;
  return `<p style="color:var(--muted);font-size:13px;margin:6px 0">${L('Every import of the ERP in one place. Each opens its own screen with a template, a preview of the file and the history.','ERP के सारे इम्पोर्ट एक जगह। हर एक अपनी स्क्रीन खोलता है जिसमें टेम्पलेट, फ़ाइल का प्रीव्यू और इतिहास है।')}</p>
@@ -9737,7 +9746,8 @@ const IBKIND={
  'trn-done':['do','Mark the attendance','हाज़िरी दर्ज करें','Open and mark','खोलकर दर्ज करें'],test:['do','Take the test','टेस्ट दें','Take the test','टेस्ट दें'],fb:['do','Give your feedback','अपना फ़ीडबैक दें','Open and fill','खोलकर भरें'],iv:['do','Give interview feedback','इंटरव्यू फ़ीडबैक दें','Open and fill','खोलकर भरें'],
  ind:['do','Do the induction','इंडक्शन करें','Open','खोलें'],'ind-c':['do','Confirm the induction','इंडक्शन की पुष्टि करें','Confirm','पुष्टि करें'],'asg-c':['do','Confirm the task','टास्क की पुष्टि करें','Confirm','पुष्टि करें'],'alt-d':['do','Deliver the alteration','अल्टरेशन डिलीवर करें','Open and deliver','खोलकर दें'],
  'stk-r':['do','Give the reason','कारण बताएँ','Open and fill','खोलकर भरें'],'stk-v':['do','Check the count','गिनती जाँचें','Open and check','खोलकर जाँचें'],'sup-c':['do','Confirm the resolved ticket','हल हुई टिकट की पुष्टि करें','Confirm','पुष्टि करें'],learn:['do','Finish the course','कोर्स पूरा करें','Open the course','कोर्स खोलें'],
- xp:['do','Handle the expense','एक्सपेंस संभालें','Open','खोलें'],xt:['do','Take the exit interview','एक्ज़िट इंटरव्यू लें','Open and fill','खोलकर भरें'],ast:['do','Confirm the asset','एसेट की पुष्टि करें','Confirm','पुष्टि करें']};
+ xp:['do','Handle the expense','एक्सपेंस संभालें','Open','खोलें'],xt:['do','Take the exit interview','एक्ज़िट इंटरव्यू लें','Open and fill','खोलकर भरें'],ast:['do','Confirm the asset','एसेट की पुष्टि करें','Confirm','पुष्टि करें'],
+ stasg:['do','Assign PF, ESIC, PT, TDS, LWF','PF, ESIC, PT, TDS, LWF तय करें','Open and assign','खोलकर तय करें'],onb:['do','Complete the step','स्टेप पूरा करें','Open onboarding','ऑनबोर्डिंग खोलें']};
 function ibClass(r){const en=r.en||'';
  if(r.kind==='wf')return{g:'decide',v:['Approve or reject','मंज़ूर या अस्वीकार'],b:['Details','विवरण']};
  if(r.kind==='notice'||/^Notice/.test(en)||/^Approved, waiting/.test(en))return{g:'info',v:['Information','जानकारी'],b:['Open','खोलें']};
