@@ -38,7 +38,7 @@ select,input{font:inherit;color:inherit}
 label{display:block;font-weight:500;font-size:13px;margin:14px 0 6px}
 .inp{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
 .inp:focus{outline:2px solid var(--teal);outline-offset:0;border-color:var(--teal)}
-.btn{padding:10px 16px;border-radius:9px;font-weight:600;transition:.15s}
+.btn{padding:10px 16px;border-radius:var(--rb,9px);font-weight:600;transition:.15s}
 .btn-p{background:var(--teal);color:#fff}.btn-p:hover{background:var(--teal-d)}
 .btn-o{border:1px solid var(--line);background:var(--card)}.btn-o:hover{border-color:var(--teal);color:var(--teal)}
 .btn-w{width:100%;margin-top:20px}
@@ -1283,7 +1283,7 @@ function employeesPage(){
 }
 const RULES2={
  name:v=>v.trim()?'':'e_req', mobile:v=>/^[6-9]\d{9}$/.test(v)?'':'e_mobile', email:v=>/^\S+@\S+\.\S+$/.test(v)?'':'e_email',
- doj:v=>v?'':'e_req', branch:v=>v?'':'e_req', division:v=>v?'':'e_req', subdiv:v=>v?'':'e_req', dept:v=>v?'':'e_req', func:v=>v?'':'e_req', desig:v=>v?'':'e_req', level:v=>v?'':'e_req',
+ doj:v=>v?'':'e_req', branch:v=>v?'':'e_req', division:v=>v?'':'e_req', subdiv:v=>v?'':'e_req', dept:v=>v?'':'e_req', func:v=>v?'':'e_req', desig:v=>v?'':'e_req',
  pan:v=>!v||/^[A-Z]{5}\d{4}[A-Z]$/.test(v)?'':'e_pan', aadhaar:v=>!v||/^\d{12}$/.test(v)?'':'e_aadhaar', ifsc:v=>!v||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v)?'':'e_ifsc'
 };
 function empForm(id,back,draft,errs){
@@ -1307,7 +1307,7 @@ function empForm(id,back,draft,errs){
     <div><label>${t('gender')}</label><select class="inp" name="gender"><option value="M" ${e.gender==='M'?'selected':''}>${t('male')}</option><option value="F" ${e.gender==='F'?'selected':''}>${t('female')}</option><option value="O" ${e.gender==='O'?'selected':''}>${t('other')}</option></select></div></div>
    <div class="sec-t">${t('sec_job')}</div><div class="fgrid">
     ${inp('doj','doj','date')}${cas('func','fn1')}${cas('dept','dept')}${cas('branch','branch')}${cas('division','div1')}${cas('subdiv','sub1')}${cas('desig','desig')}
-    <div><label>${t('career_level')} *</label><select class="inp ${errs.level?'bad':''}" name="level"><option value="">—</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select>${er('level')}</div>
+    <div><label>${t('career_level')}</label><select class="inp" name="level"><option value="">${id?'—':L('Set later (salary structure)','बाद में तय होगा (सैलरी स्ट्रक्चर)')}</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select></div>
     ${emp('mgr','manager')}${emp('fm','fm')}${inp('ctc','ctc','number','min="0" step="1000"')}${ctcHint(e)}</div>
    ${id?`<div class="sec-t">${t('emp_status')}</div><div class="fgrid">
     <div><label>${t('emp_status')}</label><select class="inp" name="status">${['Working','Relieved','Abscond','Terminated'].map(s=>`<option value="${s}" ${e.status===s?'selected':''}>${t('st_'+s)}</option>`).join('')}</select></div>
@@ -1348,7 +1348,7 @@ function saveForm(form){
   } else {
     if(seatsFull()){toast(seatMsg());return}
     const e={id:Math.max(0,...DATA.emps.map(x=>+x.id||0))+1,code:takeEmpCode(),status:'Working',lwd:'',hist:[],...f};
-    if(SSTR[e.desig])e.lvlHist=[{from:'0000-00',lvl:e.level,desig:e.desig}];e.active=isActive(e);DATA.emps.push(e);audit('Employee','Add',`${e.code} ${e.name}`,'');
+    if(e.level&&SSTR[e.desig])e.lvlHist=[{from:'0000-00',lvl:e.level,desig:e.desig}];e.active=isActive(e);DATA.emps.push(e);audit('Employee','Add',`${e.code} ${e.name}`,'');
   }
   toast(t('saved'));state.view=null;render();
 }
@@ -5314,7 +5314,7 @@ INBOX_SRC.push((id,out)=>{
   SRC.tsess.length&&stockOwners(CUR_P).forEach(e=>{if((SMAP[e.id]||[]).includes(id)&&!SREV[e.id+'|'+id+'|'+CUR_P])ibAdd(out,{kind:'stock',title:L('Stock ageing review','स्टॉक एजिंग रिव्यू'),subject:e.id,page:'stock',tab:'tasks'})});
   RC.iv.filter(x=>x.st==='Scheduled'&&x.interviewer===id&&x.date<=TODAY_S).forEach(x=>ibAdd(out,{kind:'iv',title:`${L('Interview feedback','इंटरव्यू फ़ीडबैक')}: ${candById(x.cand).name}`,subject:0,page:'recruit',tab:'int',due:x.date}));
 });
-function ibVirtual(){const id=me();if(!id)return [];const out=[];INBOX_SRC.forEach(f=>{try{f(id,out)}catch(e){}});return out.filter(x=>can(x.page,'V'))}
+function ibVirtual(){const id=me();if(!id)return [];const out=[];INBOX_SRC.forEach(f=>{try{f(id,out)}catch(e){ibVirtual.bad=true}});return out.filter(x=>can(x.page,'V'))}
 const ibStored=()=>TASKS.filter(t=>t.to.includes(me()));
 const ibPendingCount=()=>{if(state.role==='platform'||!me())return 0;try{return ibVirtual().length+ibStored().filter(t=>t.status==='Pending'&&!(t.kind==='notice'&&t.read[me()])).length}catch(e){return 0}};
 const TABKEY={pms:'pmtab',payroll:'paytab',marketing:'mxtab',training:'tntab',recruit:'rctab',crm:'crtab',decision:'dtab',library:'libtab',workforce:'wftab',stock:'sttab'};
@@ -5378,10 +5378,10 @@ bindExtra=function(){
   _bindExtra20();
   const m=$('#main'), on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
   on('[data-ibtab]',b=>b.onclick=()=>{state.ibtab=b.dataset.ibtab;render()});on('[data-ibf]',b=>b.onclick=()=>{state.ibf=b.dataset.ibf;render()});
-  on('[data-ibgo]',b=>b.onclick=()=>{const [p,tb]=b.dataset.ibgo.split(':');if(b.dataset.ibread1){const t_=TASKS.find(x=>x.id==b.dataset.ibread1);if(t_)t_.read[me()]=true}goTo(p,tb)});
+  on('[data-ibgo]',b=>b.onclick=()=>{const [p,tb]=b.dataset.ibgo.split(':');if(b.dataset.ibread1){const t_=TASKS.find(x=>x.id==b.dataset.ibread1);if(t_&&!t_.read[me()])t_.read[me()]=TODAY_S}goTo(p,tb)});
   on('[data-ibwf]',b=>b.onclick=()=>wfTaskModal(+b.dataset.ibwf));
-  on('[data-ibdone]',b=>b.onclick=()=>{const t_=TASKS.find(x=>x.id==b.dataset.ibdone);if(t_&&t_.status==='Pending'&&t_.kind==='notice'){t_.status='Completed';t_.read[me()]=true;t_.log.push({at:TODAY_S,by:nm_(me()),act:'Done'});render()}});
-  on('[data-ibread]',b=>b.onclick=()=>{ibStored().filter(t_=>t_.kind==='notice').forEach(t_=>{t_.read[me()]=true;t_.status='Completed'});render()});
+  on('[data-ibdone]',b=>b.onclick=()=>{const t_=TASKS.find(x=>x.id==b.dataset.ibdone);if(t_&&t_.status==='Pending'&&t_.kind==='notice'){t_.status='Completed';if(typeof t_.read[me()]!=='string')t_.read[me()]=TODAY_S;t_.log.push({at:TODAY_S,by:nm_(me()),act:'Done'});render()}});
+  on('[data-ibread]',b=>b.onclick=()=>{ibStored().filter(t_=>t_.kind==='notice'&&t_.status==='Pending').forEach(t_=>{if(typeof t_.read[me()]!=='string')t_.read[me()]=TODAY_S;t_.status='Completed';t_.log.push({at:TODAY_S,by:nm_(me()),act:'Read'})});render()});
   on('[data-ibinst]',b=>b.onclick=()=>instModal(+b.dataset.ibinst));
   on('[data-sched]',b=>b.onclick=()=>{const n=runJob(+b.dataset.sched);toast(`${n} ${L('new','नए')}`);render()});
   on('[data-schedall]',b=>b.onclick=()=>{let n=0;SCHEDJOBS.forEach((j,i)=>n+=runJob(i));toast(`${n} ${L('new','नए')}`);render()});
@@ -8662,8 +8662,8 @@ function ckActModal(emp){const e=empById(emp), l=ACTS.filter(a=>a.emp&&ckActOk(a
 /* ---------- Imports ---------- */
 const CKB={text:'',res:null,file:''};
 /* Employee bulk upload: codes of the organization and of the managers. No CTC: the salary comes from the salary structure, and HR gets a task to set it */
-const CKH=['employee code','name','mobile','email','dob','gender','doj','function code','department code','branch code','division code','sub-division code','designation code','career level','reporting manager code','functional manager code'];
-const CKH_T=['Employee Code','Name','Mobile','Email','DOB','Gender','DOJ','Function Code','Department Code','Branch Code','Division Code','Sub-division Code','Designation Code','Career Level','Reporting Manager Code','Functional Manager Code'];
+const CKH=['employee code','name','mobile','email','dob','gender','doj','function code','department code','branch code','division code','sub-division code','designation code','reporting manager code','functional manager code'];
+const CKH_T=['Employee Code','Name','Mobile','Email','DOB','Gender','DOJ','Function Code','Department Code','Branch Code','Division Code','Sub-division Code','Designation Code','Reporting Manager Code','Functional Manager Code'];
 const reEsc=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const empCodeRule=c=>EMPCODE.mode==='numeric'?/^\d+$/.test(c):new RegExp('^'+reEsc(EMPCODE.prefix)+reEsc(EMPCODE.sep||'')+'\\d+$','i').test(c);
 const empCodeHint=()=>EMPCODE.mode==='numeric'?L('Employee code must be numbers only (like '+empCodeBuild(1)+')','कर्मचारी कोड सिर्फ़ अंक हो (जैसे '+empCodeBuild(1)+')'):L('Employee code must look like '+empCodeBuild(1)+' (letters and numbers, as set in Code series)','कर्मचारी कोड '+empCodeBuild(1)+' जैसा हो (अक्षर और अंक, Code series के अनुसार)');
@@ -8680,29 +8680,38 @@ function ckBulkParse(text){const lines=text.replace(/\r/g,'').split('\n').filter
   if(mob.has(c[2]))return er(L('This mobile is already used','यह मोबाइल पहले से है'));if(mail.has(c[3].toLowerCase()))return er(L('This email is already used','यह ईमेल पहले से है'));
   const dob=c[4]?pd(c[4]):'';if(c[4]&&!dob)return er(L('DOB must be DD/MM/YYYY','DOB DD/MM/YYYY में हो'));const doj=pd(c[6]);if(!doj)return er(L('DOJ must be DD/MM/YYYY','DOJ DD/MM/YYYY में हो'));if(doj>addD(TODAY_S,60))return er(L('DOJ is too far ahead','DOJ बहुत आगे है'));
   const g=(c[5]||'').toUpperCase();if(!['M','F','O'].includes(g))return er(L('Gender must be M, F or O','लिंग M, F या O हो'));
-  const fn=byCode('functions',c[7]), dp=byCode('depts',c[8]), br=byCode('branches',c[9]), dv=byCode('divisions',c[10]), sd0=byCode('subdivs',c[11]), ds2=byCode('desigs',c[12]), lv=DATA.levels.find(x=>String(x.name).toLowerCase()===(c[13]||'').toLowerCase());
-  if(!fn)return er(L('Function code not found: ','फ़ंक्शन कोड नहीं मिला: ')+(c[7]||'—'));if(!dp)return er(L('Department code not found: ','डिपार्टमेंट कोड नहीं मिला: ')+(c[8]||'—'));if(!br)return er(L('Branch code not found: ','ब्रांच कोड नहीं मिला: ')+(c[9]||'—'));if(!dv)return er(L('Division code not found: ','डिवीज़न कोड नहीं मिला: ')+(c[10]||'—'));if(!sd0)return er(L('Sub-division code not found: ','सब-डिवीज़न कोड नहीं मिला: ')+(c[11]||'—'));if(!ds2)return er(L('Designation code not found: ','पद कोड नहीं मिला: ')+(c[12]||'—'));if(!lv)return er(L('Career level not found','करियर लेवल नहीं मिला'));
+  const fn=byCode('functions',c[7]), dp=byCode('depts',c[8]), br=byCode('branches',c[9]), dv=byCode('divisions',c[10]), sd0=byCode('subdivs',c[11]), ds2=byCode('desigs',c[12]);
+  if(!fn)return er(L('Function code not found: ','फ़ंक्शन कोड नहीं मिला: ')+(c[7]||'—'));if(!dp)return er(L('Department code not found: ','डिपार्टमेंट कोड नहीं मिला: ')+(c[8]||'—'));if(!br)return er(L('Branch code not found: ','ब्रांच कोड नहीं मिला: ')+(c[9]||'—'));if(!dv)return er(L('Division code not found: ','डिवीज़न कोड नहीं मिला: ')+(c[10]||'—'));if(!sd0)return er(L('Sub-division code not found: ','सब-डिवीज़न कोड नहीं मिला: ')+(c[11]||'—'));if(!ds2)return er(L('Designation code not found: ','पद कोड नहीं मिला: ')+(c[12]||'—'));
   if(!orgOk({func:fn.id,dept:dp.id,branch:br.id,division:dv.id,subdiv:sd0.id,desig:ds2.id}))return er(L('Function, department, branch, division, sub-division and designation do not belong together','फ़ंक्शन, विभाग, शाखा, डिवीज़न, सब-डिवीज़न और पद आपस में नहीं जुड़ते'));
-  const mc=(c[14]||'').toUpperCase(), fc=(c[15]||'').toUpperCase(), known=x=>DATA.emps.some(e=>String(e.code).toUpperCase()===x)||inFile.has(x);
+  const mc=(c[13]||'').toUpperCase(), fc=(c[14]||'').toUpperCase(), known=x=>DATA.emps.some(e=>String(e.code).toUpperCase()===x)||inFile.has(x);
   if(mc&&(mc===ec||!known(mc)))return er(L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+mc);
   if(fc&&(fc===ec||!known(fc)))return er(L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+fc);
   if(ok.some(x=>x.mobile===c[2]||x.email.toLowerCase()===c[3].toLowerCase()))return er(L('Repeated in this file','इस फ़ाइल में दोहराया'));
-  ok.push({code:ec,name:c[1],mobile:c[2],email:c[3],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sd0.id,dept:dp.id,func:fn.id,desig:ds2.id,level:lv.id,mgrCode:mc,fmCode:fc,row})});
+  ok.push({code:ec,name:c[1],mobile:c[2],email:c[3],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sd0.id,dept:dp.id,func:fn.id,desig:ds2.id,mgrCode:mc,fmCode:fc,row})});
  /* a manager must be a person already in the system or a row of this file that is ready; repeat until nothing changes */
  let list=ok.slice(), again=true;while(again){again=false;const have=new Set(list.map(x=>x.code).filter(Boolean)), exists=c=>DATA.emps.some(e=>String(e.code).toUpperCase()===c)||have.has(c);
   list=list.filter(x=>{const m=x.mgrCode&&!exists(x.mgrCode)?L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+x.mgrCode:x.fmCode&&!exists(x.fmCode)?L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+x.fmCode:'';if(m){bad.push({row:x.row,msg:m});again=true;return false}return true})}
  bad.sort((a,b)=>a.row-b.row);return{ok:list,bad}}
 /* the template and the list of master codes are made from the data of this company */
 function ckTplRows(){const e=DATA.emps.find(x=>x.func&&x.dept&&x.branch&&x.division&&x.subdiv&&x.desig)||{}, cd=(k,id)=>((DATA[k].find(x=>x.id==id)||{}).code||'');
- return [CKH_T,['','Asha Rao','9876543210','asha@example.com','14/05/1998','F','01/11/2026',cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),nm('levels',e.level)||'',(DATA.emps[0]||{}).code||'','']]}
+ return [CKH_T,['','Asha Rao','9876543210','asha@example.com','14/05/1998','F','01/11/2026',cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),(DATA.emps[0]||{}).code||'','']]}
 function ckMasterRows(){const rows=[['Type','Code','Name','Under']], PK={depts:'functions',branches:'depts',divisions:'branches',subdivs:'divisions'}, par=(k,x)=>(x.parents||[]).map(i=>nm(PK[k],i)).join('; ');
  const T={functions:'Function',depts:'Department',branches:'Branch',divisions:'Division',subdivs:'Sub-division',desigs:'Designation'};
  Object.keys(T).forEach(k=>DATA[k].filter(x=>!x.off).forEach(x=>rows.push([T[k],x.code||'',x.name,k==='functions'?'':k==='desigs'?(x.divs||[]).map(i=>nm('divisions',i)).join('; '):par(k,x)])));
  DATA.levels.forEach(x=>rows.push(['Career Level',x.name,x.name,'']));DATA.emps.filter(e=>e.active).forEach(e=>rows.push(['Employee',e.code,e.name,'']));return rows}
 /* a task for HR: set the salary structure of every designation and level that has people but no structure */
-INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&e.level&&!splitFor(+e.desig,+e.level,0)).forEach(e=>{const k=e.desig+'|'+e.level;(g[k]=g[k]||[]).push(e)});
- Object.keys(g).forEach(k=>{const a=g[k], e=a[0];ibAdd(out,{kind:'salstr',title:`${L('Set the salary structure','सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${nm('levels',e.level)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'struct'})})});
+INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&(!e.level||!splitFor(+e.desig,+e.level,0))).forEach(e=>{const k=e.desig+'|'+(e.level||0);(g[k]=g[k]||[]).push(e)});
+ Object.keys(g).forEach(k=>{const a=g[k], e=a[0], noLvl=!e.level;ibAdd(out,{kind:'salstr',title:noLvl?`${L('Set the career level and salary structure','करियर लेवल और सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`:`${L('Set the salary structure','सैलरी स्ट्रक्चर तय करें')}: ${nm('desigs',e.desig)} · ${nm('levels',e.level)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'struct'})})});
 KINDL.salstr=['Salary','सैलरी'];
+/* a task for HR: set the statutory assignment (PF, ESIC, PT, TDS, LWF) of every employee who has none yet, by bulk upload, + Add employee or recruitment alike */
+INBOX_SRC.push((id,out)=>{if(!canManage())return;const g={};DATA.emps.filter(e=>e.active&&e.desig&&!statAt(e,curMk())).forEach(e=>(g[e.desig]=g[e.desig]||[]).push(e));
+ Object.keys(g).forEach(k=>{const a=g[+k], e=a[0];ibAdd(out,{kind:'stasg',title:`${L('Set the statutory assignment','स्टेट्यूटरी असाइनमेंट तय करें')}: ${nm('desigs',e.desig)} · ${a.length} ${L(a.length>1?'employees':'employee','कर्मचारी')}`,subject:e.id,page:'payroll',tab:'stasg'})})});
+KINDL.stasg=['Statutory','स्टेट्यूटरी'];
+/* a task for HR: every other onboarding step still open for a recent joiner (salary and statutory already have their own task above, so they are left out here) */
+INBOX_SRC.push((id,out)=>{if(!canManage())return;onbJoiners().forEach(e=>{const s=onbStatus(e);if(s.done)return;
+ const rest=s.items.filter(i=>!s.o[i.check]&&!['salary','statutory'].includes(i.check));if(!rest.length)return;
+ ibAdd(out,{kind:'onb',title:`${L('Complete onboarding','ऑनबोर्डिंग पूरी करें')}: ${e.name} (${rest.map(i=>i.name).join(', ')})`,subject:e.id,page:'workforce',tab:'onb',due:s.dl})})});
+KINDL.onb=['Onboarding','ऑनबोर्डिंग'];
 function ckImports(){const E=can('ck_imp','E'), r=CKB.res, last=(a)=>a&&a[0]?` · ${L('last','आख़िरी')}: ${a[0].at}`:'';
  const card=(ic,en,hi,desc,btn,go)=>`<div class="card"><h3>${ic} ${L(en,hi)}</h3><p style="font-size:13px;color:var(--muted);min-height:48px">${desc}</p>${E?`<button class="btn btn-o btn-s" data-ckimp="${go}">${btn}</button>`:''}</div>`;
  return `<p style="color:var(--muted);font-size:13px;margin:6px 0">${L('Every import of the ERP in one place. Each opens its own screen with a template, a preview of the file and the history.','ERP के सारे इम्पोर्ट एक जगह। हर एक अपनी स्क्रीन खोलता है जिसमें टेम्पलेट, फ़ाइल का प्रीव्यू और इतिहास है।')}</p>
@@ -9739,7 +9748,8 @@ const IBKIND={
  'trn-done':['do','Mark the attendance','हाज़िरी दर्ज करें','Open and mark','खोलकर दर्ज करें'],test:['do','Take the test','टेस्ट दें','Take the test','टेस्ट दें'],fb:['do','Give your feedback','अपना फ़ीडबैक दें','Open and fill','खोलकर भरें'],iv:['do','Give interview feedback','इंटरव्यू फ़ीडबैक दें','Open and fill','खोलकर भरें'],
  ind:['do','Do the induction','इंडक्शन करें','Open','खोलें'],'ind-c':['do','Confirm the induction','इंडक्शन की पुष्टि करें','Confirm','पुष्टि करें'],'asg-c':['do','Confirm the task','टास्क की पुष्टि करें','Confirm','पुष्टि करें'],'alt-d':['do','Deliver the alteration','अल्टरेशन डिलीवर करें','Open and deliver','खोलकर दें'],
  'stk-r':['do','Give the reason','कारण बताएँ','Open and fill','खोलकर भरें'],'stk-v':['do','Check the count','गिनती जाँचें','Open and check','खोलकर जाँचें'],'sup-c':['do','Confirm the resolved ticket','हल हुई टिकट की पुष्टि करें','Confirm','पुष्टि करें'],learn:['do','Finish the course','कोर्स पूरा करें','Open the course','कोर्स खोलें'],
- xp:['do','Handle the expense','एक्सपेंस संभालें','Open','खोलें'],xt:['do','Take the exit interview','एक्ज़िट इंटरव्यू लें','Open and fill','खोलकर भरें'],ast:['do','Confirm the asset','एसेट की पुष्टि करें','Confirm','पुष्टि करें']};
+ xp:['do','Handle the expense','एक्सपेंस संभालें','Open','खोलें'],xt:['do','Take the exit interview','एक्ज़िट इंटरव्यू लें','Open and fill','खोलकर भरें'],ast:['do','Confirm the asset','एसेट की पुष्टि करें','Confirm','पुष्टि करें'],
+ stasg:['do','Assign PF, ESIC, PT, TDS, LWF','PF, ESIC, PT, TDS, LWF तय करें','Open and assign','खोलकर तय करें'],onb:['do','Complete the step','स्टेप पूरा करें','Open onboarding','ऑनबोर्डिंग खोलें']};
 function ibClass(r){const en=r.en||'';
  if(r.kind==='wf')return{g:'decide',v:['Approve or reject','मंज़ूर या अस्वीकार'],b:['Details','विवरण']};
  if(r.kind==='notice'||/^Notice/.test(en)||/^Approved, waiting/.test(en))return{g:'info',v:['Information','जानकारी'],b:['Open','खोलें']};
@@ -9756,12 +9766,12 @@ function ibWhy(r){const g=r.cls.g;
 function ibList(){
  const id=me(), f=state.ibf;
  const sv=lang;let vEn=[];try{lang='en';vEn=ibVirtual()}catch(e){vEn=[]}finally{lang=sv}
- const v=ibVirtual().map((x,i)=>({...x,when:x.due||'',en:(vEn[i]||{}).title||''}));
- const s=ibStored().map(t=>({virtual:false,id:t.id,kind:t.kind,title:t.title,en:t.title,subject:t.subject,status:t.status,when:t.at,tk:t,page:t.opener&&t.opener.page,tab:t.opener&&t.opener.tab,unread:t.kind==='notice'&&!t.read[id]}));
+ const v=ibVirtual().map((x,i)=>{const l=vEn[i]?IBL[id+'|'+ibKeyOf(vEn[i])]:null;return{...x,when:x.due||'',due:l?l.due:(x.due||''),en:(vEn[i]||{}).title||''}});
+ const s=ibStored().map(t=>({virtual:false,id:t.id,kind:t.kind,title:t.title,en:t.title,subject:t.subject,status:t.status,when:t.at,due:t.status==='Pending'?ibTaskDue(t):'',tk:t,page:t.opener&&t.opener.page,tab:t.opener&&t.opener.tab,unread:t.kind==='notice'&&!t.read[id]}));
  const rows0=[...s.filter(x=>x.status==='Pending'),...v,...(f==='all'?s.filter(x=>x.status!=='Pending'):[])].filter(x=>f==='all'||x.status==='Pending');
  rows0.forEach(r=>{r.cls=r.status==='Pending'?ibClass(r):{g:'done',v:['Done','पूरा'],b:['','']}});
  const cnt={decide:0,do:0,info:0};rows0.forEach(r=>{if(cnt[r.cls.g]!=null)cnt[r.cls.g]++});
- const late=r=>r.virtual&&r.when&&r.when<TODAY_S, key=r=>['decide','do','info','done'].indexOf(r.cls.g)+(late(r)?'0':'1')+(r.when||'9999');
+ const late=r=>r.status==='Pending'&&r.due&&r.due<TODAY_S, key=r=>['decide','do','info','done'].indexOf(r.cls.g)+(late(r)?'0':'1')+(r.due||'9999');
  const rows=rows0.filter(r=>!state.ibg||r.cls.g===state.ibg).sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
  const card=(g)=>`<div class="card" data-ibg="${g}" style="cursor:pointer;${state.ibg===g?'outline:2px solid var(--teal)':''}"><small style="color:var(--muted)">${L(IBGRP[g].en,IBGRP[g].hi)}</small><div style="font-size:26px;font-weight:700">${cnt[g]}</div></div>`;
  const wfRows=rows.filter(r=>r.kind==='wf'&&r.status==='Pending');
@@ -9774,7 +9784,7 @@ function ibList(){
   const sub=[r.tk?`${L('from','से')} ${esc(r.tk.by)} · ${ibAge(r.tk.at)}`:'',ibWhy(r)].filter(Boolean).join(' · ');
   body+=`<tr style="${r.unread?'font-weight:600':''}"><td style="width:28px">${r.kind==='wf'&&r.status==='Pending'?`<input type="checkbox" data-ibsel="${r.id}">`:''}</td><td><span class="pill ${IBGRP[g].pill}">${L(...r.cls.v)}</span></td>
    <td><b style="font-weight:500">${esc(r.title)}</b><small style="display:block;color:var(--muted)">${sub}</small>${r.subject?`<small style="display:block">${L('About','किसके बारे में')}: ${nmE(r.subject)}</small>`:''}</td>
-   <td>${r.when?`${r.virtual?fmtS(r.when):''}${late(r)?` <span class="pill p-bad">${L('late','देर')}</span>`:''}`:'—'}</td><td style="text-align:right;white-space:nowrap">${btn(r)}</td></tr>`});
+   <td style="white-space:nowrap">${ibDueCell(r)}</td><td style="text-align:right;white-space:nowrap">${btn(r)}</td></tr>`});
  return `<div class="grid g4" style="margin-bottom:12px">${card('decide')}${card('do')}${card('info')}<div class="card"><small style="color:var(--muted)">${L('Start from the top: decisions first, then work, then information. You see only what is with you.','ऊपर से शुरू करें: पहले फ़ैसले, फिर काम, फिर जानकारी। आपको सिर्फ़ वही दिखता है जो आपके पास है।')}</small></div></div>
   <div class="tools"><div class="seg">${[['pend',L('Waiting','बाकी')],['all',L('Including done','पूरे हुए सहित')]].map(([k,l])=>`<button data-ibf="${k}" class="${f===k?'on':''}">${l}</button>`).join('')}</div>${state.ibg?`<button class="pill p-teal" data-ibg="" style="cursor:pointer;border:0">${L('Show all','सब दिखाएँ')}</button>`:''}<div style="flex:1"></div>
    ${wfRows.length?`<label style="margin:0;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ibSelAll"> ${L('Select all approvals','सभी मंज़ूरियाँ चुनें')}</label><button class="btn btn-p btn-s" data-ibbulk>${L('Approve selected','चुनी हुई मंज़ूर करें')} (<span id="ibSelN">0</span>)</button>`:''}<button class="btn btn-o btn-s" data-ibread>${L('Mark notices read','सूचनाएँ पढ़ी करें')}</button></div>
@@ -9787,6 +9797,58 @@ function ibList(){
  on('#ibSelAll',c=>c.onchange=()=>{m.querySelectorAll('[data-ibsel]').forEach(x=>x.checked=c.checked);cnt()});
  on('[data-ibbulk]',b=>b.onclick=()=>{const ids=[...m.querySelectorAll('[data-ibsel]:checked')].map(x=>+x.dataset.ibsel);if(!ids.length)return toast(L('Select at least one approval','कम से कम एक मंज़ूरी चुनें'));
   if(!confirm(`${L('Approve','मंज़ूर करें')} ${ids.length} ${L('item(s)?','?')}`))return;let n=0;ids.forEach(i=>{if(wfDecide(i,true,'',me()))n++});toast(`${n} ${L('approved','मंज़ूर हुईं')}`);render()})}}
+/* ================= Inbox TAT: every Inbox item has a last date; KPI-399 Inbox Tasks Done Before Due % ================= */
+/* IBL keeps one line for every item that showed in a person's Inbox from the other modules (they leave the Inbox when done, so they are written here):
+   key = employee|item, {emp, kind, t (title), at (first seen), due, done}. Approvals and notices are already kept in TASKS. */
+const IBL={};
+const IB_FROM='2026-12-01'; /* scoring starts with the items due from this date; earlier items are only listed */
+const IB_SKIP=new Set(['todo','chal','chal-m','bio']); /* own KPI (To Do, Challenge) or only information for HR */
+const IB_ACK=new Set(['letter','dec-ack','doc','ind-c','asg-c','sup-c','ast','eng']);
+Object.assign(SLA,{ibAppr:2,ibAck:3,ibNote:2});
+SLAR.push({id:'SLA-053',kpi:'KPI-399',name:['Inbox: working days to finish an item','इनबॉक्स: आइटम पूरा करने के कार्य दिन'],dir:'max',note:'Every Inbox item gets a last date: the day it came plus these working days (Sundays and holidays are not counted). An item that has its own last date (for example a training test or a trip report) keeps that date. KPI-399 counts the items finished on or before the last date.',
+ params:[P('ibAppr','Approval or any other work: working days','मंज़ूरी या कोई और काम: कार्य दिन','days',{max:30}),P('ibAck','Acknowledgement (letter, decision, document, asset, notice board): working days','पावती (पत्र, निर्णय, दस्तावेज़, एसेट, नोटिस बोर्ड): कार्य दिन','days',{max:30}),P('ibNote','Notice to read: working days','पढ़ने की सूचना: कार्य दिन','days',{max:30})],
+ versions:[{ver:1,effective:'2026-04-01',by:'System',note:'Initial value',values:{ibAppr:2,ibAck:3,ibNote:2}}]});
+const ibT=k=>{const v=+SLA[k];return v>=0&&SLA[k]!=null&&SLA[k]!==''?v:{ibAppr:2,ibAck:3,ibNote:2}[k]};
+const ibKeyOf=x=>[x.kind,x.subject||0,x.page||'',x.tab||'',x.ref||String(x.title||'').replace(/^\d+\s+/,'')].join('|');
+const ibTaskDue=t=>tWork(t.at,ibT(t.kind==='wf'?'ibAppr':'ibNote'));
+/* the items of the other modules, read in English so the key is the same in both languages */
+function ibVEn(){const sv=lang;let v=[];ibVirtual.bad=false;try{lang='en';v=ibVirtual()}catch(e){ibVirtual.bad=true}finally{lang=sv}return v}
+let ibTrackAt=0;
+function ibTrack(force){
+ try{if(state.role==='platform')return;const id=me();if(!id)return;
+  if(typeof LIVE!=='undefined'&&(!LIVE.on||LIVE.platform||LIVE.asOf||LIVE.refreshing))return;
+  if(!force&&Date.now()-ibTrackAt<4000)return;ibTrackAt=Date.now();
+  const v=ibVEn(), bad=ibVirtual.bad, seen=new Set();
+  v.forEach(x=>{if(IB_SKIP.has(x.kind))return;const key=id+'|'+ibKeyOf(x);seen.add(key);if(IBL[key])return;
+   const at=x.from&&x.from<=TODAY_S?x.from:TODAY_S;IBL[key]={emp:id,kind:x.kind,t:String(x.title||'').slice(0,160),at,due:x.due||tWork(at,ibT(IB_ACK.has(x.kind)?'ibAck':'ibAppr')),done:''}});
+  /* an item that is no longer in the Inbox is finished today; never when a part of the Inbox could not be read */
+  if(!bad)Object.keys(IBL).forEach(key=>{const r=IBL[key];if(r&&r.emp===id&&!r.done&&!seen.has(key))r.done=TODAY_S});
+  /* HR keeps the list short: finished lines older than six months go */
+  if(canManage()){const old=addD(TODAY_S,-180);Object.keys(IBL).forEach(key=>{const r=IBL[key];if(r&&r.done&&r.due<old)delete IBL[key]})}
+ }catch(e){}}
+/* every Inbox line of a person: approvals and notices (TASKS) and the lines kept above */
+function ibRecs(empId){const out=[];
+ TASKS.forEach(t=>{if(!t||!Array.isArray(t.to)||!t.to.includes(empId)||String(t.key||'').startsWith('ibr'))return;const wf=t.kind==='wf', last=((t.log||[])[(t.log||[]).length-1]||{}).at||t.at;let done='';
+  if(wf){if(t.status!=='Pending')done=last}else{const r=t.read&&t.read[empId];if(typeof r==='string')done=r;else if(r)done=t.at;else if(t.status!=='Pending')done=last}
+  out.push({kind:t.kind,title:t.title,at:t.at,due:ibTaskDue(t),done})});
+ Object.keys(IBL).forEach(k=>{const r=IBL[k];if(r&&r.emp===empId)out.push({kind:r.kind,title:r.t,at:r.at,due:r.due,done:r.done||''})});
+ return out}
+const ibState=r=>r.done?(r.done<=r.due?'ok':'late'):(r.due<TODAY_S?'over':'open');
+function ibStat(empId,mk,all){const s={tot:0,ok:0,late:0,over:0,open:0};ibRecs(empId).forEach(r=>{if(String(r.due).slice(0,7)!==mk||(!all&&r.due<IB_FROM))return;s.tot++;s[ibState(r)]++});return s}
+function ibDueCell(r){if(r.status!=='Pending'||!r.due)return '—';const n=Math.round((Date.parse(r.due)-Date.parse(TODAY_S))/864e5);
+ return `${fmtS(r.due)} ${n<0?`<span class="pill p-bad">${L('overdue','समय निकल गया')}</span>`:n===0?`<span class="pill p-warn">${L('due today','आज आख़िरी दिन')}</span>`:n===1?`<span class="pill p-warn">${L('due tomorrow','कल आख़िरी दिन')}</span>`:''}`}
+KPI.push({id:'KPI-399',name:'Inbox Tasks Done Before Due %',cat:'Common (All Designations)',level:'Data',max:10,freq:'Monthly',method:'Auto',rule:'Inbox — Every item that comes to the person\'s Inbox (approvals, work to do, acknowledgements of letters, decisions, documents and assets, notices to read) has a last date: its own last date, or the day it came plus the working days of SLA-053 (approval or other work 2, acknowledgement 3, notice 2; Sundays and holidays are not counted). Items whose last date is in the month and has passed, or that are already finished: finished on or before the last date ÷ such items × 100. Finished late, or still open after the last date = late. To Do items and Today\'s Challenge are left out (they have their own KPI). No item in the month = not counted. Counted for items due from 1 December 2026.',active:true});
+AUTO2['KPI-399']=(e,k,p)=>{const s=ibStat(e.id,payKey(p)), n=s.ok+s.late+s.over;if(!n)return kN(payKey(p)<IB_FROM.slice(0,7)?L('Counted for items due from 1 December 2026','1 दिसंबर 2026 से देय आइटम गिने जाते हैं'):L('No Inbox item was due in the month','इस महीने कोई इनबॉक्स आइटम देय नहीं था'));
+ return kS(k,s.ok/n*k.max,`${s.ok} / ${n} ${L('on time','समय पर')}${s.late+s.over?` · ${s.late+s.over} ${L('late','देर से')}`:''}`)};AUTO_IMPL.add('KPI-399');KPIMOD['KPI-399']='pms';
+rp('pm_ibtat','pms','Inbox TAT report (employee-wise)','इनबॉक्स TAT रिपोर्ट (कर्मचारी-वार)','month','M',f=>{const mk=f.mk||curMk();return{cols:[L('Code','कोड'),L('Name','नाम'),L('Items due in the month','महीने में देय आइटम'),L('Done on time','समय पर पूरे'),L('Done late','देर से पूरे'),L('Overdue, still open','समय निकला, अभी बाकी'),L('Open, not yet due','बाकी, अभी समय है'),L('On time %','समय पर %')],
+ rows:rActive(rptEmps(f)).map(e=>{const s=ibStat(e.id,mk,true), n=s.ok+s.late+s.over;return[e.code,e.name,s.tot,s.ok,s.late,s.over,s.open,n?r2(s.ok/n*100):'']})}});
+rp('pm_ibitems','pms','Inbox items (item-wise, with last date)','इनबॉक्स आइटम (आइटम-वार, आख़िरी तारीख़ के साथ)','month','M',f=>{const mk=f.mk||curMk(), st={ok:L('Done on time','समय पर पूरा'),late:L('Done late','देर से पूरा'),over:L('Overdue','समय निकल गया'),open:L('Open','बाकी')}, rows=[];
+ rActive(rptEmps(f)).forEach(e=>ibRecs(e.id).filter(r=>String(r.due).slice(0,7)===mk).sort((a,b)=>a.due<b.due?-1:1).forEach(r=>rows.push([e.code,e.name,L(...(KINDL[r.kind]||[r.kind,r.kind])),r.title,r.at,r.due,r.done||'',st[ibState(r)]])));
+ return{cols:[L('Code','कोड'),L('Name','नाम'),L('Type','प्रकार'),L('Item','आइटम'),L('Came on','कब आया'),L('Last date','आख़िरी तारीख़'),L('Done on','कब पूरा हुआ'),tx('status')],rows}});
+/* scheduler: one reminder a day to the people who have an item due tomorrow or already overdue (this reminder itself is not counted) */
+SCHEDJOBS.push(['Inbox: remind about items due tomorrow or overdue','इनबॉक्स: कल देय या समय निकले आइटम की याद',()=>{let n=0;const tm=addD(TODAY_S,1);DATA.emps.filter(e=>e.active).forEach(e=>{const l=ibRecs(e.id).filter(r=>!r.done&&r.due<=tm);if(!l.length)return;const ov=l.filter(r=>r.due<TODAY_S).length, b=TASKS.length;
+ notify([e.id],`${L('Inbox','इनबॉक्स')}: ${l.length} ${L('item(s) need you','आइटम आपका इंतज़ार कर रहे हैं')}${ov?` · ${ov} ${L('overdue','का समय निकल गया')}`:''}`,{page:'inbox'},'ibr'+TODAY_S);n+=TASKS.length-b});return n}]);
+{const _rIb=render;render=function(){const r=_rIb.apply(this,arguments);ibTrack();return r}}
 /* ================= Batch 58: Asset Management (Inventory, Issue, My Asset, Request, Acknowledgement, Exit handover) ================= */
 Object.assign(T.en,{assets:'Assets',myasset:'My Asset'});Object.assign(T.hi,{assets:'एसेट',myasset:'मेरा एसेट'});
 MODS.push({id:'assets',name:['Asset Management','एसेट मैनेजमेंट'],desc:['Asset inventory, who holds what, employee requests with approval, acknowledgement on receipt, and the handover at exit','एसेट इन्वेंटरी, किसके पास क्या है, मंज़ूरी वाली माँग, मिलने पर पुष्टि, और एक्ज़िट पर हैंडओवर'],pages:['assets','myasset'],needs:[]});
@@ -10712,7 +10774,22 @@ const SKINS={
   D:'--teal:#6D4FF0;--teal-d:#5538D4;--teal-l:#26214F;--gold-l:#33260D;--bg:#121133;--card:#1B1A45;--text:#E8E8FA;--muted:#9A9CC8;--line:#2C2B63;--sb-bg:#15133A;--sb-h:#2E2A6B;'},
  navy:{n:['Midnight Navy + Mint','मिडनाइट नेवी + मिंट'],d:['Almost black navy sidebar with a mint highlight. Sharp and corporate.','लगभग काला नेवी साइडबार और मिंट हाइलाइट। तेज़ और कॉर्पोरेट।'],k:['#0D9488','#2563EB','#F97316','#8B5CF6'],
   L:'--teal:#0D9488;--teal-d:#0B6F66;--teal-l:#E0F5F2;--gold:#F97316;--gold-l:#FFEDD9;--bg:#F1F5F9;--card:#FFFFFF;--text:#0F172A;--muted:#64748B;--line:#E2E8F0;--sb-bg:#0F172A;--sb-t:#94A3B8;--sb-h:#1E293B;--sb-act:#2DD4A7;--sb-actt:#04342C;--k1:#0D9488;--k2:#2563EB;--k3:#F97316;--k4:#8B5CF6;',
-  D:'--teal:#14A395;--teal-d:#0D8A7E;--teal-l:#10312E;--gold-l:#33200D;--bg:#0B1220;--card:#111A2E;--text:#E2E8F0;--muted:#8FA0B8;--line:#1F2A44;--sb-bg:#0A101E;--sb-h:#1E293B;'}};
+  D:'--teal:#14A395;--teal-d:#0D8A7E;--teal-l:#10312E;--gold-l:#33200D;--bg:#0B1220;--card:#111A2E;--text:#E2E8F0;--muted:#8FA0B8;--line:#1F2A44;--sb-bg:#0A101E;--sb-h:#1E293B;'},
+ warli:{n:['Warli Art','वारली आर्ट'],d:['Earthy terracotta mud wall with rice-paste cream. A folk, handmade look.','मिट्टी के रंग की दीवार और चावल-पेस्ट जैसा क्रीम रंग। एक देसी, हस्तशिल्प रूप।'],k:['#A9632F','#C9A227','#6B7A3A','#8A3412'],
+  L:'--teal:#A9632F;--teal-d:#8A4E23;--teal-l:#F3E6D4;--gold:#C9A227;--gold-l:#F6ECD9;--bg:#F6ECD9;--card:#FFFBF1;--text:#4A2C12;--muted:#8A6A46;--line:#E3D2B4;--sb-bg:#4A2C12;--sb-t:#D9B98A;--sb-h:#6B4A26;--sb-act:#C1662C;--sb-actt:#FFF8EC;--k1:#A9632F;--k2:#C9A227;--k3:#6B7A3A;--k4:#8A3412;--r:4px;--rb:3px;',
+  D:'--teal:#C1783F;--teal-d:#A9632F;--teal-l:#3A2A18;--gold-l:#3A2E12;--bg:#20150B;--card:#2B1D10;--text:#F0E2CC;--muted:#B69A74;--line:#3E2C18;--sb-bg:#150D06;--sb-h:#3E2A16;'},
+ papercut:{n:['Paper Cut Art','पेपर कट आर्ट'],d:['Bright layered paper shapes with a navy header. A playful, handmade look.','चमकीले कटे हुए कागज़ जैसे आकार और नेवी हेडर। एक चंचल, हस्तशिल्प रूप।'],k:['#1F8A82','#E8603C','#F0B429','#1B3A63'],
+  L:'--teal:#1F8A82;--teal-d:#176D66;--teal-l:#E1F3F1;--gold:#F0B429;--gold-l:#FDF1D6;--bg:#FDF6E9;--card:#FFF9EE;--text:#1D2B3A;--muted:#6B7A8A;--line:#EAE0C8;--sb-bg:#1B3A63;--sb-t:#AFC3DB;--sb-h:#28507F;--sb-act:#E8603C;--sb-actt:#FFFFFF;--k1:#1F8A82;--k2:#E8603C;--k3:#F0B429;--k4:#1B3A63;--r:18px;--rb:14px;',
+  D:'--teal:#2CA69D;--teal-d:#1F8A82;--teal-l:#163634;--gold-l:#352C12;--bg:#101A26;--card:#162233;--text:#EAF2F8;--muted:#8CA0B4;--line:#223349;--sb-bg:#0C1A2E;--sb-h:#1E3A5A;'},
+ sandart:{n:['Sand Art','सैंड आर्ट'],d:['Layered desert sand colours, like a bottle of coloured sand. Warm and rustic.','रंगीन रेत की बोतल जैसे परत-दर-परत रेगिस्तानी रंग। गर्म और देहाती।'],k:['#7A3B12','#A85A1F','#C9802F','#E0A847'],
+  L:'--teal:#A85A1F;--teal-d:#7A3B12;--teal-l:#F3E0C4;--gold:#E0A847;--gold-l:#FBEBC9;--bg:#F3E6CD;--card:#FFF6E4;--text:#4A2C12;--muted:#8A6A3C;--line:#E3CE9F;--sb-bg:#5C3414;--sb-t:#E0C294;--sb-h:#7A4A1F;--sb-act:#C9802F;--sb-actt:#FFF6E4;--k1:#7A3B12;--k2:#A85A1F;--k3:#C9802F;--k4:#E0A847;--r:3px;--rb:3px;',
+  D:'--teal:#C9802F;--teal-d:#A85A1F;--teal-l:#3A2710;--gold-l:#3A2A10;--bg:#1C1105;--card:#28190A;--text:#F3E0C4;--muted:#B89866;--line:#3A2812;--sb-bg:#120B04;--sb-h:#3A2410;'},
+ watercolor:{n:['Watercolor Art','वॉटरकलर आर्ट'],d:['Soft pastel colour washes on white paper. A gentle, artistic look.','सफ़ेद कागज़ पर नरम पेस्टल रंगों की धुलाई जैसा। एक सौम्य, कलात्मक रूप।'],k:['#5B8FB0','#D98A9E','#E8C06B','#4F9D8A'],
+  L:'--teal:#5B8FB0;--teal-d:#3F6E8C;--teal-l:#E7F1F7;--gold:#E8C06B;--gold-l:#FBF2DE;--bg:#FFFDF8;--card:#FFFFFF;--text:#2D3B4A;--muted:#8694A2;--line:#EDEAE1;--sb-bg:#3C5168;--sb-t:#C3D2DE;--sb-h:#4F6880;--sb-act:#D98A9E;--sb-actt:#FFFFFF;--k1:#5B8FB0;--k2:#D98A9E;--k3:#E8C06B;--k4:#4F9D8A;--r:18px;--rb:999px;',
+  D:'--teal:#7AA9C7;--teal-d:#5B8FB0;--teal-l:#1C2A36;--gold-l:#332A14;--bg:#121A22;--card:#1A2530;--text:#EAF0F5;--muted:#8FA0AE;--line:#263644;--sb-bg:#0E1820;--sb-h:#243747;'},
+ clayart:{n:['Clay Art','क्ले आर्ट'],d:['Soft 3D clay shapes with gentle shadows. A rounded, modern look.','नरम छाया वाले 3D मिट्टी जैसे आकार। एक गोल, आधुनिक रूप।'],k:['#FF8C6B','#FFC35C','#6FCF97','#5B8DEF'],
+  L:'--teal:#FF8C6B;--teal-d:#E66F4D;--teal-l:#FFE9E1;--gold:#FFC35C;--gold-l:#FFF3DC;--bg:#EEF1F6;--card:#F3F5F9;--text:#3A4356;--muted:#8891A3;--line:#DADFE8;--sb-bg:#3A4356;--sb-t:#AEB6C8;--sb-h:#4C5672;--sb-act:#FF8C6B;--sb-actt:#3A1C10;--k1:#FF8C6B;--k2:#FFC35C;--k3:#6FCF97;--k4:#5B8DEF;--r:24px;--rb:16px;',
+  D:'--teal:#FF9D80;--teal-d:#FF8C6B;--teal-l:#3A241C;--gold-l:#3A2E10;--bg:#161A22;--card:#1E2430;--text:#E8ECF4;--muted:#949CB0;--line:#2A3242;--sb-bg:#10131A;--sb-h:#262E3E;'}};
 (function(){
  try{const s=localStorage.getItem('hrs_skin'), m=localStorage.getItem('hrs_tmode');if(SKINS[s])ORGS.skin=s;if(['auto','light','dark'].includes(m))ORGS.tmode=m}catch(e){}
  const css=Object.entries(SKINS).map(([k,s])=>`:root[data-skin="${k}"]{${s.L}}
@@ -12778,6 +12855,261 @@ function guidePage(){
   const q=m.querySelector('#gq');if(q)q.oninput=e=>{state.gq=e.target.value;clearTimeout(state.gt);state.gt=setTimeout(()=>{render();const x=$('#gq');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},250)}}}
 {const b=document.getElementById('guideBtn');if(b)b.onclick=()=>{state.page='guide';try{resetViews()}catch(e){}render();window.scrollTo(0,0)}}
 /* module names, menu items, tabs and page titles are written with a capital first letter in every word (KPI Dashboard, Growth and Discipline) */
+/* ================= Game view (part 1): the home page as a map, missions from the Inbox, division ranking. Every person chooses Game view or Classic view. ================= */
+const gvKey=()=>'mh_gv_'+(me()||0);
+/* GVP: the person's choice (view, colour, hidden guides, badges already celebrated), one line per employee, saved on the server; the browser copy is used until the server line exists */
+const GVP={}, BDG={};
+const GV={get(){const id=me()||0;if(id&&GVP[id])return GVP[id];try{return JSON.parse(localStorage.getItem(gvKey())||'{}')||{}}catch(e){return{}}},
+ set(o){const id=me()||0, n={...GV.get(),...o,emp:id};if(id)GVP[id]=n;try{localStorage.setItem(gvKey(),JSON.stringify(n))}catch(e){}}};
+const gvOn=()=>state.role!=='platform'&&!!me()&&GV.get().on===true;
+const GVZ=[
+ ['My work','मेरा काम','#16a085',['inbox','decision','myreq','profile','myasset']],
+ ['Daily work','रोज़ का काम','#1f9d6b',['attendance','attreq','locreq','leave','timeoffice']],
+ ['Money','पैसा','#c9841f',['payroll','expense']],
+ ['Growth','ग्रोथ','#d35454',['pms','training','library','analytics','reports']],
+ ['People','लोग','#2e86c1',['team','employees','workforce','recruit','cockpit','exits']],
+ ['Company','कंपनी','#8e44ad',['engage','assets','support','crm','marketing','stock','bizdata','import']],
+ ['Setup','सेटअप','#5d6d7e',['settings','licensing']]];
+const GVD={inbox:['Everything waiting for you','जो कुछ आपका इंतज़ार कर रहा है'],decision:['To Do, tasks, daily forms','टू-डू, टास्क, रोज़ के फ़ॉर्म'],myreq:['All your requests in one list','आपकी सारी माँगें एक जगह'],profile:['Your details and documents','आपका विवरण और दस्तावेज़'],myasset:['Things given to you','आपको मिला सामान'],
+ attendance:['Punch in, punch out, your days','पंच इन, पंच आउट, आपके दिन'],attreq:['Correct a punch, on duty','पंच सुधार, ऑन ड्यूटी'],locreq:['Punch from outside the branch','ब्रांच के बाहर से पंच'],leave:['Ask for leave, see balance','छुट्टी माँगें, बैलेंस देखें'],timeoffice:['Shifts, holidays, month processing','शिफ़्ट, छुट्टियाँ, महीने की प्रोसेसिंग'],
+ payroll:['Salary, payslip, advance','सैलरी, पे-स्लिप, एडवांस'],expense:['Expense, travel, claims','ख़र्च, यात्रा, क्लेम'],
+ pms:['KPI, targets, ratings','KPI, टारगेट, रेटिंग'],training:['Courses, tests, certificates','कोर्स, टेस्ट, सर्टिफ़िकेट'],library:['Policies and documents to read','पढ़ने की नीतियाँ और दस्तावेज़'],analytics:['Charts of every module','हर मॉड्यूल के चार्ट'],reports:['Reports to view and download','देखने और डाउनलोड की रिपोर्ट'],
+ team:['Your team today','आज आपकी टीम'],employees:['Employee records','कर्मचारियों का रिकॉर्ड'],workforce:['Manpower plan, onboarding','मैनपावर प्लान, ऑनबोर्डिंग'],recruit:['Vacancies, candidates, offers','वैकेंसी, कैंडिडेट, ऑफ़र'],cockpit:['One desk for all HR work','HR के सारे काम की एक डेस्क'],exits:['Resignation and exit','इस्तीफ़ा और एक्ज़िट'],
+ engage:['Notices, polls, letters','नोटिस, पोल, पत्र'],assets:['Asset stock, issue, return','एसेट स्टॉक, देना, वापसी'],support:['Tickets, grievance, help','टिकट, शिकायत, मदद'],crm:['Customer feedback, complaints','ग्राहक फ़ीडबैक, शिकायतें'],marketing:['Content, campaigns, posts','कंटेंट, कैंपेन, पोस्ट'],stock:['Old stock review','पुराने स्टॉक की समीक्षा'],bizdata:['Sales and business numbers','बिक्री और बिज़नेस के आँकड़े'],import:['Upload data files','डेटा फ़ाइल अपलोड'],
+ settings:['Company setup and rules','कंपनी का सेटअप और नियम'],licensing:['Plan and modules','प्लान और मॉड्यूल']};
+function gvScore(id){try{const rows=monthState(id,CUR_P).rows.filter(x=>x.r.state==='SCORED');if(!rows.length)return null;const mx=rows.reduce((a,x)=>a+x.k.max,0);return mx?Math.round(rows.reduce((a,x)=>a+(x.r.score||0),0)/mx*100):null}catch(e){return null}}
+function gvStreak(id){let n=0;try{for(let d=TODAY_D;d>=1;d--){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)n++;else if(r.st==='L'||r.half||(r.st==='A'&&d<TODAY_D))break}}catch(e){}return n}
+const gvRankC={};
+function gvRank(e){const k=[CUR_P,TODAY_S,e.division||0].join('|'), c=gvRankC[k];if(c&&Date.now()-c.at<60000)return c.rows;
+ const grp=DATA.emps.filter(x=>x.active&&(e.division?x.division===e.division:true));
+ const rows=grp.map(x=>({id:x.id,name:x.name,s:gvScore(x.id)})).sort((a,b)=>(b.s==null?-1:b.s)-(a.s==null?-1:a.s)||(a.name<b.name?-1:1));
+ gvRankC[k]={at:Date.now(),rows};return rows}
+function gvMissions(){const id=me();let v=[],en=[];try{v=ibVirtual();en=lang==='en'?v:ibVEn()}catch(e){}
+ const rows=v.map((x,i)=>{const l=en[i]&&en.length===v.length?IBL[id+'|'+ibKeyOf(en[i])]:null;return{title:x.title,due:l?l.due:(x.due||''),go:x.page+':'+(x.tab||'')}});
+ try{ibStored().filter(t=>t.status==='Pending'&&!(t.kind==='notice'&&t.read[id])).forEach(t=>rows.push({title:t.title,due:ibTaskDue(t),go:'inbox:'}))}catch(e){}
+ return rows.sort((a,b)=>(a.due||'9999')<(b.due||'9999')?-1:1)}
+function gvHome(){
+ const id=me(), e=empById(id)||{}, g=GV.get(), skin=g.skin==='day'?'day':'night', sc=gvScore(id), st=gvStreak(id), ms=gvMissions();
+ let doneT=0;try{doneT=ibRecs(id).filter(r=>r.done===TODAY_S).length}catch(x){}
+ const over=ms.filter(m=>m.due&&m.due<TODAY_S).length, cnt={};ms.forEach(m=>{const p=m.go.split(':')[0];cnt[p]=(cnt[p]||0)+1});cnt.inbox=ms.length;
+ const pill=m=>{if(!m.due)return '';const n=Math.round((Date.parse(m.due)-Date.parse(TODAY_S))/864e5);return n<0?`<span class="gv-pill r">${L('overdue','समय निकल गया')}</span>`:n===0?`<span class="gv-pill y">${L('today','आज')}</span>`:n===1?`<span class="gv-pill y">${L('tomorrow','कल')}</span>`:`<span class="gv-pill g">${fmtS(m.due)}</span>`};
+ const vis=NAV.filter(n=>n.id!=='dashboard'&&can(n.id,'V')&&(n.built||n.id==='pms')), used=new Set();
+ const tile=(n,col)=>`<button class="gv-node" data-gvgo="${n.id}:"><span class="gv-tile" style="background:${col}">${cnt[n.id]?`<i class="gv-cnt">${cnt[n.id]}</i>`:''}${svg(n.ic)}</span><b>${t(n.id)}</b><small>${GVD[n.id]?L(...GVD[n.id]):''}</small></button>`;
+ let zones='';GVZ.forEach(([en,hi,col,ids])=>{const ns=ids.map(i=>vis.find(n=>n.id===i)).filter(Boolean);ns.forEach(n=>used.add(n.id));if(ns.length)zones+=`<div class="gv-zone"><div class="gv-zh">${L(en,hi)}</div><div class="gv-row">${ns.map(n=>tile(n,col)).join('')}</div></div>`});
+ const rest=vis.filter(n=>!used.has(n.id));if(rest.length)zones+=`<div class="gv-zone"><div class="gv-zh">${L('More','और')}</div><div class="gv-row">${rest.map(n=>tile(n,'#5d6d7e')).join('')}</div></div>`;
+ const rank=gvRank(e), bd=gvBadgeUI(id,e);gvHome.bl=bd.list;const dock=[['attendance:',L('Punch in / out','पंच इन / आउट'),1],['leave:',L('Apply for leave','छुट्टी लगाएँ')],['payroll:mine',L('Payslip','पे-स्लिप')],['support:',L('Raise a ticket','टिकट बनाएँ')],['inbox:',L('Inbox','इनबॉक्स')]].filter(d=>can(d[0].split(':')[0],'V'));
+ return `<div class="gv gv-${skin}">
+ <div class="gv-hud"><div class="gv-chip"><div class="gv-av">${esc((e.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())}</div><div><b>${esc(e.name||'')}</b><small>${L('Level','लेवल')} ${e.level||1} · ${esc(nm('desigs',e.desig)||'')}</small></div></div>
+  <div class="gv-chip"><div><small>${L('KPI score this month, so far','इस महीने का KPI स्कोर, अब तक')}</small><div class="gv-barrow"><div class="gv-bar"><i style="width:${sc==null?0:sc}%"></i></div><b class="gv-acc">${sc==null?'—':sc+' / 100'}</b></div></div></div>
+  <div class="gv-chip"><b class="gv-acc gv-big">${st}</b><div>${L('days in a row','दिन लगातार')}<small>${L('on time this month','इस महीने समय पर')}</small></div></div>
+  <div class="gv-chip"><b class="gv-acc gv-big">${ms.length}</b><div>${L('missions waiting','मिशन बाकी')}<small>${over?`${over} ${L('overdue','का समय निकल गया')}`:L('none overdue','कोई देर नहीं')}</small></div></div>
+  <button class="gv-chip" data-gvbadge><b class="gv-acc gv-big">${bd.n}</b><div style="text-align:left">${L('badges','बैज')}<small>${L('of','में से')} ${bd.tot} ${L('this month','इस महीने')}</small></div></button>
+  <div class="gv-sp"></div>
+  <div class="gv-chip gv-skins"><small>${L('Colour','रंग')}</small><button data-gvskin="night" class="${skin==='night'?'on':''}" title="Teal Night + Gold" style="background:linear-gradient(135deg,#0a2c2f 50%,#f2c04e 50%)"></button><button data-gvskin="day" class="${skin==='day'?'on':''}" title="Sky Day + Coral" style="background:linear-gradient(135deg,#dff1ff 50%,#ff7a45 50%)"></button></div>
+  <button class="gv-chip gv-btn" data-gvoff>${L('Classic view','क्लासिक व्यू')}</button></div>
+ <div class="gv-grid">
+  <div class="gv-panel"><h3>${L("Today's missions",'आज के मिशन')}<span class="gv-pill t">${doneT} ${L('done today','आज पूरे')}</span></h3>
+   ${ms.slice(0,7).map(m=>`<button class="gv-ms ${m.due&&m.due<TODAY_S?'r':m.due&&m.due<=addD(TODAY_S,1)?'y':''}" data-gvgo="${esc(m.go)}"><span>${esc(m.title)}</span>${pill(m)}</button>`).join('')||`<p class="gv-mut">${L('All caught up. Nothing is waiting for you.','सब काम निपट गए। कुछ बाकी नहीं।')}</p>`}
+   ${ms.length>7?`<button class="gv-link" data-gvgo="inbox:">${L('See all','सब देखें')} (${ms.length})</button>`:''}
+   <p class="gv-mut">${L('Missions are your Inbox. Finish each one before its last date.','मिशन आपका इनबॉक्स हैं। हर एक को उसकी आख़िरी तारीख़ से पहले पूरा करें।')}</p></div>
+  <div class="gv-map">${zones}</div>
+  <div><div class="gv-panel"><h3>${e.division?esc(nm('divisions',e.division)||''):L('Company','कंपनी')} · ${L('ranking','रैंकिंग')}<small>${L('KPI so far','KPI अब तक')}</small></h3>
+   <div class="gv-rank">${rank.map((r,i)=>`<div class="gv-rr ${r.id===id?'me':''}"><i class="${i<3&&r.s!=null?'top':''}">${i+1}</i><span>${esc(r.name)}${r.id===id?` (${L('you','आप')})`:''}</span><b>${r.s==null?'—':r.s}</b></div>`).join('')}</div></div>${bd.html}</div>
+ </div>
+ <div class="gv-dock">${dock.map(d=>`<button data-gvgo="${d[0]}" class="${d[2]?'go':''}">${d[1]}</button>`).join('')}<button data-gvask>${L('Ask HR Assistant','HR Assistant से पूछें')}</button></div></div>`}
+function gvBind(root){root.querySelectorAll('[data-gvgo]').forEach(b=>b.onclick=()=>{const [p,tb]=b.dataset.gvgo.split(':');goTo(p,tb)});
+ root.querySelectorAll('[data-gvskin]').forEach(b=>b.onclick=()=>{GV.set({skin:b.dataset.gvskin});render()});
+ root.querySelectorAll('[data-gvbadge]').forEach(b=>b.onclick=()=>{if(gvHome.bl)gvHome.bl()});
+ root.querySelectorAll('[data-gvoff]').forEach(b=>b.onclick=()=>{GV.set({on:false});render()});
+ root.querySelectorAll('[data-gvask]').forEach(b=>b.onclick=()=>{const f=document.getElementById('psFab');if(f)f.click();else toast(L('HR Assistant is not switched on for your company','आपकी कंपनी के लिए HR Assistant चालू नहीं है'))})}
+function gvAfter(){const app=document.getElementById('app'), m=document.getElementById('main');if(!app||!m)return;
+ let b=document.getElementById('gvBtn');const gb=document.getElementById('guideBtn');
+ if(!b&&gb){b=document.createElement('button');b.className='ic';b.id='gvBtn';b.innerHTML=svg('M6 12h4M8 10v4M15 13h.01M18 11h.01M17.3 5H6.7a4 4 0 00-4 3.6L2 16a3 3 0 005.3 2l1.4-2h6.6l1.4 2A3 3 0 0022 16l-.7-7.4a4 4 0 00-4-3.6z');gb.parentNode.insertBefore(b,gb);
+  b.onclick=()=>{const on=!gvOn();GV.set({on});if(on){state.page='dashboard';resetViews()}render();toast(on?L('Game view is on. The same button brings Classic view back.','गेम व्यू चालू है। इसी बटन से क्लासिक व्यू वापस आता है।'):L('Classic view is on','क्लासिक व्यू चालू है'))}}
+ if(b){b.style.display=state.role==='platform'||!me()?'none':'';b.title=gvOn()?L('Classic view','क्लासिक व्यू'):L('Game view','गेम व्यू');b.setAttribute('aria-label',b.title);b.style.color=gvOn()?'var(--gold,#c9a227)':''}
+ const on=gvOn(), home=on&&state.page==='dashboard';app.classList.toggle('gvhome',home);
+ if(home){m.innerHTML=gvHome();gvBind(m)}
+ else if(on){if(!m.querySelector('.gv-back')){const d=document.createElement('button');d.className='gv-back';d.innerHTML='‹ '+L('Map','मैप');d.onclick=()=>{state.page='dashboard';resetViews();render()};m.insertBefore(d,m.firstChild)}
+  if(!m.querySelector('.gv-in'))gvModule(m)}}
+{const st=document.createElement('style');st.textContent=`
+#app.gvhome{grid-template-columns:minmax(0,1fr)}#app.gvhome #sb,#app.gvhome #menuBtn{display:none}#app.gvhome main{max-width:none;padding:0}#app.gvhome #liveNote{margin:8px 16px 0!important}
+.gv-back{border:1px solid var(--line);background:var(--card);color:inherit;border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.gv{--gb:radial-gradient(1200px 700px at 50% 30%,#12484a 0,#0a2c2f 45%,#061a1c 100%);--gp:rgba(8,38,41,.94);--gl:#1f6b6e;--gt:#e8f4f1;--gm:#9fc4bf;--ga:#f2c04e;--ga2:#3ddc97;--gc:#0f3d40;--gat:#2e1c00;--gdot:rgba(242,192,78,.7);
+ background:var(--gb);color:var(--gt);min-height:calc(100vh - 60px);padding:16px 18px 96px;position:relative}
+.gv.gv-day{--gb:linear-gradient(180deg,#cfeaff 0,#eef7ff 45%,#fff8f1 100%);--gp:#ffffff;--gl:#c9dcef;--gt:#16324a;--gm:#5b7690;--ga:#ff7a45;--ga2:#2f80ed;--gc:#eef5fc;--gat:#ffffff;--gdot:rgba(47,128,237,.55)}
+.gv button{font:inherit;color:inherit;cursor:pointer}.gv small{display:block;color:var(--gm);font-size:11.5px;font-weight:400}.gv-mut{color:var(--gm);font-size:12px;margin-top:8px}.gv-acc{color:var(--ga)}.gv-big{font-size:22px}.gv-sp{flex:1}
+.gv-hud{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:14px}
+.gv-chip{display:flex;align-items:center;gap:10px;background:var(--gc);border:1px solid var(--gl);border-radius:14px;padding:8px 14px;font-size:13px}
+.gv-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f2c04e,#e08a2e);display:grid;place-items:center;font-weight:800;color:#3a2400;border:2px solid #fff3c9;flex:none}
+.gv-barrow{display:flex;gap:8px;align-items:center;margin-top:3px}.gv-bar{width:190px;max-width:38vw;height:12px;border-radius:8px;background:rgba(0,0,0,.18);overflow:hidden;border:1px solid var(--gl)}.gv-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ga2),var(--ga))}
+.gv-skins button{width:22px;height:22px;border-radius:50%;border:2px solid var(--gl);padding:0}.gv-skins button.on{outline:2px solid var(--ga);outline-offset:2px}.gv-btn{font-weight:600}
+.gv-grid{display:grid;grid-template-columns:290px minmax(0,1fr) 270px;gap:16px;align-items:start}
+.gv-panel{background:var(--gp);border:1px solid var(--gl);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.gv-panel h3{font-size:15px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gv-ms{display:flex;width:100%;text-align:left;gap:10px;align-items:flex-start;justify-content:space-between;padding:10px;border-radius:12px;background:var(--gc);margin-bottom:8px;border:0;border-left:4px solid var(--ga2);font-size:13px}.gv-ms.y{border-left-color:#e0a82e}.gv-ms.r{border-left-color:#ff5d5d}
+.gv-pill{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap;flex:none}.gv-pill.g{background:rgba(61,220,151,.18);color:var(--ga2)}.gv-pill.y{background:rgba(224,168,46,.22);color:#c98a12}.gv-night .gv-pill.y{color:#ffd978}.gv-pill.r{background:rgba(255,93,93,.2);color:#e04848}.gv-night .gv-pill.r{color:#ffb0b0}.gv-pill.t{background:var(--gc);color:var(--gm);border:1px solid var(--gl)}
+.gv-link{background:none;border:0;color:var(--ga)!important;font-weight:700;font-size:13px;padding:4px 0}
+.gv-zone{margin-bottom:6px}.gv-zh{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ga);font-weight:700;margin:0 0 2px 8px}
+.gv-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 6px;position:relative;padding:12px 0 6px;width:fit-content;max-width:100%}.gv-row:before{content:"";position:absolute;left:60px;right:60px;top:50px;border-top:5px dotted var(--gdot)}
+.gv-node{width:138px;background:none;border:0;text-align:center;padding:0 4px 8px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}.gv-node b{display:block;font-size:13.5px;margin-top:12px}.gv-node small{line-height:1.3}
+.gv-tile{width:72px;height:72px;margin:0 auto;border-radius:22px;display:grid;place-items:center;position:relative;border:3px solid rgba(255,255,255,.9);box-shadow:0 6px 0 rgba(0,0,0,.28),0 0 22px rgba(242,192,78,.18);transform:rotate(45deg);transition:transform .15s}
+.gv-node:hover .gv-tile,.gv-node:focus-visible .gv-tile{transform:rotate(45deg) scale(1.08)}.gv-tile svg{transform:rotate(-45deg);width:34px;height:34px;color:#fff}
+.gv-cnt{position:absolute;top:-10px;right:-10px;transform:rotate(-45deg);background:#ff5d5d;color:#fff;font-size:11.5px;font-weight:800;font-style:normal;min-width:23px;height:23px;border-radius:12px;display:grid;place-items:center;border:2px solid #fff;padding:0 4px}
+.gv-rank{max-height:430px;overflow:auto}.gv-rr{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 4px;border-bottom:1px dashed var(--gl)}.gv-rr span{flex:1}.gv-rr b{color:var(--ga)}.gv-rr i{font-style:normal;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;background:var(--gc);border:1px solid var(--gl);flex:none}.gv-rr i.top{background:var(--ga);color:var(--gat);border-color:var(--ga)}.gv-rr.me{background:var(--gc);border-radius:10px;font-weight:700}
+.gv-dock{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;background:var(--gp);border:2px solid var(--ga);border-radius:20px;padding:8px 10px;z-index:6;max-width:calc(100vw - 20px);overflow-x:auto}
+.gv-dock button{white-space:nowrap;padding:9px 15px;border-radius:13px;background:var(--gc);font-size:13px;font-weight:600;border:1px solid var(--gl)}.gv-dock button.go{background:linear-gradient(var(--ga),var(--ga));color:var(--gat)!important;border:0}
+@media(max-width:1150px){.gv-grid{grid-template-columns:minmax(0,1fr)}.gv-map{order:-1}.gv-rank{max-height:260px}}
+@media(max-width:560px){.gv{padding:10px 10px 90px}.gv-node{width:31%;min-width:98px}.gv-chip{flex:1 1 150px}.gv-sp{display:none}}`;document.head.appendChild(st)}
+/* ---------- Game view (part 2): on top of a module page, the workflow as a path and a card for every section. First module: Leave ---------- */
+const GVMOD={};
+const gvPath=steps=>`<div class="gv-path">${steps.map((s,i)=>`<div class="gv-st ${s.s}"><i>${s.s==='done'?'✓':s.s==='bad'?'✕':s.last?'★':i+1}</i><b>${s.t}</b><small>${s.d||''}</small></div>`).join('')}</div>`;
+const gvCard=c=>`<div class="gv-card"><b>${c.t}</b><span>${c.d}</span>${c.x?`<em>${c.x}</em>`:''}<button data-gvclick="${esc(c.sel)}">${c.b}</button></div>`;
+GVMOD.leave=m=>{const id=me(), e=empById(id)||{}, has=s=>!!m.querySelector(s);
+ const mine=LEAVES.filter(l=>l.emp===id), pend=mine.filter(l=>l.st==='pending').sort((a,b)=>a.from<b.from?-1:1), l=pend[0]||mine.filter(x=>x.to>=addD(TODAY_S,-7)).sort((a,b)=>a.from<b.from?1:-1)[0]||null;
+ const apr=e.mgr&&empById(+e.mgr)?empById(+e.mgr).name:L('HR','HR'), b=leaveBalance(id);
+ let steps, tag='', head=L('Where is your leave now?','आपकी छुट्टी अभी कहाँ है?');
+ if(l){const tn=(()=>{try{return t(LT[l.type].k)}catch(x){return l.type}})();tag=`${esc(tn)} · ${fmtS(l.from)}${l.to!==l.from?' – '+fmtS(l.to):''} · ${l.days} ${L('day(s)','दिन')}`;
+  const st=l.st, cx=l.cx&&l.cx.st==='pending';
+  steps=[{s:'done',t:L('You applied','आपने माँग भेजी'),d:esc(l.reason||'')},
+   {s:st==='pending'?'now':st==='cancelled'?'bad':'done',t:L('Approval','मंज़ूरी'),d:st==='pending'?`${L('Waiting with','अभी इनके पास')}: ${esc(apr)}`:st==='cancelled'?L('Cancelled','रद्द हुई'):st==='rejected'?L('Decision given','फ़ैसला हो गया'):L('Approved','मंज़ूर हुई')},
+   {last:1,s:st==='approved'?'done':st==='rejected'?'bad':'todo',t:st==='rejected'?L('Rejected','अस्वीकृत'):L('Leave granted','छुट्टी मिली'),d:st==='approved'?(cx?L('You asked to cancel it: waiting for approval','आपने रद्द करने को कहा है: मंज़ूरी बाकी'):L('The days are cut from your balance','दिन आपके बैलेंस से कट गए')):st==='rejected'?L('No day is cut from your balance','बैलेंस से कोई दिन नहीं कटा'):L('After approval the days are cut from your balance','मंज़ूरी के बाद दिन बैलेंस से कटेंगे')}]}
+ else{head=L('How a leave moves','छुट्टी कैसे आगे बढ़ती है');tag=L('You have no leave request right now','अभी आपकी कोई छुट्टी की माँग नहीं है');
+  steps=[{s:'todo',t:L('You apply','आप माँग भेजते हैं'),d:L('Type, dates and reason','प्रकार, तारीख़ें और कारण')},{s:'todo',t:L('Approval','मंज़ूरी'),d:`${L('Goes to','इनके पास जाती है')}: ${esc(apr)}`},{last:1,s:'todo',t:L('Leave granted','छुट्टी मिली'),d:L('The days are cut from your balance','दिन आपके बैलेंस से कटते हैं')}]}
+ let bal='';try{bal=ltKeysFor(b).filter(k=>b[k]&&b[k].avail!=null).slice(0,5).map(k=>`${k} ${b[k].avail}`).join(' · ')}catch(x){}
+ let nh='';try{const h=ltHoliList(id).filter(x=>x[0]>=TODAY_S)[0];if(h)nh=`${L('Next','अगली')}: ${esc(h[1])}, ${fmtS(h[0])}`}catch(x){}
+ let toAp=0;try{toAp=pendingFor().filter(a=>a.kind==='L').length}catch(x){}
+ const cards=[];
+ if(has('[data-lapply]'))cards.push({t:L('Apply for leave','छुट्टी लगाएँ'),d:L('Send a new request. It goes to your approver by itself.','नई माँग भेजें। यह अपने आप मंज़ूर करने वाले के पास जाती है।'),b:L('Start','शुरू करें'),sel:'[data-lapply]'});
+ if(has('[data-ltab="mine"]'))cards.push({t:L('My balance and history','मेरा बैलेंस और इतिहास'),d:L('Days left in each leave type, and all your requests. A waiting request can be cancelled here.','हर प्रकार में बचे दिन और आपकी सारी माँगें। बाकी माँग यहीं से रद्द होती है।'),x:bal,b:L('Open','खोलें'),sel:'[data-ltab="mine"]'});
+ if(has('[data-ltab="appr"]'))cards.push({t:L('Approve team leave','टीम की छुट्टी मंज़ूर करें'),d:L('Requests of your team that wait for your decision.','आपकी टीम की माँगें जो आपके फ़ैसले का इंतज़ार कर रही हैं।'),x:toAp?`${toAp} ${L('waiting','बाकी')}`:L('Nothing is waiting','कुछ बाकी नहीं'),b:L('Open','खोलें'),sel:'[data-ltab="appr"]'});
+ if(has('[data-ltab="short"]'))cards.push({t:L('Short leave','शॉर्ट लीव'),d:L('A few hours off in a day, within the monthly limit.','दिन में कुछ घंटे की छुट्टी, महीने की सीमा के अंदर।'),b:L('Open','खोलें'),sel:'[data-ltab="short"]'});
+ if(has('[data-ltab="encash"]'))cards.push({t:L('Encash leave','छुट्टी का नक़दीकरण'),d:L('Take money for unused leave, where the leave type allows it.','बची छुट्टी के बदले पैसा, जहाँ छुट्टी का प्रकार इसकी अनुमति देता है।'),b:L('Open','खोलें'),sel:'[data-ltab="encash"]'});
+ if(has('[data-ltab="hol"]'))cards.push({t:L('Holidays','छुट्टियों की सूची'),d:L('The holiday calendar that applies to you.','आप पर लागू छुट्टियों का कैलेंडर।'),x:nh,b:L('Open','खोलें'),sel:'[data-ltab="hol"]'});
+ let sw=false;try{sw=!!atPolFor(e).sandwich}catch(x){}
+ const tip=sw?L('Sandwich rule: when leave is taken on both sides of a weekly off or holiday, the days in between are counted as leave too.','सैंडविच नियम: साप्ताहिक छुट्टी या अवकाश के दोनों तरफ़ छुट्टी लेने पर बीच के दिन भी छुट्टी गिने जाते हैं।'):L('A request that is still waiting can be cancelled by you. For an approved leave that has not started, ask for cancellation and your approver decides.','जो माँग अभी बाकी है उसे आप ख़ुद रद्द कर सकते हैं। मंज़ूर छुट्टी जो शुरू नहीं हुई, उसके लिए रद्द करने की माँग भेजें; फ़ैसला मंज़ूर करने वाला करता है।');
+ return `<div class="gv-panel"><h3>${head}<span class="gv-pill t">${tag}</span></h3>${gvPath(steps)}</div><div class="gv-cards">${cards.map(gvCard).join('')}</div><div class="gv-tip"><b>${L('Good to know','जानने लायक')}</b> ${tip}</div>`};
+let gvModule=function(m){const fn=GVMOD[state.page];if(!fn)return;let h='';try{h=fn(m)}catch(e){console.warn('game view module',e);return}if(!h)return;
+ const d=document.createElement('div');d.className='gv gv-in gv-'+(GV.get().skin==='day'?'day':'night');d.innerHTML=h;const bk=m.querySelector('.gv-back');m.insertBefore(d,bk?bk.nextSibling:m.firstChild);
+ d.querySelectorAll('[data-gvclick]').forEach(b=>b.onclick=()=>{const x=[...m.querySelectorAll(b.dataset.gvclick)].find(el=>!d.contains(el));if(x)x.click()})}
+{const st=document.createElement('style');st.textContent=`
+.gv.gv-in{min-height:0;padding:16px;border-radius:18px;margin-bottom:16px}
+.gv-path{display:flex;margin-top:6px}.gv-st{flex:1;text-align:center;position:relative;font-size:13px;padding:0 6px}.gv-st i{width:50px;height:50px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:18px;border:3px solid var(--gl);background:var(--gc);color:var(--gm);position:relative;z-index:1}
+.gv-st:not(:first-child):before{content:"";position:absolute;left:-50%;right:50%;top:22px;height:6px;background:var(--gl);border-radius:3px}.gv-st.done:before,.gv-st.now:before,.gv-st.bad:before{background:var(--ga2)}
+.gv-st.done i{background:#1f9d6b;border-color:#fff;color:#fff}.gv-st.now i{background:#d99a26;border-color:#fff;color:#fff;box-shadow:0 0 0 7px rgba(242,192,78,.28)}.gv-st.bad i{background:#d9534f;border-color:#fff;color:#fff}.gv-st b{display:block}
+.gv-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:14px}
+.gv-card{background:var(--gp);border:1px solid var(--gl);border-radius:16px;padding:14px;font-size:13px;display:flex;flex-direction:column;gap:6px}.gv-card b{font-size:15px}.gv-card span{color:var(--gm);flex:1}.gv-card em{font-style:normal;font-weight:700;color:var(--ga)}
+.gv-card button{align-self:flex-start;margin-top:4px;padding:7px 16px;border-radius:10px;background:var(--ga);color:var(--gat)!important;font-weight:700;font-size:12.5px;border:0}
+.gv-tip{margin-top:14px;background:var(--gc);border:1px dashed var(--gl);border-radius:14px;padding:12px 14px;font-size:13px}.gv-tip b{color:var(--ga);margin-right:6px}
+@media(max-width:560px){.gv-st{font-size:12px}.gv-st i{width:42px;height:42px}.gv-st:not(:first-child):before{top:18px}}`;document.head.appendChild(st)}
+/* ---------- Game view (part 2, all modules): how the work moves in the module, and a card for every section with its line from the User Guide ---------- */
+const GVFLOW={
+ inbox:{s:[['Work comes from every module','हर मॉड्यूल से काम आता है'],['Most urgent comes first','सबसे ज़रूरी सबसे ऊपर'],['You decide, do or read it','आप फ़ैसला करते, काम करते या पढ़ते हैं'],['It leaves the Inbox; on time counts in KPI-399','यह इनबॉक्स से हटता है; समय पर हो तो KPI-399 में गिना जाता है']]},
+ attendance:{s:[['Punch in','पंच इन'],['Work your shift','अपनी शिफ़्ट पूरी करें'],['Punch out','पंच आउट'],['The day is marked: present, half day or late','दिन दर्ज होता है: उपस्थित, आधा दिन या देर']]},
+ attreq:{k:['ar','reg','od','att'],s:[['You ask for a correction or on duty','आप सुधार या ऑन ड्यूटी की माँग भेजते हैं'],['Reporting manager approves','रिपोर्टिंग मैनेजर मंज़ूर करता है'],['HR approves','HR मंज़ूर करता है'],['Attendance is corrected','हाज़िरी सुधर जाती है']]},
+ locreq:{k:['loc'],s:[['You ask to punch from outside the branch','आप ब्रांच के बाहर से पंच की माँग भेजते हैं'],['Reporting manager approves','रिपोर्टिंग मैनेजर मंज़ूर करता है'],['HR approves','HR मंज़ूर करता है'],['You can punch from that place on those days','उन दिनों आप उस जगह से पंच कर सकते हैं']]},
+ timeoffice:{s:[['Shifts and holidays are set','शिफ़्ट और छुट्टियाँ तय होती हैं'],['Punches come in every day','रोज़ पंच आते हैं'],['Requests and exceptions are cleared','माँगें और गड़बड़ियाँ निपटाई जाती हैं'],['The month is processed and locked','महीना प्रोसेस होकर लॉक होता है'],['Payroll uses these days','पेरोल इन्हीं दिनों से चलता है']]},
+ payroll:{k:['adv'],s:[['Attendance of the month is processed','महीने की हाज़िरी प्रोसेस होती है'],['Arrears, overtime and allowances are added','एरियर, ओवरटाइम और भत्ते जुड़ते हैं'],['Salary is processed','सैलरी प्रोसेस होती है'],['It is verified and released to the bank','जाँच के बाद बैंक को जाती है'],['Payslips are published','पे-स्लिप जारी होती हैं']]},
+ expense:{k:['xadv','claim','trip'],s:[['You ask for an advance, a trip or give a claim with bills','आप एडवांस, यात्रा या बिल के साथ क्लेम की माँग भेजते हैं'],['The approvers approve','मंज़ूर करने वाले मंज़ूर करते हैं'],['Accounts pays','Accounts भुगतान करता है'],['Bills are checked and it is settled','बिल जाँचे जाते हैं और हिसाब बंद होता है']]},
+ pms:{s:[['KPIs are assigned to you','आपको KPI असाइन होती हैं'],['Data comes in during the month','महीने भर डेटा आता है'],['Scores are worked out: auto, manager, audit','स्कोर बनते हैं: ऑटो, मैनेजर, ऑडिट'],['The month is closed','महीना बंद होता है'],['Growth, counselling and recognition follow','ग्रोथ, काउंसलिंग और सम्मान इसी से चलते हैं']]},
+ training:{s:[['A training is planned or a course is assigned','ट्रेनिंग तय होती है या कोर्स असाइन होता है'],['You attend or study','आप शामिल होते या पढ़ते हैं'],['Test and feedback','टेस्ट और फ़ीडबैक'],['Certificate and skill record','सर्टिफ़िकेट और स्किल रिकॉर्ड']]},
+ decision:{s:[['Work comes to you: To Do, task, daily form','काम आपके पास आता है: टू-डू, टास्क, रोज़ का फ़ॉर्म'],['You do it and fill it in','आप करते और भरते हैं'],['The approver confirms where needed','जहाँ ज़रूरी हो मंज़ूर करने वाला पुष्टि करता है'],['It counts in your KPI','यह आपकी KPI में गिना जाता है']]},
+ myreq:{s:[['You raise a request','आप माँग भेजते हैं'],['It goes to the approver','यह मंज़ूर करने वाले के पास जाती है'],['A decision is given','फ़ैसला होता है'],['You see the result here','नतीजा यहीं दिखता है']]},
+ profile:{s:[['You see your details','आप अपना विवरण देखते हैं'],['You ask for a change, with proof where needed','आप बदलाव माँगते हैं, जहाँ ज़रूरी हो प्रमाण के साथ'],['HR approves','HR मंज़ूर करता है'],['Your record is updated','आपका रिकॉर्ड बदल जाता है']]},
+ myasset:{k:['asset'],s:[['You ask for an asset','आप एसेट माँगते हैं'],['Reporting manager and HR approve','रिपोर्टिंग मैनेजर और HR मंज़ूर करते हैं'],['The Asset In-charge issues it','एसेट इंचार्ज देता है'],['You confirm that you received it','आप मिलने की पुष्टि करते हैं']]},
+ assets:{s:[['Items are added to the inventory','सामान इन्वेंटरी में जुड़ता है'],['A request is approved','माँग मंज़ूर होती है'],['The item is issued','सामान दिया जाता है'],['The employee confirms','कर्मचारी पुष्टि करता है'],['It is taken back at exit','एक्ज़िट पर वापस लिया जाता है']]},
+ support:{s:[['You raise a ticket','आप टिकट बनाते हैं'],['The right desk gets it','सही डेस्क को मिलती है'],['Solved within the time limit, or escalated','समय सीमा में हल, वरना ऊपर जाती है'],['You confirm and rate','आप पुष्टि करते और रेटिंग देते हैं']]},
+ engage:{s:[['HR posts a notice, poll or letter','HR नोटिस, पोल या पत्र जारी करता है'],['It reaches the chosen people','चुने हुए लोगों तक पहुँचता है'],['They read, vote or acknowledge','वे पढ़ते, वोट देते या पावती देते हैं'],['HR sees who has done it','HR देखता है किसने किया']]},
+ recruit:{s:[['Manpower plan','मैनपावर प्लान'],['Requisition is approved','माँग मंज़ूर होती है'],['Vacancy and candidates','वैकेंसी और कैंडिडेट'],['Interviews','इंटरव्यू'],['Offer and joining','ऑफ़र और जॉइनिंग']]},
+ workforce:{s:[['The manpower plan is set','मैनपावर प्लान तय होता है'],['A new joiner is onboarded','नए व्यक्ति की ऑनबोर्डिंग होती है'],['Documents and uniform','दस्तावेज़ और यूनिफ़ॉर्म'],['Attrition is watched','छोड़ने वालों पर नज़र रहती है']]},
+ employees:{s:[['An employee is added','कर्मचारी जोड़ा जाता है'],['A login is given','लॉगिन दिया जाता है'],['Details are kept up to date','विवरण अपडेट रखा जाता है'],['Exit when the person leaves','छोड़ने पर एक्ज़िट']]},
+ exits:{k:['res'],s:[['The employee resigns','कर्मचारी इस्तीफ़ा देता है'],['Reporting manager and HR approve','रिपोर्टिंग मैनेजर और HR मंज़ूर करते हैं'],['Exit interview and handover','एक्ज़िट इंटरव्यू और हैंडओवर'],['Final settlement','फ़ाइनल सेटलमेंट']]},
+ cockpit:{s:[['Search an employee','कर्मचारी खोजें'],['See everything in one place','सब कुछ एक जगह देखें'],['Do the action from here','यहीं से काम करें'],['It runs through the usual approval','यह सामान्य मंज़ूरी से ही चलता है']]},
+ analytics:{s:[['Pick a module','मॉड्यूल चुनें'],['Pick a dashboard','डैशबोर्ड चुनें'],['Filter by branch, division or month','ब्रांच, डिवीज़न या महीने से छाँटें'],['Open the list behind a number, or export','आँकड़े के पीछे की लिस्ट खोलें या एक्सपोर्ट करें']]},
+ reports:{s:[['Pick a module','मॉड्यूल चुनें'],['Pick a report','रिपोर्ट चुनें'],['Set the filters','फ़िल्टर लगाएँ'],['View, print or download','देखें, प्रिंट करें या डाउनलोड करें']]},
+ library:{s:[['HR publishes a document','HR दस्तावेज़ जारी करता है'],['It reaches the chosen people','चुने हुए लोगों तक पहुँचता है'],['They read and acknowledge','वे पढ़कर पावती देते हैं'],['HR sees who is left','HR देखता है कौन बाकी है']]},
+ crm:{s:[['Customer feedback or a complaint comes in','ग्राहक का फ़ीडबैक या शिकायत आती है'],['It is recorded against the person','वह व्यक्ति के नाम दर्ज होती है'],['The manager decides','मैनेजर फ़ैसला करता है'],['It counts in the KPI','यह KPI में गिना जाता है']]},
+ marketing:{s:[['Content is planned','कंटेंट की योजना बनती है'],['It is created and reviewed','बनता है और रिव्यू होता है'],['It is posted','पोस्ट होता है'],['Results are entered and KPIs score','नतीजे भरे जाते हैं और KPI स्कोर बनता है']]},
+ stock:{s:[['Old stock is listed','पुराना स्टॉक लिस्ट होता है'],['The owner reviews it','ज़िम्मेदार व्यक्ति समीक्षा करता है'],['An action is decided','कार्रवाई तय होती है'],['It is reviewed every month','हर महीने समीक्षा होती है']]},
+ bizdata:{s:[['Sales and business files are imported','बिक्री और बिज़नेस की फ़ाइलें आती हैं'],['The numbers are checked','आँकड़े जाँचे जाते हैं'],['They are compared with the targets','टारगेट से मिलाए जाते हैं'],['The KPIs use them','KPI इन्हीं से बनती हैं']]},
+ import:{s:[['Download the sample file','नमूना फ़ाइल डाउनलोड करें'],['Fill it in','उसे भरें'],['Upload it','अपलोड करें'],['Check the preview and confirm','प्रीव्यू जाँचें और पुष्टि करें']]},
+ settings:{s:[['Company structure','कंपनी का ढाँचा'],['Rules and policies','नियम और नीतियाँ'],['Workflows and rights','वर्कफ़्लो और अधिकार'],['Templates and numbering','टेम्पलेट और नंबर सीरीज़']]},
+ team:{s:[['See who is in today','देखें आज कौन आया'],['See who is late or absent','देखें कौन देर से या अनुपस्थित है'],['Approve their requests','उनकी माँगें मंज़ूर करें'],['Follow up','फ़ॉलो-अप करें']]}};
+const gvFirst=s=>{s=String(s||'').trim();const m=s.match(/^.*?[.।](?=\s|$)/);s=m?m[0]:s;return s.length>170?s.slice(0,167)+'…':s};
+const gvAll={};
+function gvGeneric(m,d0){const pg=state.page, li=lang==='hi'?1:0, g=(window.GUIDE||[]).find(x=>x.id===pg), fl=GVFLOW[pg];if(!g&&!fl)return '';
+ let path='';if(fl){let r=null;try{if(fl.k)r=mrRows(me()).filter(x=>fl.k.includes(x.type)&&x.cls==='p-warn').sort((a,b)=>(a.date||'')<(b.date||'')?1:-1)[0]||null}catch(e){}
+  const steps=fl.s.map((x,i)=>({t:x[li],s:r?(i===0?'done':i===1?'now':'todo'):'todo',last:i===fl.s.length-1,d:r?(i===0?esc(`${r.no} · ${r.what}`):i===1?(r.who?`${L('Waiting with','अभी इनके पास')}: ${esc(r.who)}`:esc(r.st)):''):''}));
+  path=`<div class="gv-panel"><h3>${r?L('Where is your request now?','आपकी माँग अभी कहाँ है?'):L('How the work moves here','यहाँ काम कैसे चलता है')}${r?`<span class="gv-pill t">${esc(r.no)}</span>`:''}</h3>${gvPath(steps)}</div>`}
+ const cards=[];const strip=[...m.querySelectorAll('.tabs')].find(x=>!x.closest('.gv-in'));
+ if(strip&&g)[...strip.querySelectorAll('button')].forEach(b=>{const a=[...b.attributes].find(x=>x.name.startsWith('data-'));if(!a)return;const en=g.entries.find(e=>e.id===a.value);if(!en||!en.what)return;
+  const ov=state.role==='employee'?GVEMP[pg+':'+a.value]:null;cards.push({t:esc((b.childNodes[0]&&b.childNodes[0].nodeType===3?b.childNodes[0].nodeValue:b.textContent).replace(/\s*\(\d+\)\s*$/,'').trim()),d:esc(ov?ov[li]:gvFirst(en.what[li])),b:b.classList.contains('on')?L('You are here','आप यहीं हैं'):L('Open','खोलें'),sel:`[${a.name}="${a.value}"]`,cur:b.classList.contains('on')})});
+ const all=gvAll[pg]||cards.length<=8, show=all?cards:cards.slice(0,8);
+ return path+(cards.length>1?`<div class="gv-cards">${show.map(c=>gvCard(c).replace('class="gv-card"',`class="gv-card${c.cur?' cur':''}"`)).join('')}</div>${cards.length>8?`<button class="gv-link" data-gvall>${all?L('Show fewer sections','कम हिस्से दिखाएँ'):`${L('Show all sections','सभी हिस्से दिखाएँ')} (${cards.length})`}</button>`:''}`:'')}
+gvModule=function(m){const pg=state.page;if(pg==='dashboard'||state.role==='platform')return;let h='';try{h=(GVMOD[pg]||gvGeneric)(m)}catch(e){console.warn('game view module',e);return}if(!h)return;
+ const li=lang==='hi'?1:0, g=(window.GUIDE||[]).find(x=>x.id===pg), hid=!!((GV.get().hide||{})[pg]);
+ const d=document.createElement('div');d.className='gv gv-in gv-'+(GV.get().skin==='day'?'day':'night')+(hid?' gv-hid':'');
+ d.innerHTML=`<div class="gv-mh"><div><b>${t(pg)}</b>${g&&g.desc&&!hid?`<span>${esc(g.desc[li])}</span>`:''}</div><button data-gvhide>${hid?L('Show guide','गाइड दिखाएँ'):L('Hide guide','गाइड छिपाएँ')}</button></div>${hid?'':h}`;
+ const bk=m.querySelector('.gv-back');m.insertBefore(d,bk?bk.nextSibling:m.firstChild);
+ d.querySelectorAll('[data-gvclick]').forEach(b=>b.onclick=()=>{const x=[...m.querySelectorAll(b.dataset.gvclick)].find(el=>!d.contains(el));if(x)x.click()});
+ d.querySelectorAll('[data-gvhide]').forEach(b=>b.onclick=()=>{const hd={...(GV.get().hide||{})};if(hid)delete hd[pg];else hd[pg]=1;GV.set({hide:hd});render()});
+ d.querySelectorAll('[data-gvall]').forEach(b=>b.onclick=()=>{gvAll[pg]=!gvAll[pg];render()})};
+{const st=document.createElement('style');st.textContent=`
+.gv-mh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}.gv-mh b{font-size:19px;display:block}.gv-mh span{color:var(--gm);font-size:13px}
+.gv-mh button{flex:none;background:var(--gc);border:1px solid var(--gl);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600}
+.gv.gv-in.gv-hid{padding:8px 14px}.gv-hid .gv-mh{margin:0;align-items:center}.gv-hid .gv-mh b{font-size:14px}
+.gv-card.cur{outline:2px solid var(--ga);outline-offset:-2px}.gv-card.cur button{background:var(--gc);color:var(--gm)!important;border:1px solid var(--gl)}
+.gv-in .gv-st b{font-weight:600}.gv-in .gv-link{margin-top:8px}`;document.head.appendChild(st)}
+/* ---------- Game view (part 3): badges of the month from the real records, and a short celebration for a new badge or a new career level ---------- */
+const GVBI={time:'M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z',full:'M22 11.1V12a10 10 0 11-5.9-9.1M22 4L12 14l-3-3',fire:'M13 2L3 14h9l-1 8 10-12h-9l1-8z',inbox:'M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.5-6.9A2 2 0 0016.8 4H7.2a2 2 0 00-1.7 1.1z',kpi:'M12 22a10 10 0 100-20 10 10 0 000 20zM12 18a6 6 0 100-12 6 6 0 000 12zM12 14a2 2 0 100-4 2 2 0 000 4z',top:'M12 15a7 7 0 100-14 7 7 0 000 14zM8.2 13.9L7 23l5-3 5 3-1.2-9.1',learn:'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z'};
+function gvBadges(id){const e=empById(id)||{};let pres=0,late=0,abs=0;
+ try{for(let d=1;d<=TODAY_D;d++){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)pres++;else if(r.st==='L'){pres++;late++}else if(r.half){pres++;abs+=.5}else if(r.st==='A'&&d<TODAY_D)abs++}}catch(x){}
+ let ib={ok:0,late:0,over:0};try{ib=ibStat(id,curMk(),true)}catch(x){}
+ const sc=gvScore(id), st=gvStreak(id);let pos=0,n=0;try{const rk=gvRank(e);n=rk.length;const i=rk.findIndex(r=>r.id===id);pos=i>=0&&rk[i].s!=null?i+1:0}catch(x){}
+ let cert=0;try{cert=SLCERT.filter(c=>c.emp===id&&String(c.date).slice(0,7)===curMk()).length}catch(x){}
+ return[
+  {k:'time',n:['On time','समय का पक्का'],how:['No late day this month, with at least 5 days present','इस महीने एक भी दिन देर नहीं, कम से कम 5 दिन उपस्थित'],on:pres>=5&&late===0,p:`${pres} ${L('days present','दिन उपस्थित')} · ${late} ${L('late','देर')}`},
+  {k:'full',n:['Full attendance','पूरी हाज़िरी'],how:['No absent day this month, with at least 5 days present','इस महीने एक भी दिन अनुपस्थित नहीं, कम से कम 5 दिन उपस्थित'],on:pres>=5&&abs===0,p:`${abs} ${L('absent','अनुपस्थित')}`},
+  {k:'fire',n:['7-day streak','7 दिन लगातार'],how:['7 working days in a row on time this month','इस महीने लगातार 7 कार्य दिन समय पर'],on:st>=7,p:`${st} / 7`},
+  {k:'inbox',n:['Inbox hero','इनबॉक्स हीरो'],how:['At least 3 Inbox items finished this month and none late or overdue','इस महीने कम से कम 3 इनबॉक्स आइटम पूरे और कोई देर से या बाकी नहीं'],on:ib.ok>=3&&ib.late+ib.over===0,p:`${ib.ok} ${L('on time','समय पर')} · ${ib.late+ib.over} ${L('late','देर')}`},
+  {k:'kpi',n:['KPI 90+','KPI 90+'],how:['KPI score of the month so far is 90 or more','इस महीने का अब तक का KPI स्कोर 90 या ज़्यादा'],on:sc!=null&&sc>=90,p:sc==null?'—':`${sc} / 100`},
+  {k:'top',n:['Top 3','टॉप 3'],how:['In the first three of your division ranking (4 or more people)','अपने डिवीज़न की रैंकिंग में पहले तीन में (4 या ज़्यादा लोग)'],on:n>=4&&pos>0&&pos<=3,p:pos?`${L('rank','रैंक')} ${pos} / ${n}`:'—'},
+  {k:'learn',n:['Learner','सीखने वाला'],how:['A course certificate earned this month','इस महीने एक कोर्स सर्टिफ़िकेट मिला'],on:cert>0,p:`${cert} ${L('certificate(s)','सर्टिफ़िकेट')}`}]}
+function gvCelebrate(title,sub){try{document.querySelectorAll('.gv-cel').forEach(x=>x.remove());const d=document.createElement('div');d.className='gv-cel';
+ const still=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches, col=['#f2c04e','#3ddc97','#ff7a45','#2f80ed','#ff5d5d','#ffffff'];
+ d.innerHTML=(still?'':Array.from({length:44},(_,i)=>`<i style="left:${(i*37)%100}%;background:${col[i%6]};animation-delay:${(i%11)*.09}s;animation-duration:${2.2+(i%5)*.3}s;width:${6+i%4*2}px;height:${10+i%3*4}px"></i>`).join(''))+`<div class="gv-celc"><span>★</span><b>${title}</b><small>${sub||''}</small></div>`;
+ d.onclick=()=>d.remove();document.body.appendChild(d);setTimeout(()=>d.remove(),4500)}catch(e){}}
+function gvBadgeUI(id,e){const bs=gvBadges(id), g=GV.get(), mk=curMk(), have=bs.filter(b=>b.on).map(b=>b.k);
+ /* a celebration only for what is new since the last look in this browser; the first look only notes what is there */
+ try{if(!g.bd||g.bd.mk!==mk)GV.set({bd:{mk,keys:have}});else{const nw=bs.filter(b=>b.on&&!g.bd.keys.includes(b.k));if(nw.length){GV.set({bd:{mk,keys:[...new Set([...g.bd.keys,...have])]}});setTimeout(()=>gvCelebrate(`${L('New badge','नया बैज')}: ${nw.map(b=>L(...b.n)).join(', ')}`,nw.length===1?L(...nw[0].how):L('Press the badges to see how each one is earned','हर बैज कैसे मिलता है यह देखने के लिए बैज दबाएँ')),80)}}
+  const lv=+e.level||1;if(g.lv&&lv>g.lv)setTimeout(()=>gvCelebrate(`${L('Level up','लेवल बढ़ा')}: ${L('Level','लेवल')} ${lv}`,L('Your career level has moved up','आपका करियर लेवल ऊपर गया')),80);if(g.lv!==lv)GV.set({lv})}catch(x){}
+ return{n:have.length,tot:bs.length,html:`<div class="gv-panel" style="margin-top:16px"><h3>${L('Badges of the month','इस महीने के बैज')}<small>${have.length} / ${bs.length}</small></h3><div class="gv-bds">${bs.map(b=>`<button class="gv-bd ${b.on?'on':''}" data-gvbadge title="${esc(L(...b.how))}">${svg(GVBI[b.k])}<span>${L(...b.n)}</span></button>`).join('')}</div><button class="gv-link" data-gvbadge>${L('How to earn them','ये कैसे मिलते हैं')}</button></div>`,
+  list:()=>listModal(L('Badges of the month','इस महीने के बैज'),bs.map(b=>`<div class="grow"><b>${b.on?'★ ':''}${L(...b.n)}</b><small>${L(...b.how)} · ${L('now','अभी')}: ${b.p}</small></div><span class="pill ${b.on?'p-ok':'p-warn'}">${b.on?L('Earned','मिल गया'):L('Not yet','अभी नहीं')}</span>`))}}
+{const st=document.createElement('style');st.textContent=`
+.gv-bds{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}.gv-bd{background:none;border:0;padding:0;text-align:center;font-size:10.5px;line-height:1.25;opacity:.38;filter:grayscale(1)}
+.gv-bd svg{width:46px;height:46px;padding:11px;border-radius:50%;border:2px solid var(--gl);background:var(--gc);display:block;margin:0 auto 4px}.gv-bd.on{opacity:1;filter:none}.gv-bd.on svg{border-color:var(--ga);color:var(--ga);box-shadow:0 0 14px rgba(242,192,78,.35)}
+.gv-cel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(0,0,0,.45);overflow:hidden;cursor:pointer}.gv-cel i{position:absolute;top:-30px;border-radius:2px;animation:gvfall linear forwards}
+.gv-celc{background:#0d3437;color:#fff;border:3px solid #f2c04e;border-radius:22px;padding:26px 34px;text-align:center;max-width:88vw;animation:gvpop .45s cubic-bezier(.2,1.6,.4,1)}.gv-celc span{display:block;font-size:44px;color:#f2c04e;line-height:1}.gv-celc b{display:block;font-size:22px;margin:8px 0 4px}.gv-celc small{color:#b9d6d1;font-size:13px}
+@keyframes gvfall{to{transform:translateY(110vh) rotate(540deg)}}@keyframes gvpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.gv-celc{animation:none}.gv-node:hover .gv-tile{transform:rotate(45deg)}}`;document.head.appendChild(st)}
+/* ---------- Game view: the choice is kept with the person on the server (GVP), badges of the month are kept for HR (BDG), employee wording of some cards ---------- */
+function gvSnapOne(id){const keys=gvBadges(id).filter(b=>b.on).map(b=>b.k), k=id+'|'+curMk(), o=BDG[k];if(!o||o.d!==TODAY_S||(o.keys||[]).join()!==keys.join())BDG[k]={emp:id,mk:curMk(),keys,d:TODAY_S};return keys}
+let gvSnapDay='';
+function gvSnapAll(){try{if(!canManage()||gvSnapDay===TODAY_S)return;if(typeof LIVE!=='undefined'&&(!LIVE.on||LIVE.platform||LIVE.refreshing))return;gvSnapDay=TODAY_S;
+ const mk=curMk(), emps=DATA.emps.filter(e=>e.active);if(emps.length>150||Object.keys(BDG).some(k=>BDG[k]&&BDG[k].mk===mk&&BDG[k].d===TODAY_S))return;emps.forEach(e=>{try{gvSnapOne(e.id)}catch(x){}})}catch(e){}}
+rp('pm_badges','pms','Badges of the month (employee-wise)','इस महीने के बैज (कर्मचारी-वार)','month','M',f=>{const mk=f.mk||curMk(), cur=mk===curMk(), emps=rActive(rptEmps(f)), defs=emps.length?gvBadges(emps[0].id):[];let any=cur;
+ const rows=emps.map(e=>{const rec=BDG[e.id+'|'+mk], keys=cur?(canManage()?gvSnapOne(e.id):gvBadges(e.id).filter(b=>b.on).map(b=>b.k)):(rec?rec.keys:null);if(keys)any=true;
+  return[e.code,e.name,...defs.map(d=>keys?(keys.includes(d.k)?L('Yes','हाँ'):''):'—'),keys?keys.length:'',cur?TODAY_S:(rec?rec.d:'')]});
+ return{cols:[L('Code','कोड'),L('Name','नाम'),...defs.map(d=>L(...d.n)),L('Badges','बैज'),L('As on','किस दिन तक')],rows,note:any?'':L('No badges were saved for this month. They are saved when Admin or HR opens Mirror-HR in that month.','इस महीने के बैज सेव नहीं हुए। ये तब सेव होते हैं जब Admin या HR उस महीने Mirror-HR खोलते हैं।')}});
+SCHEDJOBS.push(['Save the badges of the month for every employee','हर कर्मचारी के इस महीने के बैज सेव करें',()=>{let n=0;DATA.emps.filter(e=>e.active).forEach(e=>{try{gvSnapOne(e.id);n++}catch(x){}});return n}]);
+const GVEMP={'payroll:earned':['What your salary structure promised, what you earned in the month and why they differ (absence, KPI).','आपके सैलरी स्ट्रक्चर में क्या तय था, महीने में आपने क्या कमाया और फ़र्क़ क्यों है (अनुपस्थिति, KPI)।'],
+ 'payroll:adv':['Ask for part of your salary in advance; it is repaid in installments from your coming salaries.','अपनी सैलरी का कुछ हिस्सा एडवांस में माँगें; यह आने वाली सैलरी से किस्तों में कटता है।'],
+ 'training:ind':['Your induction plan as a new joiner: what HR, your manager and you must do, and the progress.','नए व्यक्ति के रूप में आपका इंडक्शन प्लान: HR, आपके मैनेजर और आपको क्या करना है, और कितना हो चुका।'],
+ 'training:hist':['Your training record: assigned, attended, excused, absent and your average test percentage.','आपका ट्रेनिंग रिकॉर्ड: असाइन, शामिल, छूट, अनुपस्थित और आपका औसत टेस्ट प्रतिशत।'],
+ 'pms:audit':['Your KPIs that an auditor scores against a checklist, with the result and the score.','आपकी वे KPI जिन्हें ऑडिटर चेकलिस्ट से स्कोर करता है, नतीजे और स्कोर के साथ।'],
+ 'pms:survey':['Surveys about a manager that you are invited to answer.','मैनेजर के बारे में वे सर्वे जिनका जवाब देने के लिए आपको बुलाया गया है।'],
+ 'pms:recog':['Appreciation you received: the type, the title, the points and who gave it.','आपको मिली सराहना: प्रकार, शीर्षक, पॉइंट और किसने दी।'],
+ 'support:fb':['Rate a ticket of yours after it is resolved.','अपनी टिकट हल होने के बाद उसकी रेटिंग दें।']};
+{const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);if(gvSnapDay!==TODAY_S&&canManage())setTimeout(gvSnapAll,4000);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
