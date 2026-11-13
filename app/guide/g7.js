@@ -4,7 +4,7 @@
     cockpit: ['Cockpit', 'कॉकपिट'], engage: ['Engagement', 'एंगेजमेंट'], myasset: ['My Asset', 'मेरा एसेट'], assets: ['Assets', 'एसेट'],
     expense: ['Expense', 'एक्सपेंस'], bizdata: ['Business data', 'बिज़नेस डेटा'], crm: ['CRM and ER', 'CRM और ER'], stock: ['Stock ageing', 'स्टॉक एजिंग'],
     library: ['Library', 'लाइब्रेरी'], marketing: ['Marketing', 'मार्केटिंग'], decision: ['My Assignment', 'मेरा असाइनमेंट'],
-    training: ['Training', 'ट्रेनिंग'], pms: ['PMS', 'पीएमएस']
+    training: ['Training', 'ट्रेनिंग'], pms: ['PMS', 'पीएमएस'], analytics: ['Analytics', 'एनालिटिक्स']
   };
   function E(m, id, nEn, nHi, what, why, who, steps, notes) {
     var mod = window.GUIDE.filter(function (x) { return x.id === m; })[0];
@@ -271,4 +271,17 @@
   E('library', 'report', 'Report', 'रिपोर्ट',
     ['A summary by category: documents, published versions, drafts, those that need acknowledgement and those due for review in 30 days.', 'श्रेणी के अनुसार सार: दस्तावेज़, प्रकाशित वर्ज़न, ड्राफ़्ट, जिनकी पुष्टि चाहिए और जिनका 30 दिन में रिव्यू है।'], ['So that no policy gets old.', 'ताकि कोई पॉलिसी पुरानी न हो।'], HR,
     [['Open Library > Report.', 'Library > Report खोलें।'], ['Read each category row.', 'हर श्रेणी की लाइन पढ़ें।'], ['Update the documents that are due for review.', 'जिनका रिव्यू बाक़ी है उन्हें अपडेट करें।']]);
+
+  /* ---------- Analytics: Sales analysis ---------- */
+  E('analytics', 'sales', 'Sales analysis (Performance)', 'सेल्स एनालिसिस (परफ़ॉर्मेंस)',
+    ['Ten sales dashboards in Analytics > Performance > Sales analysis, made from the daily sales files (Cockpit > Imports: employee and division sales, bills, quantity and returns) and the sales targets. Division reports: sale against target (with the pace of the running month), month by month with growth, comparison with last month and last year (same days), ranking and share of the total, and bills, average bill value, items per bill and returns. Employee reports: sale against personal target (best ten and weakest ten), achievement bands, employee against the average of his division, six-month trend of one employee, and a check that the employee targets add up to the division target.',
+     'Analytics > Performance > Sales analysis में दस सेल्स डैशबोर्ड, जो रोज़ की सेल्स फ़ाइलों (Cockpit > Imports: कर्मचारी और डिवीज़न की बिक्री, बिल, मात्रा और रिटर्न) और सेल्स टारगेट से बनते हैं। डिवीज़न रिपोर्ट: बिक्री बनाम टारगेट (चालू महीने की रफ़्तार के साथ), महीने-दर-महीने बढ़त के साथ, पिछले महीने और पिछले साल से तुलना (उतने ही दिन), रैंक और कुल में हिस्सा, और बिल, औसत बिल, प्रति बिल आइटम और रिटर्न। कर्मचारी रिपोर्ट: बिक्री बनाम निजी टारगेट (सबसे अच्छे दस और सबसे कमज़ोर दस), उपलब्धि बैंड, कर्मचारी बनाम उसकी डिवीज़न का औसत, एक कर्मचारी का छह महीने का ट्रेंड, और जाँच कि कर्मचारियों के टारगेट का जोड़ डिवीज़न के टारगेट से मिलता है।'],
+    ['So that sales can be compared, explained and followed up, and not only imported.', 'ताकि बिक्री की तुलना, समझ और फ़ॉलो-अप हो सके, सिर्फ़ इम्पोर्ट नहीं।'],
+    ['HR and Admin see everything. A manager sees only the employee reports, and only of his own team.', 'HR और Admin सब देखते हैं। मैनेजर सिर्फ़ कर्मचारी रिपोर्ट देखता है, और सिर्फ़ अपनी टीम की।'],
+    [['Open Analytics > Performance and press Sales analysis.', 'Analytics > Performance खोलें और Sales analysis दबाएँ।'],
+     ['Choose the month (the running month shows as “till today”), the branch or division, and, for the trend card, an employee.', 'महीना चुनें (चालू महीना “आज तक” दिखता है), ब्रांच या डिवीज़न, और ट्रेंड कार्ड के लिए एक कर्मचारी।'],
+     ['Every card can be shown as a table or a chart, opened in full, drilled down to the employees (click a row) and exported to CSV.', 'हर कार्ड टेबल या चार्ट में दिख सकता है, पूरा खुल सकता है, कर्मचारियों तक जा सकता है (लाइन पर क्लिक करें) और CSV में एक्सपोर्ट हो सकता है।'],
+     ['Upload the daily files every day in Cockpit > Imports (till-date sale and quantity, till-date bills, division returns). The app keeps every day, so the day-wise history and the same-day comparisons are there. To compare with last year, upload last year’s files the same way.', 'रोज़ की फ़ाइलें हर दिन Cockpit > Imports में अपलोड करें (आज तक की बिक्री और मात्रा, आज तक के बिल, डिवीज़न के रिटर्न)। ऐप हर दिन का डेटा रखता है, इसलिए दिन-वार इतिहास और उतने ही दिन की तुलना मिलती है। पिछले साल से तुलना के लिए पिछले साल की फ़ाइलें भी ऐसे ही अपलोड करें।']],
+    [['Colours: green when the achievement is at or above the first limit (100%), yellow at or above the second (80%), red below. In the running month the colour compares with the days gone (the pace). The limits are the same as the Dashboard cards (the SLA “Target colours on the Dashboard”).', 'रंग: हरा जब उपलब्धि पहली सीमा (100%) या उससे ऊपर हो, पीला दूसरी सीमा (80%) या उससे ऊपर, लाल उससे कम। चालू महीने में रंग बीते दिनों (रफ़्तार) से तुलना करता है। सीमाएँ Dashboard के कार्ड जैसी ही हैं (SLA “Target colours on the Dashboard”)।'],
+     ['Division sales have no branch, so the branch filter does not change the division reports. A dash means there is no figure to compare with.', 'डिवीज़न की बिक्री में ब्रांच नहीं होती, इसलिए ब्रांच फ़िल्टर से डिवीज़न रिपोर्ट नहीं बदलती। डैश का मतलब है तुलना के लिए कोई आँकड़ा नहीं।']]);
 })();

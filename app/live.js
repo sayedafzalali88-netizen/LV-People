@@ -68,7 +68,7 @@ async function loadLive(){
   try{orgCodesFill()}catch(e){}
   if(isHRrole())for(const [t,uuid,n] of LIVE.needNum){await sb.from(t).update({num_id:n}).eq('id',uuid)}
   try{if(typeof accSync==='function')accSync()}catch(e){}
-  await loadAttendance();await loadStores();try{if(BIOP.length)bioProcess()}catch(e){console.warn('bio',e)}await loadKpis();await loadAccounts();try{await pullPortal()}catch(e){console.warn('portal',e)}
+  await loadAttendance();await loadStores();try{if(typeof salehUnpack==='function')salehUnpack()}catch(e){console.warn('sale history',e)}try{if(BIOP.length)bioProcess()}catch(e){console.warn('bio',e)}await loadKpis();await loadAccounts();try{await pullPortal()}catch(e){console.warn('portal',e)}
 }
 
 /* ---------- attendance punches: the attendance table <-> ATT ---------- */
@@ -105,7 +105,7 @@ let CF0=null;try{CF0=JSON.parse(JSON.stringify(CF))}catch(e){}
 const CONFIG=['CF','ORGCODE','SHIFTS','HBANK','HCAL','ATPOL','LT','LRULE','PHEADS','STAT','PAYRUN','ADJHEADS','ADVPOL','LTYPES','LTC','LTI','LTM','LTR','LTSW','LPRE','LVR','CHK','WFD','TAR','CCT','RFR','SLA','CHKLINK','FBQ','ALTJT','ALTP','QB','STG','XTYPE','SLCAT','BIOSRC','BIODEV','XQT','ALTSET','BIOSET','CRULE','EMPCODE','ORGS','SERIES','SYSSERX','STKSET','TRULE','WAUTO','MINW','MINWSK','MINWZ','OFFPAY','ALWR','ATTWV','PVER','ROLES'];
 /* SYSSER has functions inside, so only its plain values (prefix, digits, next number...) are kept */
 window.SYSSERX={};const sysToX=()=>{try{SYSSER.forEach(s=>{const o={};Object.keys(s).forEach(k=>{if(typeof s[k]!=='function')o[k]=s[k]});SYSSERX[s.key]=o})}catch(e){}};const sysFromX=()=>{try{SYSSER.forEach(s=>{const o=SYSSERX[s.key];if(o)Object.keys(o).forEach(k=>{if(typeof s[k]!=='function')s[k]=o[k]})})}catch(e){}};sysToX();
-const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','KRULES','SSTR','TGR','AST','AUDIT','TDSD','ATTARR','SALREV','IBL','GVP','BDG','JD','JDACK'];
+const DATASTORES=['AR','REGS','IMPORTS','ASSIGN','RH','LEAVES','ADJ','ADV','FS','INCASG','ENC','ACORR','STATA','BANK','VARS','ATTP','ADVL','INCS','LADJ','STATV','MRATE','KFS','AUD','CT','SURV','POLLS','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','KYC','FBT','FBF','CFB','CMP','PAY','PAYB','INCREG','OTL','SHORT','LOCR','INDP','ASG','TODO','DAILYT','WARNLOG','HOLD','HOLDREL','KBA','BIOP','BIOIMP','SLC','SLASG','SLP','SLT','SLCERT','SLLOG','CREQ','XADV','XREP','XPAY','XRES','XIT','CHE','AND','NTC','POLL','DOCS','LETTERS','LTR','RECOG','UREQ','WISH','XTRIP','RC','KRULES','SSTR','TGR','AST','AUDIT','TDSD','ATTARR','SALREV','IBL','GVP','BDG','JD','JDACK','SALEHM'];
 try{Object.keys(SRC).filter(k=>Array.isArray(SRC[k])).forEach(k=>DATASTORES.push('SRC.'+k))}catch(e){}
 const EMPSTORES=['LEAVES','AR','REGS','RH','ADV','MRATE','AUD','CT','KYC','SURV','TASKS','WFI','DEC','MTG','CHAL','RFL','BIL','CLF','EL','SVL','EVP','CCO','STKA','SUPT','AIS','AREQ','FBT','CFB','ASG','TODO','DAILYT','SLP','SLASG','SLLOG','SLT','SLCERT','CREQ','XADV','XREP','XRES','XTRIP','UREQ','WISH','CHE','POLL','RECOG','SRC.content','SRC.campaign','SRC.post','SRC.creview','SRC.ttest','SRC.audience','AUDIT','TDSD','IBL','GVP','JDACK'];
 const involved=(x,me,team,store,key)=>{if(store==='MRATE'||store==='CT')return team.has(+String(key).slice(2).split('|')[0]);if(store==='KYC')return +String(key).slice(2).split('|')[0]===me;if(!x||typeof x!=='object')return false;
@@ -434,7 +434,7 @@ async function syncNow(){
         else{const r=await sb.from(t).insert(row).select('id').single();if(r.error){r.error.message=t+': '+r.error.message;throw r.error}uuid=r.data.id;LIVE.map[k][o.id]=uuid;LIVE.rev[k][uuid]=o.id;if(k==='emps')(LIVE.newEmp=LIVE.newEmp||[]).push(o.id)}
         if(k==='emps'){const r=await sb.from('employee_private').upsert({employee_id:uuid,...toPriv(o)});if(r.error)throw r.error}
         LIVE.snap[k][o.id]=sig(k,o);n++}}
-    sysToX();try{snapKpis()}catch(x){}await syncAttendance();await syncStores();await syncKpis();
+    sysToX();try{if(typeof salehPack==='function')salehPack()}catch(x){}try{snapKpis()}catch(x){}await syncAttendance();await syncStores();await syncKpis();
     /* a manager set before the manager was saved: fill it now */
     if(isHRrole())for(const o of DATA.emps){if((o.mgr&&LIVE.map.emps[+o.mgr])||(o.fm&&LIVE.map.emps[+o.fm])){const s=sig('emps',o);if(LIVE.snap.emps[o.id]!==s){const u=await sb.from('employees').update({manager_id:o.mgr?(LIVE.map.emps[+o.mgr]||null):null,functional_manager_id:o.fm?(LIVE.map.emps[+o.fm]||null):null}).eq('id',LIVE.map.emps[o.id]);if(u.error)throw u.error;LIVE.snap.emps[o.id]=s}}}
     if(LIVE.newEmp&&LIVE.newEmp.length){const ids=LIVE.newEmp;LIVE.newEmp=[];await ensureLogins(ids)}

@@ -9486,12 +9486,12 @@ Object.assign(T.en,{bd_qty:'Quantity'});Object.assign(T.hi,{bd_qty:'मात्
 {const e=IMPT.find(x=>x.id==='esale'), d=IMPT.find(x=>x.id==='dsale');e.cols=['Date','Emp Number','Name','Division','Till Date Sale','Till Date Qty'];d.cols=['Date','Division','Till Date Sale','Till Date Qty','R/E Amount'];d.opt=['R/E Amount'];
  IMPSAMPLE.esale=[['01/10/2026','E004','Sana Ali','Ladies Wear','50000','45'],['27/10/2026','E004','Sana Ali','Ladies Wear','245000','212']];IMPSAMPLE.dsale=[['27/10/2026','Ladies Wear','565000','498','22600']];
  const r=STORES.rep_emp[1];if(!r.some(f=>f[0]==='qty'))r.push(['qty','num']);const q=STORES.rep_div[1];if(!q.some(f=>f[0]==='qty'))q.splice(q.findIndex(f=>f[0]==='bills')+1,0,['qty','num'])}
-const SALEH=[];
-function saleHist(kind,r){const key=kind==='emp'?r.emp:r.division;let h=SALEH.find(x=>x.k===kind&&x.key===key&&x.date===r.date);if(!h)SALEH.push(h={k:kind,key,date:r.date,sale:0,qty:null});h.sale=r.val;if(r.qty!=null)h.qty=r.qty}
+const SALEH=[], SALEH_DIRTY=new Set(), SALEH_IX=new Map();
+function saleHist(kind,r){const key=kind==='emp'?r.emp:r.division, ix=kind+'|'+key+'|'+r.date;let h=SALEH_IX.get(ix);if(!h){SALEH.push(h={k:kind,key,date:r.date,sale:0,qty:null});SALEH_IX.set(ix,h)}h.sale=r.val;if(r.qty!=null)h.qty=r.qty;SALEH_DIRTY.add(kind+'|'+key+'|'+r.date.slice(0,7))}
 const _ia54=impApply;impApply=function(tpl,res){_ia54(tpl,res);if(tpl.id==='esale'||tpl.id==='dsale'){res.final.forEach(r=>{const x=SRC[tpl.id==='esale'?'rep_emp':'rep_div'].find(y=>(tpl.id==='esale'?y.emp===r.emp:y.division===r.division)&&y.month===r.month);if(x&&r.qty!=null)x.qty=r.qty});res.ok.forEach(r=>saleHist(tpl.id==='esale'?'emp':'div',r))}};
 /* ---------- the dashboard cards ---------- */
-const cumOn=(k,key,date)=>SALEH.find(x=>x.k===k&&x.key===key&&x.date===date);
-const cumBefore=(k,key,date)=>SALEH.filter(x=>x.k===k&&x.key===key&&x.date<date&&x.date.slice(0,7)===date.slice(0,7)).sort((a,b)=>a.date<b.date?1:-1)[0];
+const cumOn=(k,key,date)=>SALEH.find(x=>x.k===k&&x.key===key&&x.date===date&&x.sale!=null);
+const cumBefore=(k,key,date)=>SALEH.filter(x=>x.k===k&&x.key===key&&x.date<date&&x.date.slice(0,7)===date.slice(0,7)&&x.sale!=null).sort((a,b)=>a.date<b.date?1:-1)[0];
 const tgDays=()=>new Date(Y,M+1,0).getDate();
 function tgCalc(kind,key,tgt,rep){const md=tgDays(), D=TODAY_D, ach=rep?rep.sale:0, qty=rep&&rep.qty!=null?rep.qty:null, exp=D/md*100, pct=tgt?ach/tgt*100:0, pace=exp?pct/exp*100:0;
  const td=cumOn(kind,key,TODAY_S), y=cumBefore(kind,key,TODAY_S), yv=y?y.sale:(td?0:ach), left=md-D+1, need=Math.max(0,tgt-yv)/Math.max(1,left), today=td?td.sale-(y?y.sale:0):null, tq=td&&td.qty!=null&&y&&y.qty!=null?td.qty-y.qty:null;
@@ -10049,7 +10049,7 @@ const anYrs=d=>d?(new Date(TODAY_S)-new Date(d))/31557600000:0;
 function anShiftOf(e){const a=ASSIGN.filter(x=>x.emp===e.id&&x.st==='Approved'), cur=a.find(x=>x.from<=TODAY_S&&TODAY_S<=x.to)||a.slice().sort((p,q)=>p.from<q.from?1:-1)[0];return cur?cur.shift:''}
 function anWoOf(e){if(e.wo!==''&&e.wo!=null)return +e.wo;const a=ASSIGN.find(x=>x.emp===e.id&&x.st==='Approved'&&x.from<=TODAY_S&&TODAY_S<=x.to);return a&&a.wo!=null?+a.wo:0}
 function anBase(){return canManage()?DATA.emps.slice():state.role==='manager'?DATA.emps.filter(e=>teamIds(me()).has(e.id)||e.id===me()):[]}
-function anCtx(){const f=state.anf, A=anBase().filter(e=>(!f.branch||e.branch==f.branch)&&(!f.division||e.division==f.division));return {A,L:A.filter(e=>e.active),ids:new Set(A.map(e=>e.id)),mk:f.month||Object.keys(PMON).pop()}}
+function anCtx(){const f=state.anf, A=anBase().filter(e=>(!f.branch||e.branch==f.branch)&&(!f.division||e.division==f.division));return {A,L:A.filter(e=>e.active),ids:new Set(A.map(e=>e.id)),mk:f.month||Object.keys(PMON).pop(),sm:f.smonth||saLatest(),emp:f.emp||''}}
 function anPay(e,mk){const k=e.id+'|'+mk;if(!(k in anMemo)){try{const c=calc(e,mk);anMemo[k]={gross:c.gross||0,net:c.net||0,ded:c.ded||0,er:(c.pfEr||0)+(c.esiEr||0),pf:c.pf||0,esi:c.esi||0,pt:c.pt||0,tds:c.tds||0,adv:c.adv||0}}catch(x){anMemo[k]=null}}return anMemo[k]}
 const anG=()=>[['M',L('Male','पुरुष')],['F',L('Female','महिला')],['O',L('Other','अन्य')]];
 const anBrs=l=>DATA.branches.filter(b=>l.some(e=>e.branch===b.id)).map(b=>[b.id,b.name]);
@@ -10167,7 +10167,7 @@ anD('exit_div','exit','Division-wise exits and attrition','डिवीज़न
  return {cats:cats.map(d=>d[1]),ser:[{n:L('Working','कार्यरत'),v:w},{n:L('Exited','छोड़ चुके'),v:x}],ids,catLabel:CLD(),tbl:{cols:[CLD(),L('Total','कुल'),L('Working','कार्यरत'),L('Exited','छोड़ चुके'),L('Attrition %','एट्रिशन %')],u:['','','','','pct'],rows,tot:[L('Total','कुल'),T1,rows.reduce((a,r)=>a+r[2],0),X1,T1?X1/T1*100:0]}}},{def:'stack'});
 
 /* ---- formatting, table and chart drawing ---- */
-function anFmt(v,u,full){v=+v||0;
+function anFmt(v,u,full){if(v===null||v===undefined)return '—';if(typeof v==='string')return v;v=+v||0;
  if(u==='inr')return full?inr(Math.round(v)):(v>=1e7?(v/1e7).toFixed(2)+' Cr':v>=1e5?(v/1e5).toFixed(2)+' L':v>=1e4?Math.round(v/1e3)+'K':v>=1e3?(v/1e3).toFixed(1)+'K':String(Math.round(v)));
  if(u==='pct')return (Math.round(v*10)/10)+'%';return String(Math.round(v*10)/10)}
 function anRun(d,c){const ds=d.fn(c);ds.unit=ds.unit||'';if(d.dropEmpty)ds.ser=ds.ser.filter(s=>s.v.some(Boolean));return ds}
@@ -10183,7 +10183,7 @@ function anTbl(ds){
  const tt=ds.avg||u==='pct'?null:[T0,...S.map(s=>s.v.reduce((a,b)=>a+b,0)),...(multi?[ds.cats.reduce((a,_,i)=>a+tot(i),0)]:[]),...(share?[100]:[])];
  return {cols,u:uu,rows,tot:tt}}
 function anTblHTML(ds,did){
- const tb=anTbl(ds), cell=(v,u,i)=>i===0?esc(String(v)):`<td style="text-align:right">${anFmt(v,u,true)}</td>`;
+ const tb=anTbl(ds), cell=(v,u,i)=>i===0?esc(String(v)):`<td style="text-align:right">${tb.clr&&[].concat(tb.clr.i).includes(i)&&v!=null?`<span class="pill p-${tb.clr.f(v)}">${anFmt(v,u,true)}</span>`:anFmt(v,u,true)}</td>`;
  const tr=(r,k)=>r.map((v,i)=>i===0?`<td>${esc(String(v))}</td>`:cell(v,tb.u[i],i)).join('');
  return `<div class="card tw" style="padding:0"><table class="tbl"><thead><tr>${tb.cols.map((h,i)=>`<th ${i?'style="text-align:right"':''}>${esc(String(h))}</th>`).join('')}</tr></thead><tbody>${tb.rows.map((r,i)=>`<tr ${ds.ids&&ds.ids[i]&&ds.ids[i].length?`data-andr="${did}|${i}" style="cursor:pointer" title="${L('Click to see the employees','कर्मचारी देखने के लिए क्लिक करें')}"`:''}>${tr(r,i)}</tr>`).join('')||`<tr><td colspan="${tb.cols.length}" style="text-align:center;color:var(--muted);padding:16px">${L('No data for these filters','इन फ़िल्टर के लिए डेटा नहीं')}</td></tr>`}</tbody>${tb.tot?`<tfoot><tr>${tb.tot.map((v,i)=>i===0?`<th>${esc(String(v))}</th>`:`<th style="text-align:right">${anFmt(v,tb.u[i],true)}</th>`).join('')}</tr></tfoot>`:''}</table></div>`}
 const ANC=['#0f766e','#2563eb','#d97706','#9333ea','#dc2626','#0891b2','#65a30d','#db2777'];
@@ -10235,7 +10235,7 @@ function anCard(d,c){
   <div class="acts" style="margin-top:10px"><button class="btn btn-o" data-anfull="${d.id}">${L('Full view','पूरा देखें')}</button>${can('analytics','X')?`<button class="btn btn-o" data-anexp="${d.id}">CSV</button>`:''}</div></div>`}
 function anRows(d,c){const ds=anRun(d,c),tb=anTbl(ds);return [[L(d.en,d.hi)],tb.cols,...tb.rows.map(r=>r.map((v,i)=>i&&typeof v==='number'?Math.round(v*10)/10:v)),...(tb.tot?[tb.tot.map((v,i)=>i&&typeof v==='number'?Math.round(v*10)/10:v)]:[]),[]]}
 function anExport(id){const d=AND.find(x=>x.id===id);if(!d||!can('analytics','X'))return;csvDl(`analytics-${id}.csv`,anRows(d,anCtx()));audit('Analytics','Export',id,'')}
-function anExportAll(){const tab=state.antab;if(!can('analytics','X')||tab==='ov')return;const c=anCtx();csvDl(`analytics-${tab}.csv`,anVis(tab).flatMap(d=>{try{return anRows(d,c)}catch(x){return []}}));audit('Analytics','Export',tab,'')}
+function anExportAll(){const tab=state.antab;if(!can('analytics','X')||tab==='ov')return;const c=anCtx();csvDl(`analytics-${tab}.csv`,anVisT(tab).flatMap(d=>{try{return anRows(d,c)}catch(x){return []}}));audit('Analytics','Export',tab,'')}
 function anFullModal(id){const d=AND.find(x=>x.id===id),c=anCtx(),ds=anRun(d,c);let ty=state.anty[id];if(!ty||ty==='table'||(ty==='stack'&&ds.ser.length<2))ty=d.def&&d.def!=='table'&&!(d.def==='stack'&&ds.ser.length<2)?d.def:'bar';
  const bg=openModal(`<h3>${esc(L(d.en,d.hi))}</h3><div style="max-height:72vh;overflow:auto">${anSvg(ty,ds)}<div style="height:12px"></div>${anTblHTML(ds,id)}</div><div class="acts"><button type="button" class="btn btn-o" data-close>${L('Close','बंद करें')}</button></div>`);
  bg.querySelectorAll('[data-andr]').forEach(r=>r.onclick=()=>{const [i,k]=r.dataset.andr.split('|');anDrillModal(i,+k)})}
@@ -10265,15 +10265,15 @@ function analyticsPage(){
  const head=`<div class="page-h"><div><h1>${t('analytics')}</h1><p>${L('Pick a module to see all of its dashboards. Switch any dashboard between table and charts, open it in full, drill down to employees and export.','मॉड्यूल चुनें और उसके सारे डैशबोर्ड देखें। हर डैशबोर्ड को टेबल या चार्ट में बदलें, पूरा खोलें, कर्मचारियों तक जाएँ और एक्सपोर्ट करें।')}</p></div></div>`;
  if(!tabs.length)return head+`<div class="card"><p style="color:var(--muted)">${L('No analytics are open for you.','आपके लिए कोई एनालिटिक्स खुला नहीं है।')}</p></div>`;
  const c=anCtx(), f=state.anf, sel=(k,items,all)=>`<select class="inp" data-anf="${k}"><option value="">${all}</option>${items.map(x=>`<option value="${x.id}" ${f[k]==x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
- const bar=`<div class="tools">${sel('branch',DATA.branches,L('All branches','सभी शाखाएँ'))}${sel('division',DATA.divisions,L('All divisions','सभी डिवीज़न'))}${['ov','pay'].includes(tab)?`<select class="inp" data-anf="month">${Object.keys(PMON).map(k=>`<option value="${k}" ${c.mk===k?'selected':''}>${t(PMON[k].k)}</option>`).join('')}</select>`:''}<button class="btn btn-o" data-anreset>${L('Reset','रीसेट')}</button><div style="flex:1"></div>${tab!=='ov'&&can('analytics','X')?`<button class="btn btn-o" data-anexpall>${L('Export this module (CSV)','यह मॉड्यूल एक्सपोर्ट (CSV)')}</button>`:''}${can('analytics','P')?`<button class="btn btn-o" data-anprint>${L('Print / PDF','प्रिंट / PDF')}</button>`:''}</div>`;
- const body=tab==='ov'?anOverview(c,tabs):`<div class="an-grid">${anVis(tab).map(d=>anCard(d,c)).join('')||`<p style="color:var(--muted)">${L('No dashboards in this module yet.','इस मॉड्यूल में अभी कोई डैशबोर्ड नहीं।')}</p>`}</div>`;
+ const bar=`<div class="tools">${sel('branch',DATA.branches,L('All branches','सभी शाखाएँ'))}${sel('division',DATA.divisions,L('All divisions','सभी डिवीज़न'))}${['ov','pay'].includes(tab)?`<select class="inp" data-anf="month">${Object.keys(PMON).map(k=>`<option value="${k}" ${c.mk===k?'selected':''}>${t(PMON[k].k)}</option>`).join('')}</select>`:''}${tab==='pms'&&state.pmsub==='sales'?saBarHTML(c):''}<button class="btn btn-o" data-anreset>${L('Reset','रीसेट')}</button><div style="flex:1"></div>${tab!=='ov'&&can('analytics','X')?`<button class="btn btn-o" data-anexpall>${L('Export this module (CSV)','यह मॉड्यूल एक्सपोर्ट (CSV)')}</button>`:''}${can('analytics','P')?`<button class="btn btn-o" data-anprint>${L('Print / PDF','प्रिंट / PDF')}</button>`:''}</div>`;
+ const body=tab==='ov'?anOverview(c,tabs):`<div class="an-grid">${anVisT(tab).map(d=>anCard(d,c)).join('')||`<p style="color:var(--muted)">${L('No dashboards in this module yet.','इस मॉड्यूल में अभी कोई डैशबोर्ड नहीं।')}</p>`}</div>`;
  /* the strip sits inside a wrapper so the menu does not move it into the sidebar: the module names stay on the page */
- return head+`<div><div class="tabs">${tabs.map(m=>`<button data-antab="${m[0]}" class="${tab===m[0]?'on':''}">${L(...m[1])}</button>`).join('')}</div></div><div id="anprint">${bar}${body}</div>`}
+ return head+`<div><div class="tabs">${tabs.map(m=>`<button data-antab="${m[0]}" class="${tab===m[0]?'on':''}">${L(...m[1])}</button>`).join('')}</div></div><div id="anprint">${tab==='pms'?saSubTabs():''}${bar}${body}</div>`}
 const _bindExtra59=bindExtra;
 bindExtra=function(){_bindExtra59();const m=$('#main'), on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
  on('[data-antab]',b=>b.onclick=()=>{state.antab=b.dataset.antab;render()});on('[data-anopen]',b=>b.onclick=()=>{state.antab=b.dataset.anopen;render()});
  on('[data-anf]',s=>s.onchange=()=>{state.anf[s.dataset.anf]=s.value;render()});
- on('[data-anreset]',b=>b.onclick=()=>{state.anf={branch:'',division:'',month:Object.keys(PMON).pop()};render()});
+ on('[data-anreset]',b=>b.onclick=()=>{state.anf={branch:'',division:'',month:Object.keys(PMON).pop(),smonth:'',emp:''};render()});
  on('[data-anty]',b=>b.onclick=()=>{const [id,ty]=b.dataset.anty.split('|');state.anty[id]=ty;render()});
  on('[data-anfull]',b=>b.onclick=()=>anFullModal(b.dataset.anfull));
  on('[data-andr]',r=>r.onclick=()=>{const [id,i]=r.dataset.andr.split('|');anDrillModal(id,+i)});
@@ -12669,6 +12669,130 @@ IBKIND.jd=['do','Read and acknowledge','पढ़ें और पावती �
 rp('jd_ack','employees','JD & JS acknowledgement','JD और JS की पावती','none','M',(f)=>({cols:[L('Code','कोड'),L('Name','नाम'),L('Branch','शाखा'),L('Designation','पद'),L('JD version','JD वर्ज़न'),t('status'),L('Acknowledged on','पावती की तारीख़')],rows:rActive(rptEmps(f)).map(e=>{const c=jdCur(e.desig), a=c&&jdAck(e.id,e.desig,c.ver);return[e.code,e.name,nm('branches',e.branch),nm('desigs',e.desig),c?'v'+c.ver:'—',!c?L('No JD','JD नहीं'):a?L('Acknowledged','पावती दी'):L('Pending','बाक़ी'),a?a.at:'']})}));
 /* a sample so the screens are not empty in the demo */
 if(!Object.keys(JD).length&&DATA.desigs.some(x=>x.id===21)){JD[21]={versions:[{ver:1,status:'Published',purpose:'Help customers choose, and complete the sale on the shop floor.',resp:'Greet and guide every customer\nKeep the display neat and the stock filled\nMake the bill correctly and offer add-on items\nHandle exchanges as per the policy',reports:'Floor Manager',cond:'Shop floor, 8 hours, rotating weekly off',edu:'10th pass',exp:'0 to 1 year in retail',skills:'Communication, basic maths, customer handling',certs:'',other:'',file:null,effective:'2026-04-01',by:'Priya Verma',at:'2026-04-01'}]}}
+Object.assign(state,{pmsub:'kpi'});state.anf.smonth='';state.anf.emp='';
+/* ================= Sales analysis in Analytics > Performance ================= */
+/* the daily history of sales (till-date numbers of every upload) is kept on the server in month pieces: SALEHM */
+const SALEHM={};
+function billHist(kind,r){const key=kind==='emp'?r.emp:r.division, ix=kind+'|'+key+'|'+r.date;let h=SALEH_IX.get(ix);if(!h){SALEH.push(h={k:kind,key,date:r.date,sale:null,qty:null});SALEH_IX.set(ix,h)}h.bills=r.val;SALEH_DIRTY.add(kind+'|'+key+'|'+r.date.slice(0,7))}
+function salehPack(){if(!SALEH_DIRTY.size)return;const need=new Set(SALEH_DIRTY);SALEH_DIRTY.clear();const grp={};
+ SALEH.forEach(h=>{const id=h.k+'|'+h.key+'|'+h.date.slice(0,7);if(!need.has(id))return;(grp[id]=grp[id]||{k:h.k,key:h.key,m:h.date.slice(0,7),d:{}}).d[h.date.slice(8,10)]=[h.sale==null?null:h.sale,h.qty==null?null:h.qty,h.bills==null?null:h.bills]});
+ Object.keys(grp).forEach(id=>{SALEHM[id]=grp[id]})}
+function salehUnpack(){const ks=Object.keys(SALEHM);
+ if(!ks.length){const demo=window.LIVE&&LIVE.client&&LIVE.client.code==='demo';if(window.LIVE&&LIVE.on!==undefined&&!demo){SALEH.length=0;SALEH_IX.clear();SALEH_DIRTY.clear()}return}
+ SALEH.length=0;SALEH_IX.clear();
+ ks.forEach(id=>{const o=SALEHM[id];Object.keys(o.d||{}).forEach(dd=>{const a=o.d[dd], date=o.m+'-'+dd, h={k:o.k,key:o.key,date,sale:a[0],qty:a[1]};if(a[2]!=null)h.bills=a[2];SALEH.push(h);SALEH_IX.set(o.k+'|'+o.key+'|'+date,h)})});
+ SALEH_DIRTY.clear()}
+{const _ia80=impApply;impApply=function(tpl,res){_ia80(tpl,res);if(tpl.id==='ebill'||tpl.id==='dbill')res.ok.forEach(r=>billHist(tpl.id==='ebill'?'emp':'div',r))}}
+/* helpers: months are written like Oct-2026, as in the sales imports */
+const SA_MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const saKey=(y,m)=>SA_MN[m]+'-'+y;
+const saParse=k=>{const a=String(k).split('-');return {y:+a[1],m:SA_MN.indexOf(a[0])}};
+const saNum=k=>{const p=saParse(k);return p.y*12+p.m};
+const saShift=(k,n)=>{const t=saNum(k)+n;return saKey(Math.floor(t/12),((t%12)+12)%12)};
+const saSeq=(k,n)=>Array.from({length:n},(_,i)=>saShift(k,i-n+1));
+const saISO=k=>{const p=saParse(k);return p.y+'-'+pad(p.m+1)};
+const saMonthsAll=()=>[...new Set([...SRC.rep_div,...SRC.rep_emp].map(r=>r.month))].filter(x=>saParse(x).m>=0).sort((a,b)=>saNum(a)-saNum(b));
+const saLatest=()=>{const a=saMonthsAll();return a.length?a[a.length-1]:CUR_P};
+const saIsCur=k=>k===CUR_P;
+const saDays=k=>{const p=saParse(k);return new Date(p.y,p.m+1,0).getDate()};
+const saDue=k=>saIsCur(k)?TODAY_D/saDays(k)*100:100;
+const saDivRow=(m,d)=>SRC.rep_div.find(r=>r.division==d&&r.month===m);
+const saEmpRow=(m,e)=>SRC.rep_emp.find(r=>r.emp==e&&r.month===m);
+const saTD=(m,d)=>SRC.tgt_div.find(r=>r.division==d&&r.month===m&&r.status==='Approved');
+const saTE=(m,e)=>SRC.tgt_emp.find(r=>r.emp==e&&r.month===m&&r.status==='Approved');
+const saDivList=()=>DATA.divisions.filter(d=>!state.anf.division||d.id==state.anf.division);
+const saCh=(a,b)=>b?(a-b)/b*100:null;
+const saUp=(kind,key,m,upTo)=>{const row=kind==='emp'?saEmpRow(m,key):saDivRow(m,key);if(upTo==null)return row?row.sale:null;
+ const iso=saISO(m);let best=null;SALEH.forEach(h=>{if(h.k===kind&&h.key==key&&h.sale!=null&&h.date.slice(0,7)===iso&&+h.date.slice(8,10)<=upTo&&(!best||h.date>best.date))best=h});return best?best.sale:(row?row.sale:null)};
+const saGood=v=>v>=SLA.tgGreen?'ok':v>=SLA.tgAmber?'warn':'bad', saGrow=v=>v>=0?'ok':v>=-10?'warn':'bad';
+const saEL=c=>c.L.map(e=>({e,r:saEmpRow(c.sm,e.id),t:(saTE(c.sm,e.id)||{}).amount||0})).filter(x=>x.r||x.t);
+const saExt=(list,n)=>list.length>2*n?[...list.slice(0,n),...list.slice(-n)]:list;
+const saDvName=id=>nm('divisions',id);
+function saSubTabs(){const s=state.pmsub||'kpi';return `<div class="seg" style="margin:0 0 12px">${[['kpi',L('KPI scores','KPI स्कोर')],['sales',L('Sales analysis','सेल्स एनालिसिस')]].map(([k,l])=>`<button data-pmsub="${k}" class="${s===k?'on':''}">${l}</button>`).join('')}</div>`}
+function saBarHTML(c){const ms=saMonthsAll();return `<select class="inp" data-anf="smonth">${(ms.length?ms:[c.sm]).map(m=>`<option value="${m}" ${c.sm===m?'selected':''}>${m}${saIsCur(m)?' · '+L('till today','आज तक'):''}</option>`).join('')}</select><select class="inp" data-anf="emp"><option value="">${L('All employees','सभी कर्मचारी')}</option>${c.L.map(e=>`<option value="${e.id}" ${String(c.emp)===String(e.id)?'selected':''}>${esc(e.name)}</option>`).join('')}</select>`}
+const anVisT=tab=>anVis(tab).filter(d=>tab!=='pms'||(d.grp||'kpi')===(state.pmsub||'kpi'));
+{const _bsa=bindExtra;bindExtra=function(){_bsa();$('#main').querySelectorAll('[data-pmsub]').forEach(b=>b.onclick=()=>{state.pmsub=b.dataset.pmsub;render()})}}
+/* ---- the ten dashboards ---- */
+const SAT=(en,hi)=>L('Sales: '+en,'सेल्स: '+hi);
+/* 1. division sale against target */
+anD('sa_div_tgt','pms','Sales: division sale against target (with the pace for the running month)','सेल्स: डिवीज़न की बिक्री बनाम टारगेट (चालू महीने की रफ़्तार के साथ)',c=>{
+ const m=c.sm, cur=saIsCur(m), due=saDue(m), ds=saDivList().map(d=>({d,t:(saTD(m,d.id)||{}).amount||0,s:(saDivRow(m,d.id)||{}).sale||0})).filter(x=>x.t||x.s);
+ const rows=ds.map(x=>{const p=x.t?x.s/x.t*100:null;return [x.d.name,x.t,x.s,p,...(cur?[p==null?null:p/due*100]:[]),x.t?x.s-x.t:null]});
+ const T=ds.reduce((a,x)=>a+x.t,0), S=ds.reduce((a,x)=>a+x.s,0), P=T?S/T*100:null;
+ return {cats:ds.map(x=>x.d.name),ser:[{n:L('Target','टारगेट'),v:ds.map(x=>x.t)},{n:L('Sale','बिक्री'),v:ds.map(x=>x.s)}],ids:ds.map(x=>c.L.filter(e=>e.division==x.d.id).map(e=>e.id)),unit:'inr',catLabel:CLD(),
+  tbl:{cols:[CLD(),L('Target','टारगेट'),L('Sale','बिक्री'),L('Achieved %','हुआ %'),...(cur?[L('Pace % (against the days gone)','रफ़्तार % (बीते दिनों के हिसाब से)')]:[]),L('Gap to target','टारगेट से अंतर')],u:['','inr','inr','pct',...(cur?['pct']:[]),'inr'],rows,
+   tot:[L('Total','कुल'),T,S,P,...(cur?[P==null?null:P/due*100]:[]),T?S-T:null],clr:{i:cur?4:3,f:saGood}}}},{def:'bar',grp:'sales',adm:true});
+/* 2. division sale month by month, with growth */
+anD('sa_div_trend','pms','Sales: division sale month by month, with growth','सेल्स: डिवीज़न की बिक्री महीने-दर-महीने, बढ़त के साथ',c=>{
+ const ms=saSeq(c.sm,12), dv=saDivList().filter(d=>ms.some(m=>saDivRow(m,d.id))), tot=m=>dv.reduce((a,d)=>a+((saDivRow(m,d.id)||{}).sale||0),0);
+ const has=m=>dv.some(d=>saDivRow(m,d.id)), rows=ms.map(m=>{const a=tot(m), b=tot(saShift(m,-1)), y=tot(saShift(m,-12));return [m,a,has(m)&&has(saShift(m,-1))?saCh(a,b):null,has(m)&&has(saShift(m,-12))?saCh(a,y):null]});
+ return {cats:ms,ser:dv.map(d=>({n:d.name,v:ms.map(m=>(saDivRow(m,d.id)||{}).sale||0)})),unit:'inr',catLabel:L('Month','महीना'),
+  tbl:{cols:[L('Month','महीना'),L('Total sale','कुल बिक्री'),L('Change on last month %','पिछले महीने से बदलाव %'),L('Change on the same month last year %','पिछले साल इसी महीने से बदलाव %')],u:['','inr','pct','pct'],rows,tot:null,clr:{i:[2,3],f:saGrow}}}},{def:'line',grp:'sales',adm:true});
+/* 3. division comparison: this month, last month, the same month last year (the running month is compared up to the same day) */
+anD('sa_div_cmp','pms','Sales: division comparison with last month and last year (same days)','सेल्स: डिवीज़न की तुलना पिछले महीने और पिछले साल से (उतने ही दिन)',c=>{
+ const m=c.sm, p=saShift(m,-1), y=saShift(m,-12), up=saIsCur(m)?TODAY_D:null;
+ const ds=saDivList().map(d=>({d,a:saUp('div',d.id,m)||0,b:saUp('div',d.id,p,up),y:saUp('div',d.id,y,up)})).filter(x=>x.a||x.b||x.y);
+ return {cats:ds.map(x=>x.d.name),ser:[{n:m,v:ds.map(x=>x.a)},{n:p,v:ds.map(x=>x.b||0)},{n:y,v:ds.map(x=>x.y||0)}],ids:ds.map(x=>c.L.filter(e=>e.division==x.d.id).map(e=>e.id)),unit:'inr',catLabel:CLD(),
+  tbl:{cols:[CLD(),m,p,y,L('Change on last month %','पिछले महीने से बदलाव %'),L('Change on last year %','पिछले साल से बदलाव %')],u:['','inr','inr','inr','pct','pct'],rows:ds.map(x=>[x.d.name,x.a,x.b,x.y,saCh(x.a,x.b),saCh(x.a,x.y)]),tot:null,clr:{i:[4,5],f:saGrow}}}},{def:'bar',grp:'sales',adm:true});
+/* 4. ranking and share */
+anD('sa_div_share','pms','Sales: division ranking and share of the total','सेल्स: डिवीज़न की रैंक और कुल में हिस्सा',c=>{
+ const m=c.sm, p=saShift(m,-1), all=saDivList().map(d=>({d,s:(saDivRow(m,d.id)||{}).sale||0,q:(saDivRow(p,d.id)||{}).sale||0})).filter(x=>x.s||x.q);
+ const rk=(arr,k)=>{const o=arr.slice().sort((a,b)=>b[k]-a[k]);return x=>o.indexOf(x)+1};
+ const r1=rk(all,'s'), r0=rk(all,'q'), ds=all.filter(x=>x.s).sort((a,b)=>b.s-a.s), T=ds.reduce((a,x)=>a+x.s,0);
+ return {cats:ds.map(x=>x.d.name),ser:[{n:L('Sale','बिक्री'),v:ds.map(x=>x.s)}],ids:ds.map(x=>c.L.filter(e=>e.division==x.d.id).map(e=>e.id)),unit:'inr',catLabel:CLD(),
+  tbl:{cols:[CLD(),L('Sale','बिक्री'),L('Share %','हिस्सा %'),L('Rank','रैंक'),L('Rank last month','पिछले महीने की रैंक'),L('Places gained','कितनी रैंक चढ़ी')],u:['','inr','pct','','',''],rows:ds.map(x=>[x.d.name,x.s,T?x.s/T*100:0,r1(x),x.q?r0(x):null,x.q?r0(x)-r1(x):null]),tot:[L('Total','कुल'),T,100,null,null,null],clr:{i:5,f:v=>v>0?'ok':v<0?'bad':'warn'}}}},{def:'pie',grp:'sales',adm:true});
+/* 5. bills, average bill value, quantity and returns */
+anD('sa_div_bill','pms','Sales: division bills, average bill value, items per bill and returns','सेल्स: डिवीज़न के बिल, औसत बिल, प्रति बिल आइटम और रिटर्न',c=>{
+ const m=c.sm, ds=saDivList().map(d=>({d,r:saDivRow(m,d.id)})).filter(x=>x.r&&x.r.sale);
+ const rows=ds.map(({d,r})=>[d.name,r.sale,r.bills||0,r.bills?r.sale/r.bills:null,r.qty==null?null:r.qty,r.bills&&r.qty!=null?r.qty/r.bills:null,r.qty?r.sale/r.qty:null,r.re==null?null:r.re,r.re!=null&&r.sale?r.re/r.sale*100:null]);
+ return {cats:ds.map(x=>x.d.name),ser:[{n:L('Average bill value','औसत बिल की क़ीमत'),v:rows.map(r=>r[3]||0)}],ids:ds.map(x=>c.L.filter(e=>e.division==x.d.id).map(e=>e.id)),unit:'inr',avg:true,catLabel:CLD(),
+  tbl:{cols:[CLD(),L('Sale','बिक्री'),L('Bills','बिल'),L('Average bill value','औसत बिल की क़ीमत'),L('Quantity','मात्रा'),L('Items per bill','प्रति बिल आइटम'),L('Average price per piece','औसत प्रति पीस क़ीमत'),L('Returns / exchange','रिटर्न / एक्सचेंज'),L('Returns %','रिटर्न %')],u:['','inr','','inr','','','inr','inr','pct'],rows,tot:null,clr:{i:8,f:v=>v<=3?'ok':v<=6?'warn':'bad'}}}},{def:'bar',grp:'sales',adm:true});
+/* 6. employee sale against personal target: the best ten and the weakest ten */
+anD('sa_emp_tgt','pms','Sales: employee sale against personal target (best ten and weakest ten)','सेल्स: कर्मचारी की बिक्री बनाम निजी टारगेट (सबसे अच्छे दस और सबसे कमज़ोर दस)',c=>{
+ const m=c.sm, cur=saIsCur(m), due=saDue(m), l=saEL(c).filter(x=>x.t>0).map(x=>({...x,s:x.r?x.r.sale:0,p:(x.r?x.r.sale:0)/x.t*100})).sort((a,b)=>b.p-a.p), pick=saExt(l,10);
+ return {cats:pick.map((x,i)=>(l.length>20?(i<10?'▲ ':'▼ '):'')+x.e.name),ser:[{n:L('Achieved %','हुआ %'),v:pick.map(x=>x.p)}],ids:pick.map(x=>[x.e.id]),unit:'pct',avg:true,catLabel:L('Employee','कर्मचारी'),
+  tbl:{cols:[L('Employee','कर्मचारी'),CLD(),L('Target','टारगेट'),L('Sale','बिक्री'),L('Achieved %','हुआ %'),...(cur?[L('Pace %','रफ़्तार %')]:[]),L('Gap to target','टारगेट से अंतर')],u:['','','inr','inr','pct',...(cur?['pct']:[]),'inr'],
+   rows:pick.map((x,i)=>[(l.length>20?(i<10?'▲ ':'▼ '):'')+x.e.name,saDvName(x.e.division),x.t,x.s,x.p,...(cur?[x.p/due*100]:[]),x.s-x.t]),tot:null,clr:{i:cur?5:4,f:saGood}}}},{def:'bar',grp:'sales'});
+/* 7. achievement bands */
+anD('sa_emp_band','pms','Sales: employees by achievement band (against the days gone in the running month)','सेल्स: उपलब्धि बैंड के हिसाब से कर्मचारी (चालू महीने में बीते दिनों के हिसाब से)',c=>{
+ const due=saDue(c.sm), l=saEL(c).filter(x=>x.t>0&&x.r), val={};l.forEach(x=>val[x.e.id]=x.r.sale/x.t*100/due*100);
+ const lb=['Below 50%','50 to 79%','80 to 99%','100 to 119%','120% and above'];
+ return anX(l.map(x=>x.e),e=>anBandIdx(val[e.id],[50,80,100,120]),null,lb.map((x,i)=>[i,x]),anEmpN(),{catLabel:L('Achievement band','उपलब्धि बैंड')})},{def:'bar',grp:'sales'});
+/* 8. employee against the average of his division */
+anD('sa_emp_vs_div','pms','Sales: employee sale against the average of his division (100 = the average)','सेल्स: कर्मचारी की बिक्री बनाम उसकी डिवीज़न का औसत (100 = औसत)',c=>{
+ const m=c.sm, sums={};SRC.rep_emp.filter(r=>r.month===m&&r.sale>0).forEach(r=>{const e=empById(r.emp);if(!e)return;const x=sums[e.division]||(sums[e.division]={s:0,n:0});x.s+=r.sale;x.n++});
+ const l=c.L.map(e=>({e,s:(saEmpRow(m,e.id)||{}).sale||0})).filter(x=>x.s>0&&sums[x.e.division]).map(x=>({...x,avg:sums[x.e.division].s/sums[x.e.division].n})).map(x=>({...x,ix:x.s/x.avg*100})).sort((a,b)=>b.ix-a.ix), pick=saExt(l,12);
+ return {cats:pick.map(x=>x.e.name),ser:[{n:L('Index (100 = division average)','इंडेक्स (100 = डिवीज़न का औसत)'),v:pick.map(x=>x.ix)}],ids:pick.map(x=>[x.e.id]),unit:'',avg:true,catLabel:L('Employee','कर्मचारी'),
+  tbl:{cols:[L('Employee','कर्मचारी'),CLD(),L('Sale','बिक्री'),L('Division average','डिवीज़न का औसत'),L('Index','इंडेक्स')],u:['','','inr','inr',''],rows:pick.map(x=>[x.e.name,saDvName(x.e.division),x.s,x.avg,x.ix]),tot:null,clr:{i:4,f:saGood}}}},{def:'bar',grp:'sales'});
+/* 9. trend of one employee (pick him above) or of the average employee */
+anD('sa_emp_trend','pms','Sales: six-month trend (pick an employee above to compare him with his division)','सेल्स: छह महीने का ट्रेंड (कर्मचारी चुनें, उसकी डिवीज़न से तुलना होगी)',c=>{
+ const ms=saSeq(c.sm,6), e=c.emp?empById(+c.emp):null, avgOf=(m,list)=>{const v=list.map(x=>(saEmpRow(m,x.id)||{}).sale||0).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0};
+ let S;if(e){const peers=DATA.emps.filter(x=>x.active&&x.division===e.division);S=[{n:e.name,v:ms.map(m=>(saEmpRow(m,e.id)||{}).sale||0)},{n:L('Average of ','औसत: ')+saDvName(e.division),v:ms.map(m=>avgOf(m,peers))}]}
+ else S=[{n:L('Average per employee','प्रति कर्मचारी औसत'),v:ms.map(m=>avgOf(m,c.L))},{n:L('Best employee','सबसे अच्छा कर्मचारी'),v:ms.map(m=>Math.max(0,...c.L.map(x=>(saEmpRow(m,x.id)||{}).sale||0)))}];
+ return {cats:ms,ser:S,unit:'inr',catLabel:L('Month','महीना'),tbl:{cols:[L('Month','महीना'),S[0].n,S[1].n,L('Difference','अंतर')],u:['','inr','inr','inr'],rows:ms.map((m,i)=>[m,S[0].v[i],S[1].v[i],S[0].v[i]-S[1].v[i]]),tot:null}}},{def:'line',grp:'sales'});
+/* 10. do the targets of the employees add up to the target of the division? */
+anD('sa_tgt_align','pms','Sales: division target against the total of the employee targets','सेल्स: डिवीज़न का टारगेट बनाम कर्मचारियों के टारगेट का जोड़',c=>{
+ const m=c.sm, ds=saDivList().map(d=>({d,t:(saTD(m,d.id)||{}).amount||0,e:SRC.tgt_emp.filter(r=>r.month===m&&r.status==='Approved'&&(empById(r.emp)||{}).division===d.id).reduce((a,r)=>a+r.amount,0)})).filter(x=>x.t||x.e);
+ const st=x=>!x.t?L('No division target','डिवीज़न का टारगेट नहीं'):!x.e?L('No employee targets','कर्मचारियों के टारगेट नहीं'):Math.abs(x.t-x.e)/x.t*100<=2?L('Aligned','मेल खाता है'):x.e<x.t?L('Employee targets are lower','कर्मचारियों के टारगेट कम'):L('Employee targets are higher','कर्मचारियों के टारगेट ज़्यादा');
+ return {cats:ds.map(x=>x.d.name),ser:[{n:L('Division target','डिवीज़न का टारगेट'),v:ds.map(x=>x.t)},{n:L('Employee targets (total)','कर्मचारियों के टारगेट (जोड़)'),v:ds.map(x=>x.e)}],unit:'inr',catLabel:CLD(),
+  tbl:{cols:[CLD(),L('Division target','डिवीज़न का टारगेट'),L('Employee targets (total)','कर्मचारियों के टारगेट (जोड़)'),L('Gap','अंतर'),L('Gap %','अंतर %'),L('Status','स्थिति')],u:['','inr','inr','inr','pct',''],rows:ds.map(x=>[x.d.name,x.t,x.e,x.t-x.e,x.t?(x.t-x.e)/x.t*100:null,st(x)]),tot:null}}},{def:'bar',grp:'sales',adm:true});
+/* demo sales for the analytics: earlier months, last year, and this month till today (the demo company only; a real company starts empty) */
+{const hsh=(a,b)=>((a*131+b*17)%97)/97, DV=[2,3,4], emps=DATA.emps.filter(e=>e.active&&DV.includes(e.division)&&e.id!==1);
+ const months=['Oct-2025','Nov-2025',...saSeq('Oct-2026',7).slice(0,6),'Oct-2026',CUR_P].filter((m,i,a)=>a.indexOf(m)===i);
+ const idx=m=>m==='Oct-2025'||m==='Nov-2025'?0:saNum(m)-saNum('Mar-2026');
+ months.forEach(m=>{const cur=m===CUR_P, part=cur?TODAY_D/saDays(m):1, divTot={};
+  emps.forEach(e=>{if(m==='Oct-2026'&&e.division===3)return;
+   const base=120000+hsh(e.id,1)*220000, f=(m.endsWith('2025')?0.78:0.86+0.03*idx(m))*(0.9+hsh(e.id,idx(m)+5)*0.22), full=Math.round(base*f/100)*100, tgt=Math.round(base*1.02/1000)*1000, s=Math.round(full*part/100)*100;
+   if(!SRC.rep_emp.some(r=>r.emp===e.id&&r.month===m))SRC.rep_emp.push({id:++seq,emp:e.id,month:m,sale:s,bills:Math.round(s/(850+hsh(e.id,3)*500)),qty:Math.round(s/(1050+hsh(e.id,4)*350))});
+   if(!SRC.tgt_emp.some(r=>r.emp===e.id&&r.month===m))SRC.tgt_emp.push({id:++seq,emp:e.id,month:m,amount:tgt,status:'Approved'});
+   const dv=divTot[e.division]||(divTot[e.division]={s:0,b:0,q:0,t:0});dv.s+=s;dv.b+=Math.round(s/(850+hsh(e.id,3)*500));dv.q+=Math.round(s/(1050+hsh(e.id,4)*350));dv.t+=tgt});
+  Object.keys(divTot).forEach(k=>{const d=+k, v=divTot[k];if(m==='Oct-2026'&&d===3)return;
+   if(!SRC.rep_div.some(r=>r.division===d&&r.month===m))SRC.rep_div.push({id:++seq,division:d,month:m,sale:Math.round(v.s*1.12/100)*100,bills:Math.round(v.b*1.12),qty:Math.round(v.q*1.12),re:Math.round(v.s*1.12*(0.02+hsh(d,idx(m)+2)*0.05)/100)*100});
+   if(!SRC.tgt_div.some(r=>r.division===d&&r.month===m))SRC.tgt_div.push({id:++seq,division:d,month:m,amount:Math.round(v.t*(d===2?1.2:d===3?1.0:1.12)*(cur?1:1)/1000)*1000,status:'Approved'})})});
+ /* the daily history of this month, as the daily uploads would have made it */
+ const ramp=(total,prof,key,d)=>{const share=(d/TODAY_D)**prof;return d===TODAY_D?total:Math.round(total*share*(0.97+hsh(key,d)*0.06)/100)*100};
+ [['emp',SRC.rep_emp,r=>r.emp],['div',SRC.rep_div,r=>r.division]].forEach(([kind,arr,keyOf])=>arr.filter(r=>r.month===CUR_P&&!SALEH_IX.has(kind+'|'+keyOf(r)+'|'+ds(TODAY_D))).forEach(r=>{let prev=0,pb=0;for(let d=1;d<=TODAY_D;d++){const sale=Math.max(prev,ramp(r.sale,1.05+hsh(keyOf(r),3)*.2,keyOf(r),d)), bills=Math.max(pb,Math.round((r.bills||0)*sale/(r.sale||1)));prev=sale;pb=bills;
+   saleHist(kind,{date:ds(d),val:sale,qty:r.qty!=null?Math.round(r.qty*sale/(r.sale||1)):null,...(kind==='emp'?{emp:r.emp}:{division:r.division})});billHist(kind,{date:ds(d),val:bills,...(kind==='emp'?{emp:r.emp}:{division:r.division})})}}))}
 orgMigrate();orgCodesFill();
 /* ---------- Salary Earned on the Dashboard, and the "salary is released" notice ---------- */
 TABKEY.dashboard='dtab';
