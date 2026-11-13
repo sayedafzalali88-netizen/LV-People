@@ -554,7 +554,7 @@ function settingsPage(){
   <div class="tabs">${Object.keys(SET).map(k=>`<button data-stab="${k}" class="${state.stab===k?'on':''}">${t(k)} (${DATA[k].length})</button>`).join('')}</div>
   <div class="card tw"><table class="tbl"><thead><tr>${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}<th>${t('emp_count')}</th><th></th></tr></thead><tbody>${
     rows.map(r=>`<tr>${s.cols.map(c=>`<td>${c[0]==='name'?`<b>${esc(r[c[0]])}</b>`:esc(r[c[0]])}</td>`).join('')}
-    <td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
+    ${tab==='desigs'?jdCell(r.id):''}<td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
     <td style="text-align:right;white-space:nowrap"><button class="btn btn-o btn-s" data-sed="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s btn-d" data-sdel="${r.id}">${t('del')}</button></td></tr>`).join('')
   }</tbody></table></div>`;
 }
@@ -660,6 +660,7 @@ function profilePage(id,fromList){
   if(state.ptab==='statutory')body=`<div class="kv">${statKV(e)}</div><p style="color:var(--muted);font-size:12px;margin-top:16px">🔒 ${t('masked')}</p>`;
   if(state.ptab==='bankd')body=`<div class="kv">${kv('bank_name',esc(e.bank))}${kv('ifsc',esc(e.ifsc))}${accKV(e)}</div>`;
   if(state.ptab==='notif')body=notifPrefHTML(e);
+  if(state.ptab==='jd')body=jdProfileHTML(e,typeof own!=='undefined'&&own);
   if(state.ptab==='docs'){
     const D=[['d_aadhaar',!!e.aadhaar],['d_pan',!!e.pan],['d_off',true],['d_bank',!!e.acc]];
     body=`<div class="list">${D.map(([k,ok])=>`<div><div class="grow"><b>${t(k)}</b></div><span class="pill ${ok?'p-ok':'p-warn'}">${ok?t('uploaded'):t('missing')}</span></div>`).join('')}</div><p style="color:var(--muted);font-size:12px;margin-top:10px">${t('docs_note')}</p>`;
@@ -1206,10 +1207,10 @@ function settingsPage(){
   if(tab==='rights')return head+rightsTab();
   if(tab==='audit')return head+auditTab();
   const s=ORG[tab], rows=DATA[tab];
-  return head+`<div class="card tw"><table class="tbl"><thead><tr>${ORGCODE[tab]?`<th>${L('Code','कोड')}</th>`:''}${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}${s.par?`<th>${t('parent_t')}</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+  return head+`<div class="card tw"><table class="tbl"><thead><tr>${ORGCODE[tab]?`<th>${L('Code','कोड')}</th>`:''}${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}${s.par?`<th>${t('parent_t')}</th>`:''}${tab==='desigs'?`<th>JD & JS</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>`<tr style="${r.off?'opacity:.55':''}">${ORGCODE[tab]?`<td><span class="pill p-teal">${esc(r.code||'')}</span></td>`:''}${s.cols.map(c=>`<td>${c[0]==='name'?`<b>${esc(r[c[0]])}</b>`:esc(r[c[0]]||'')}</td>`).join('')}
    ${s.par?`<td>${orgParents(tab,r)}</td>`:''}
-   <td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
+   ${tab==='desigs'?jdCell(r.id):''}<td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
    <td><span class="pill ${r.off?'p-bad':'p-ok'}">${r.off?t('inactive_i'):t('active')}</span></td>
    <td style="text-align:right;white-space:nowrap">${can('settings','E')?`<button class="btn btn-o btn-s" data-sed="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${r.off?'':'btn-d'}" data-sdel="${r.id}">${r.off?t('activate'):t('inactivate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
 }
@@ -1358,7 +1359,7 @@ function profilePage(id,fromList){
   const e=DATA.emps.find(x=>x.id===id); if(!e)return '';
   const own=id===MYEMP[state.role], sens=canManage()||own;
   const kv=(l,val)=>`<div><small>${t(l)}</small><b>${val===''||val==null?'-':val}</b></div>`;
-  const tabs=(sens?['personal','job','statutory','bankd','docs']:['personal','job']).concat(typeof own!=='undefined'&&own?['notif']:[]);
+  const tabs=(sens?['personal','job','jd','statutory','bankd','docs']:['personal','job']).concat(typeof own!=='undefined'&&own?['notif']:[]);
   if(!tabs.includes(state.ptab))state.ptab='personal';
   let body='';
   if(state.ptab==='personal')body=`<div class="kv">${kv('name',esc(e.name))}${kv('mobile',esc(e.mobile))}${kv('email',esc(e.email))}${kv('dob',fmtD(e.dob))}${kv('gender',t(GEN[e.gender]||'other'))}${kv('code',e.code)}</div>${typeof sens!=='undefined'&&sens?addrKV(e):''}`;
@@ -1367,6 +1368,7 @@ function profilePage(id,fromList){
   if(state.ptab==='statutory')body=`<div class="kv">${statKV(e)}</div><p style="color:var(--muted);font-size:12px;margin-top:16px">🔒 ${t('masked')}</p>`;
   if(state.ptab==='bankd')body=`<div class="kv">${kv('bank_name',esc(e.bank))}${kv('ifsc',esc(e.ifsc))}${accKV(e)}</div>`;
   if(state.ptab==='notif')body=notifPrefHTML(e);
+  if(state.ptab==='jd')body=jdProfileHTML(e,typeof own!=='undefined'&&own);
   if(state.ptab==='docs'){
     const D=[['d_aadhaar',!!e.aadhaar],['d_pan',!!e.pan],['d_off',true],['d_bank',!!e.acc]];
     body=`<div class="list">${D.map(([k,ok])=>`<div><div class="grow"><b>${t(k)}</b></div><span class="pill ${ok?'p-ok':'p-warn'}">${ok?t('uploaded'):t('missing')}</span></div>`).join('')}</div><p style="color:var(--muted);font-size:12px;margin-top:10px">${t('docs_note')}</p>`;
@@ -1909,7 +1911,7 @@ function kpiModal(id){
 function pmAssign(){
   const f=state.kfilt, rows=KRULES.filter(r=>!f||r.kpi===f);
   return `<div class="tools"><select class="inp" id="kf"><option value="">${t('all_methods').replace(t('all_methods'),t('k_id'))}</option>${[...new Set(KRULES.map(r=>r.kpi))].sort().map(id=>`<option value="${id}" ${f===id?'selected':''}>${id} ${esc(kpiById(id).name)}</option>`).join('')}</select></div>
-  <div class="card tw"><table class="tbl"><thead><tr><th>${t('k_id')}</th><th>${t('sc_scope')}</th><th>${t('sc_value')}</th><th>${t('sc_from')}</th><th>${t('sc_until')}</th><th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+  <div class="card tw"><table class="tbl"><thead><tr><th>${t('k_id')}</th><th>${t('sc_scope')}</th><th>${t('sc_value')}</th><th>${t('sc_from')}</th><th>${t('sc_until')}</th>${tab==='desigs'?`<th>JD & JS</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>`<tr style="${r.st==='Active'?'':'opacity:.55'}"><td><b>${r.kpi}</b><small style="display:block;color:var(--muted)">${esc(kpiById(r.kpi).name)}</small></td><td>${t('scope_'+r.scope)}</td><td>${ruleLabel(r)}</td><td>${fmtS(r.from)}</td><td>${r.until?fmtS(r.until):'—'}</td>
    <td><span class="pill p-teal">${DATA.emps.filter(e=>e.active&&ruleHits(r,e)).length}</span></td><td><span class="pill ${r.st==='Active'?'p-ok':'p-bad'}">${r.st==='Active'?t('active'):t('inactive_i')}</span></td>
    <td style="text-align:right">${can('pms','E')?`<button class="btn btn-o btn-s ${r.st==='Active'?'btn-d':''}" data-rtog="${r.id}">${r.st==='Active'?t('inactivate'):t('activate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
@@ -3730,7 +3732,7 @@ bindExtra=function(){
   on('[data-rcgo]',b=>b.onclick=()=>{state.rctab=b.dataset.rcgo;render()});
   on('[data-rcreqnew]',b=>b.onclick=rcReqModal);
   on('[data-rcreqdo]',b=>b.onclick=()=>{const [id,s]=b.dataset.rcreqdo.split(':'), r=RC.req.find(x=>x.id==id);if(!canManage()||r.st!=='Pending')return;r.st=s;r.by2=me();
-    if(s==='Approved'){RC.vac.push({id:++seq,no:sysNo('VAC',RC.vac.length+1),req:r.id,branch:r.branch,desig:r.desig,positions:r.count,opened:TODAY_S,closedOn:'',status:'Open',recruiter:recruiterFor(r.branch)})}
+    if(s==='Approved'){rcOpenVac(r)}
     audit('Recruitment','Requisition '+s,r.no,'');toast(t('saved'));render()});
   on('[data-rcvac]',b=>b.onclick=()=>{const [id,s]=b.dataset.rcvac.split(':'), v=RC.vac.find(x=>x.id==id);v.status=s;if(s==='Closed')v.closedOn=TODAY_S;if(s==='Open')v.closedOn='';audit('Recruitment','Vacancy '+s,v.no,'');toast(t('saved'));render()});
   on('[data-rccnew]',b=>b.onclick=()=>rcCandModal(false));on('[data-rcrefer]',b=>b.onclick=()=>rcCandModal(true));
@@ -3962,10 +3964,10 @@ function settingsPage(){
   if(tab==='rights')return head+rightsTab();
   if(tab==='audit')return head+auditTab();
   const s=ORG[tab], rows=DATA[tab];
-  return head+`<div class="card tw"><table class="tbl"><thead><tr>${ORGCODE[tab]?`<th>${L('Code','कोड')}</th>`:''}${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}${s.par?`<th>${t('parent_t')}</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+  return head+`<div class="card tw"><table class="tbl"><thead><tr>${ORGCODE[tab]?`<th>${L('Code','कोड')}</th>`:''}${s.cols.map(c=>`<th>${t(c[1])}</th>`).join('')}${s.par?`<th>${t('parent_t')}</th>`:''}${tab==='desigs'?`<th>JD & JS</th>`:''}<th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>`<tr style="${r.off?'opacity:.55':''}">${ORGCODE[tab]?`<td><span class="pill p-teal">${esc(r.code||'')}</span></td>`:''}${s.cols.map(c=>`<td>${c[0]==='name'?`<b>${esc(r[c[0]])}</b>`:esc(r[c[0]]||'')}</td>`).join('')}
    ${s.par?`<td>${orgParents(tab,r)}</td>`:''}
-   <td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
+   ${tab==='desigs'?jdCell(r.id):''}<td><span class="pill p-teal">${DATA.emps.filter(e=>e[s.used]==r.id).length}</span></td>
    <td><span class="pill ${r.off?'p-bad':'p-ok'}">${r.off?t('inactive_i'):t('active')}</span></td>
    <td style="text-align:right;white-space:nowrap">${can('settings','E')?`<button class="btn btn-o btn-s" data-sed="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${r.off?'':'btn-d'}" data-sdel="${r.id}">${r.off?t('activate'):t('inactivate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
 }
@@ -6199,7 +6201,7 @@ function rcMake(o){const p=o.plan, q={id:++seq,no:sysNo('REQ',RC.req.length+1),b
  const i=wfStart({wf:'WF-013',type:'Requisition',subject:o.by,title:`${L('Requisition','माँग')} ${q.no}: ${nmP(q)} × ${q.count}`,payload:{req:q.id},action:'req',by:o.by,opener:{page:'recruit',tab:'req'}});if(i)q.inst=i.id;
  audit('Recruitment','Requisition raised',q.no,`${o.kind} ${nmP(q)} x${q.count}`);return q}
 WF_ACTIONS.req={approved:i=>{const r=RC.req.find(x=>x.id===i.payload.req);if(!r||r.st!=='Pending')return;r.st='Approved';r.by2=hrId();
-  RC.vac.push({id:++seq,no:sysNo('VAC',RC.vac.length+1),req:r.id,branch:r.branch,desig:r.desig,positions:r.count,opened:TODAY_S,closedOn:'',status:'Open',recruiter:recruiterFor(r.branch),lvl:r.lvl||1,plan:r.plan});audit('Recruitment','Requisition Approved',r.no,'vacancy opened')},
+  rcOpenVac(r);audit('Recruitment','Requisition Approved',r.no,jdOk(r.desig)?'vacancy opened':'vacancy waits for JD and JS')},
  rejected:i=>{const r=RC.req.find(x=>x.id===i.payload.req);if(r){r.st='Rejected';r.by2=hrId()}}};
 /* a shortage in the approved plan makes a requisition by itself (when a plan row is approved or changed, and when an employee leaves) */
 function rcAuto(trigger){if(!modOn('recruit'))return 0;let n=0;planRows().forEach(r=>{const need=planNeed(r);if(need>0&&splitFor(r.desig,r.lvl||1,0)){rcMake({plan:r,count:need,kind:'Auto',by:hrId(),reason:trigger==='leave'?'Replacement':'New position',note:'Created automatically: manpower plan shortage'});n++}});return n}
@@ -6259,7 +6261,7 @@ function rcReq(){try{rcAuto()}catch(x){}
  ${mgr?`<div class="card tw" style="margin-bottom:14px"><h3 style="padding:16px 18px 0">${L('Shortage in your branches (approved plan)','आपकी शाखाओं की कमी (मंज़ूर प्लान)')}</h3><table class="tbl"><tbody>${short.map(r=>`<tr><td><b>${esc(nmP(r))}</b></td><td>${L('short','कमी')} ${gap(r).short}</td><td>${planNeed(r)>0?`<button class="btn btn-p btn-s" data-rcreqnew="${r.id}">${L('Raise requisition','माँग करें')}</button>`:`<span class="pill p-teal">${L('vacancy or request open','वैकेंसी या माँग खुली')}</span>`}</td></tr>`).join('')||`<tr><td style="color:var(--muted);padding:14px">${L('No shortage','कोई कमी नहीं')}</td></tr>`}</tbody></table></div>`:''}
  <div class="card tw"><table class="tbl"><thead><tr><th>${L('No.','क्र.')}</th><th>${L('Branch','शाखा')}</th><th>${t('desig')}</th><th>${L('Positions','पद')}</th><th>${L('Level · CTC','लेवल · CTC')}</th><th>${L('Raised by','किसने माँगा')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
   rows.map(r=>`<tr><td><b>${r.no}</b><small style="display:block;color:var(--muted)">${fmtS(r.date)}${r.plan?' · '+(SRC.plan.find(x=>x.id===r.plan)||{no:''}).no:''}</small></td><td>${esc(nm('branches',r.branch))}</td><td>${esc(nm('desigs',r.desig))}</td><td>${r.count}</td><td>${r.ctc?`L${r.lvl} · ${inr(r.ctc)}`:'—'}</td><td>${r.kind?`<span class="pill p-teal">${L(...kindL[r.kind])}</span> `:''}${r.by===hrId()&&r.kind==='Auto'?'':nmE(r.by)}<small style="display:block;color:var(--muted)">${r.reason}${r.note?' · '+esc(r.note):''}</small></td>
-  <td><span class="pill ${r.st==='Approved'?'p-ok':r.st==='Rejected'?'p-bad':'p-warn'}">${L(r.st,{Approved:'मंज़ूर',Rejected:'अस्वीकृत',Pending:'लंबित'}[r.st])}</span>${r.inst&&r.st==='Pending'?`<small style="display:block;color:var(--muted)">${L('in workflow (Inbox)','वर्कफ़्लो में (इनबॉक्स)')}</small>`:''}</td><td style="text-align:right;white-space:nowrap">${hr&&r.st==='Pending'&&!r.inst?`<button class="btn btn-p btn-s" data-rcreqdo="${r.id}:Approved">${L('Approve','मंज़ूर करें')}</button> <button class="btn btn-o btn-s btn-d" data-rcreqdo="${r.id}:Rejected">${L('Reject','अस्वीकार करें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>
+  <td><span class="pill ${r.st==='Approved'?'p-ok':r.st==='Rejected'?'p-bad':'p-warn'}">${L(r.st,{Approved:'मंज़ूर',Rejected:'अस्वीकृत',Pending:'लंबित'}[r.st])}</span>${r.jdWait?`<small style="display:block;color:var(--bad)">${L('Waiting for JD & JS: the vacancy opens when HR publishes it','JD और JS का इंतज़ार: HR के publish करते ही वैकेंसी खुलेगी')}</small>`:''}${!jdOk(r.desig)&&r.st==='Pending'?`<small style="display:block;color:var(--warn)">${L('No JD & JS yet','अभी JD और JS नहीं')}</small>`:''}${jdOk(r.desig)?`<button type="button" class="btn btn-o btn-s" data-jdview="${r.desig}" style="margin-top:4px">${L('JD & JS','JD और JS')}</button>`:''}${r.inst&&r.st==='Pending'?`<small style="display:block;color:var(--muted)">${L('in workflow (Inbox)','वर्कफ़्लो में (इनबॉक्स)')}</small>`:''}</td><td style="text-align:right;white-space:nowrap">${hr&&r.st==='Pending'&&!r.inst?`<button class="btn btn-p btn-s" data-rcreqdo="${r.id}:Approved">${L('Approve','मंज़ूर करें')}</button> <button class="btn btn-o btn-s btn-d" data-rcreqdo="${r.id}:Rejected">${L('Reject','अस्वीकार करें')}</button>`:''}</td></tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>
  ${adds.length?`<div class="sec-t">${L('Additional manpower requests','अतिरिक्त मैनपावर की माँगें')}</div><div class="card tw"><table class="tbl"><thead><tr><th>${L('No.','क्र.')}</th><th>${t('desig')}</th><th>${L('Extra','अतिरिक्त')}</th><th>${L('Why','क्यों')}</th><th>${L('Raised by','किसने')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${adds.map(a=>`<tr><td><b>${a.no}</b></td><td>${esc(nmP(a))}</td><td>${a.count}</td><td style="font-size:13px">${esc(a.why)}</td><td>${nmE(a.by)}</td><td><span class="pill ${a.st==='Added to plan'?'p-ok':a.st==='Rejected'?'p-bad':'p-warn'}">${a.st==='Pending'?L('in workflow (Inbox)','वर्कफ़्लो में (इनबॉक्स)'):a.st==='With HR'?L('Approved, with HR','मंज़ूर, HR के पास'):a.st==='Added to plan'?L('Added to plan','प्लान में जुड़ा'):L('Rejected','अस्वीकृत')}</span></td><td style="text-align:right">${hr&&a.st==='With HR'?`<button class="btn btn-p btn-s" data-addplan="${a.id}">${L('Add to manpower plan','प्लान में जोड़ें')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`}
 /* the plan screen: hiring level, CTC from the structure, rows waiting for approval */
 const _rcDash=rcDash;
@@ -12498,6 +12500,89 @@ $('#menuBtn').onclick=openSb;$('#scrim').onclick=closeSb;
 /* sign in, sign out and the forgot-password flows live in the Login and accounts block (initLogin) */
 $('#roleSel').onchange=e=>{state.role=e.target.value;state.page='dashboard';resetViews();render()};
 $('#bell').onclick=()=>{toast(`${state.approvals.length} ${t('pending').toLowerCase()}`)};
+/* ================= Job description and specification (JD and JS) of every designation ================= */
+Object.assign(T.en,{jd:'JD & JS'});Object.assign(T.hi,{jd:'JD और JS'});
+const JD={}, JDACK={};
+TABKEY.profile='ptab';
+const jdCur=d=>((JD[d]||{}).versions||[]).filter(v=>v.status==='Published').slice(-1)[0];
+const jdDraft=d=>((JD[d]||{}).versions||[]).filter(v=>v.status==='Draft').slice(-1)[0];
+const jdOk=d=>!!jdCur(d);
+const jdAck=(emp,d,ver)=>JDACK[emp+'|'+d+'|'+ver];
+const jdLines=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean);
+const jdHolders=d=>DATA.emps.filter(e=>e.active&&+e.desig===+d);
+const jdSnap=d=>{const v=jdCur(d);return v?{ver:v.ver,purpose:v.purpose||'',resp:jdLines(v.resp).slice(0,8),edu:v.edu||'',exp:v.exp||'',skills:v.skills||''}:null};
+const jdBase=(e,c)=>[e.doj||TODAY_S,c.effective||TODAY_S].sort().slice(-1)[0];
+const jdLate=e=>{const c=e.desig&&jdCur(e.desig);return !!(c&&!jdAck(e.id,e.desig,c.ver)&&addD(jdBase(e,c),7)<TODAY_S)};
+function jdHTML(v){const row=(l,val)=>val?`<div style="margin:6px 0"><small style="color:var(--muted)">${l}</small><div style="white-space:pre-line">${esc(val)}</div></div>`:'', list=jdLines(v.resp);
+ return `<h4 style="margin:10px 0 4px">${L('Job description (JD)','जॉब डिस्क्रिप्शन (JD)')}</h4>${row(L('Purpose of the role','पद का उद्देश्य'),v.purpose)}${list.length?`<div style="margin:6px 0"><small style="color:var(--muted)">${L('Key responsibilities','मुख्य ज़िम्मेदारियाँ')}</small><ol style="margin:4px 0 0 18px;padding:0">${list.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></div>`:''}${row(L('Reports to','किसे रिपोर्ट करता है'),v.reports)}${row(L('Working conditions','काम की स्थितियाँ'),v.cond)}
+  <h4 style="margin:14px 0 4px">${L('Job specification (JS)','जॉब स्पेसिफ़िकेशन (JS)')}</h4>${row(L('Education','शिक्षा'),v.edu)}${row(L('Experience','अनुभव'),v.exp)}${row(L('Skills','स्किल'),v.skills)}${row(L('Certificates','प्रमाणपत्र'),v.certs)}${row(L('Other requirements','अन्य ज़रूरतें'),v.other)}
+  ${v.file&&v.file.name?`<div style="margin-top:8px">📎 ${v.file.url?`<a href="${esc(v.file.url)}" target="_blank" rel="noopener">${esc(v.file.name)}</a>`:esc(v.file.name)}</div>`:''}`}
+/* the printable page of a JD and JS */
+function jdPdf(d,ver){const rec=(JD[d]||{versions:[]}).versions, v=rec.find(x=>x.ver==ver)||jdCur(d);if(!v)return;const E=esc, list=jdLines(v.resp), sec=(l,t)=>t?`<h3>${l}</h3><div style="white-space:pre-line">${E(t)}</div>`:'';
+ const html=`<!doctype html><html><head><meta charset="utf-8"><title>JD ${E(nm('desigs',d))} v${v.ver}</title><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;margin:0;font-size:13px;line-height:1.5}.hd{background:#0b3b36;color:#fff;padding:16px 34px;border-bottom:5px solid #C9A227}.hd h1{margin:0;font-size:20px}.hd small{color:#F7D774}.pg{padding:18px 34px}h3{font-size:14px;margin:16px 0 4px;color:#0b3b36;border-bottom:2px solid #C9A227;padding-bottom:3px}h2{font-size:15px;margin:18px 0 0;color:#0f766e}ol{margin:4px 0 0 18px;padding:0}.sig{margin-top:50px;display:flex;justify-content:space-between}</style></head><body>
+  <div class="hd"><h1>${E(ORGS.org||'')}</h1><small>${L('Job description and specification','जॉब डिस्क्रिप्शन और स्पेसिफ़िकेशन')}</small></div><div class="pg">
+  <h2>${E(nm('desigs',d))} <small style="color:#555">${E((DATA.desigs.find(x=>x.id==d)||{}).code||'')} · v${v.ver} · ${E(fmtY(v.effective||v.at||TODAY_S))}</small></h2>
+  <h3>${L('Job description (JD)','जॉब डिस्क्रिप्शन (JD)')}</h3>${v.purpose?`<div style="white-space:pre-line"><b>${L('Purpose','उद्देश्य')}:</b> ${E(v.purpose)}</div>`:''}${list.length?`<h3 style="border:0;margin-bottom:0">${L('Key responsibilities','मुख्य ज़िम्मेदारियाँ')}</h3><ol>${list.map(x=>`<li>${E(x)}</li>`).join('')}</ol>`:''}${sec(L('Reports to','किसे रिपोर्ट करता है'),v.reports)}${sec(L('Working conditions','काम की स्थितियाँ'),v.cond)}
+  <h3>${L('Job specification (JS)','जॉब स्पेसिफ़िकेशन (JS)')}</h3>${sec(L('Education','शिक्षा'),v.edu)}${sec(L('Experience','अनुभव'),v.exp)}${sec(L('Skills','स्किल'),v.skills)}${sec(L('Certificates','प्रमाणपत्र'),v.certs)}${sec(L('Other requirements','अन्य ज़रूरतें'),v.other)}
+  <div class="sig"><div>${L('Employee','कर्मचारी')}: ____________________<br>${L('Date','तारीख़')}: ____________</div><div>HR: ____________________</div></div></div></body></html>`;
+ const w=window.open('','_blank');if(!w){toast(L('Allow pop-ups to see the PDF','PDF देखने के लिए पॉप-अप चालू करें'));return}w.document.open();w.document.write(html);w.document.close();w.focus();setTimeout(()=>{try{w.print()}catch(e){}},500)}
+/* the JD and JS written at the end of the offer letter */
+function jdAnnex(d){const v=jdCur(d);if(!v)return '';const R=jdLines(v.resp).map((x,i)=>`${i+1}. ${x}`).join('\n'), line=(l,t)=>t?`\n${l}: ${t}`:'';
+ return L(`\n\nAnnexure: Job description and specification (version ${v.ver})\nPurpose: ${v.purpose}\nKey responsibilities:\n${R}${line('Reports to',v.reports)}${line('Education',v.edu)}${line('Experience',v.exp)}${line('Skills',v.skills)}${line('Certificates',v.certs)}${line('Other requirements',v.other)}`,`\n\nअनुलग्नक: जॉब डिस्क्रिप्शन और स्पेसिफ़िकेशन (वर्ज़न ${v.ver})\nउद्देश्य: ${v.purpose}\nमुख्य ज़िम्मेदारियाँ:\n${R}${line('किसे रिपोर्ट',v.reports)}${line('शिक्षा',v.edu)}${line('अनुभव',v.exp)}${line('स्किल',v.skills)}${line('प्रमाणपत्र',v.certs)}${line('अन्य ज़रूरतें',v.other)}`)}
+{const _ot=offerText;offerText=function(o){let a='';try{a=jdAnnex(vacById(candById(o.cand).vac).desig)}catch(e){}return _ot(o)+a}}
+/* a vacancy opens only when the designation has a published JD and JS; until then the approved requisition waits */
+function rcOpenVacNow(r){RC.vac.push({id:++seq,no:sysNo('VAC',RC.vac.length+1),req:r.id,branch:r.branch,desig:r.desig,positions:r.count,opened:TODAY_S,closedOn:'',status:'Open',recruiter:recruiterFor(r.branch),lvl:r.lvl||1,plan:r.plan,jd:jdSnap(r.desig)});audit('Recruitment','Vacancy opened',r.no,L('JD and JS are published','JD और JS publish हैं'))}
+function rcOpenVac(r){if(jdOk(r.desig))return rcOpenVacNow(r);r.jdWait=true;audit('Recruitment','Requisition approved, vacancy waits for JD and JS',r.no,nm('desigs',r.desig));try{toast(L('Approved. The vacancy opens when HR publishes the JD and JS of this designation.','मंज़ूर। इस पद की JD और JS HR के publish करते ही वैकेंसी खुलेगी।'))}catch(e){}}
+function jdRelease(d){const s=jdSnap(d);RC.vac.filter(v=>+v.desig===+d&&v.status!=='Closed').forEach(v=>{v.jd=s});RC.req.filter(r=>r.jdWait&&+r.desig===+d).forEach(r=>{delete r.jdWait;rcOpenVacNow(r)})}
+/* HR: write, save as a draft and publish the JD and JS of a designation (a new version replaces the old one, which is kept) */
+function jdModal(d){const E=can('settings','E'), cur=jdCur(d), dr=jdDraft(d), base=dr||cur||{}, dn=nm('desigs',d), hold=jdHolders(d), vs=((JD[d]||{}).versions||[]).slice().reverse();
+ const ackN=v=>hold.filter(e=>jdAck(e.id,d,v.ver)).length, fld=(k,l,rows)=>`<label>${l}</label><textarea class="inp" name="${k}" rows="${rows}">${esc(base[k]||'')}</textarea>`;
+ const hist=vs.length?`<div class="sec-t" style="margin-top:14px">${L('Versions','वर्ज़न')}</div><table class="tbl"><thead><tr><th>v</th><th>${t('status')}</th><th>${L('Date','तारीख़')}</th><th>${L('By','किसने')}</th><th>${L('Acknowledged','पावती')}</th><th></th></tr></thead><tbody>${vs.map(v=>`<tr><td><b>v${v.ver}</b></td><td><span class="pill ${v.status==='Published'?'p-ok':v.status==='Draft'?'p-warn':'p-teal'}">${v.status}</span></td><td>${fmtY(v.effective||v.at||'')}</td><td>${esc(v.by||'')}</td><td>${v.status==='Published'?`${ackN(v)} / ${hold.length}`:'—'}</td><td style="text-align:right"><button type="button" class="btn btn-o btn-s" data-jdpdf="${d}:${v.ver}">PDF</button></td></tr>`).join('')}</tbody></table>`:'';
+ const body=E?`<p style="font-size:13px;color:var(--muted);margin:0 0 6px">${dr?L('A draft is open (v'+dr.ver+'). Publish it to make it the current JD and JS.','एक ड्राफ़्ट खुला है (v'+dr.ver+')। उसे publish करने पर वही चालू JD और JS बनेगी।'):cur?L('Current version: v'+cur.ver+'. Any change you save is a new version, and everyone in this designation must acknowledge it again after you publish.','चालू वर्ज़न: v'+cur.ver+'। आप जो भी बदलाव सेव करेंगे वह नया वर्ज़न होगा, और publish के बाद इस पद के सभी लोगों को दोबारा पावती देनी होगी।'):L('No JD and JS yet. A vacancy for this designation cannot open until you publish one.','अभी JD और JS नहीं है। जब तक आप publish नहीं करते, इस पद की वैकेंसी नहीं खुल सकती।')}</p>
+   <h4 style="margin:8px 0 2px">${L('Job description (JD)','जॉब डिस्क्रिप्शन (JD)')}</h4>${fld('purpose',L('Purpose of the role *','पद का उद्देश्य *'),2)}${fld('resp',L('Key responsibilities * (one on each line)','मुख्य ज़िम्मेदारियाँ * (हर लाइन में एक)'),6)}<div class="fgrid"><div><label>${L('Reports to','किसे रिपोर्ट करता है')}</label><input class="inp" name="reports" value="${esc(base.reports||'')}"></div><div><label>${L('Working conditions','काम की स्थितियाँ')}</label><input class="inp" name="cond" value="${esc(base.cond||'')}"></div></div>
+   <h4 style="margin:12px 0 2px">${L('Job specification (JS)','जॉब स्पेसिफ़िकेशन (JS)')}</h4><div class="fgrid"><div><label>${L('Education','शिक्षा')}</label><input class="inp" name="edu" value="${esc(base.edu||'')}"></div><div><label>${L('Experience','अनुभव')}</label><input class="inp" name="exp" value="${esc(base.exp||'')}"></div></div>${fld('skills',L('Skills','स्किल'),2)}<div class="fgrid"><div><label>${L('Certificates','प्रमाणपत्र')}</label><input class="inp" name="certs" value="${esc(base.certs||'')}"></div><div><label>${L('Other requirements','अन्य ज़रूरतें')}</label><input class="inp" name="other" value="${esc(base.other||'')}"></div></div>
+   <label>${L('Or attach the JD file (PDF or Word, up to 2 MB, optional)','या JD की फ़ाइल जोड़ें (PDF या Word, 2 MB तक, वैकल्पिक)')}</label>${base.file&&base.file.name?`<div style="font-size:13px;margin-bottom:4px">📎 ${esc(base.file.name)} <label style="display:inline;margin-left:8px;font-weight:400"><input type="checkbox" name="rmfile"> ${L('remove','हटाएँ')}</label></div>`:''}<input class="inp" type="file" name="file" accept=".pdf,.doc,.docx">`
+   :(cur?jdHTML(cur):`<p>${L('No JD and JS yet.','अभी JD और JS नहीं है।')}</p>`);
+ const bg=openModal(`<h3>${L('JD & JS','JD और JS')} · ${esc(dn)}</h3>${body}<div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div>${hist}<div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button>${E?`<button type="button" class="btn btn-o" data-jdact="draft">${L('Save draft','ड्राफ़्ट सेव करें')}</button><button type="button" class="btn btn-p" data-jdact="pub">${L('Publish','Publish करें')}</button>`:''}</div>`,
+  async(f,close,bgx)=>{if(!E)return close();const act=f.dataset.act||'draft', fd=new FormData(f), v={}, er=m=>{(bgx||document).querySelector('#me').textContent=m};
+   ['purpose','resp','reports','cond','edu','exp','skills','certs','other'].forEach(k=>v[k]=String(fd.get(k)||'').trim());
+   const fl=f.elements.file&&f.elements.file.files[0];let file=base.file||null;
+   if(fl){if(fl.size>2*1024*1024)return er(L('The file is larger than 2 MB','फ़ाइल 2 MB से बड़ी है'));file={name:fl.name,url:await new Promise(r=>{const rd=new FileReader();rd.onload=()=>r(rd.result);rd.readAsDataURL(fl)})}}else if(fd.get('rmfile'))file=null;
+   if(act==='pub'){if(!v.purpose)return er(L('Write the purpose of the role','पद का उद्देश्य लिखें'));if(!jdLines(v.resp).length)return er(L('Write at least one key responsibility','कम से कम एक मुख्य ज़िम्मेदारी लिखें'));if(!(v.edu||v.exp||v.skills))return er(L('Write the education, the experience or the skills in the JS','JS में शिक्षा, अनुभव या स्किल में से कुछ लिखें'))}
+   const rec=JD[d]||(JD[d]={versions:[]}), same=k=>['purpose','resp','reports','cond','edu','exp','skills','certs','other'].every(x=>(cur&&cur[x]||'')===v[x])&&JSON.stringify(cur&&cur.file||null)===JSON.stringify(file);
+   if(act==='pub'&&!dr&&cur&&same())return er(L('Nothing has changed since the published version','publish हुए वर्ज़न से कुछ बदला नहीं'));
+   let tg=dr;if(!tg){tg={ver:Math.max(0,...rec.versions.map(x=>x.ver))+1,status:'Draft'};rec.versions.push(tg)}
+   Object.assign(tg,v,{file,by:USERS[state.role].name,at:TODAY_S});
+   if(act==='pub'){rec.versions.forEach(x=>{if(x.status==='Published')x.status='Replaced'});tg.status='Published';tg.effective=TODAY_S;audit('JD & JS','Published',dn,'v'+tg.ver);jdRelease(d)}else audit('JD & JS','Draft saved',dn,'v'+tg.ver);
+   close();toast(t('saved'));render()});
+ bg.querySelectorAll('[data-jdact]').forEach(b=>b.onclick=()=>{const f=bg.querySelector('form');f.dataset.act=b.dataset.jdact;f.requestSubmit()});
+ bg.querySelectorAll('[data-jdpdf]').forEach(b=>b.onclick=()=>{const [x,y]=b.dataset.jdpdf.split(':');jdPdf(+x,+y)})}
+/* the column in Core Setting > Designations */
+function jdCell(id){const c=jdCur(id), n=jdHolders(id), a=c?n.filter(e=>jdAck(e.id,id,c.ver)).length:0;
+ return `<td style="white-space:nowrap">${c?`<span class="pill p-ok">v${c.ver}</span> <small style="color:var(--muted)">${a}/${n.length}</small>`:`<span class="pill p-warn">${L('No JD','JD नहीं')}</span>`} <button class="btn btn-o btn-s" data-jdedit="${id}">${can('settings','E')?L('JD & JS','JD और JS'):L('View','देखें')}</button></td>`}
+/* an employee: read the JD and JS, acknowledge */
+function jdProfileHTML(e,own){const c=jdCur(e.desig);if(!c)return `<p style="color:var(--muted)">${L('No JD and JS is published for this designation yet.','इस पद की JD और JS अभी publish नहीं हुई।')}</p>`;
+ const a=jdAck(e.id,e.desig,c.ver), hist=Object.values(JDACK).filter(x=>x.emp===e.id).sort((p,q)=>p.at<q.at?1:-1);
+ return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><b>${esc(nm('desigs',e.desig))}</b><span class="pill p-teal">v${c.ver}</span><small style="color:var(--muted)">${fmtY(c.effective||'')}</small>${a?`<span class="pill p-ok">${L('Acknowledged on','पावती दी')} ${fmtY(a.at)}</span>`:`<span class="pill p-warn">${L('Not acknowledged yet','पावती अभी नहीं दी')}</span>`}</div>${jdHTML(c)}
+  <div class="acts" style="margin-top:12px;flex-wrap:wrap">${own&&!a?`<button class="btn btn-p" data-jdack="${e.id}">${L('I have read and understood my JD & JS','मैंने अपनी JD और JS पढ़ ली और समझ ली')}</button>`:''}<button class="btn btn-o" data-jdpdf="${e.desig}:${c.ver}">${L('Download / print','डाउनलोड / प्रिंट')}</button></div>
+  ${hist.length?`<div class="sec-t" style="margin-top:14px">${L('Acknowledged earlier','पहले की पावती')}</div><div class="list">${hist.map(x=>`<div><div class="grow"><b>${esc(nm('desigs',x.desig))} · v${x.ver}</b><small>${fmtY(x.at)}</small></div></div>`).join('')}</div>`:''}`}
+{const _bj=bindExtra;bindExtra=function(){_bj();const m=$('#main');
+ m.querySelectorAll('[data-jdedit]').forEach(b=>b.onclick=()=>jdModal(+b.dataset.jdedit));
+ m.querySelectorAll('[data-jdview]').forEach(b=>b.onclick=()=>{const d=+b.dataset.jdview, c=jdCur(d);openModal(`<h3>${L('JD & JS','JD और JS')} · ${esc(nm('desigs',d))} <small style="color:var(--muted)">v${c?c.ver:''}</small></h3>${c?jdHTML(c):'<p>—</p>'}<div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button>${c?`<button type="button" class="btn btn-p" data-jdpdf="${d}:${c.ver}">PDF</button>`:''}</div>`,(f,close)=>close());document.querySelectorAll('.modal-bg [data-jdpdf]').forEach(x=>x.onclick=()=>{const [p,q]=x.dataset.jdpdf.split(':');jdPdf(+p,+q)})});
+ m.querySelectorAll('[data-jdpdf]').forEach(b=>{if(b.closest('.modal-bg'))return;b.onclick=()=>{const [x,y]=b.dataset.jdpdf.split(':');jdPdf(+x,y?+y:undefined)}});
+ m.querySelectorAll('[data-jdack]').forEach(b=>b.onclick=()=>{const id=+b.dataset.jdack, e=empById(id), c=e&&jdCur(e.desig);if(!c||id!==me())return;JDACK[id+'|'+e.desig+'|'+c.ver]={emp:id,desig:e.desig,ver:c.ver,at:TODAY_S};audit('JD & JS','Acknowledged',`${e.code} ${e.name}`,nm('desigs',e.desig)+' v'+c.ver);toast(L('Thank you. Your acknowledgement is saved.','धन्यवाद। आपकी पावती सेव हो गई।'));render()})}}
+/* Inbox: the employee reads and acknowledges; HR publishes a missing JD; HR sees who is late */
+INBOX_SRC.push((id,out)=>{const e=DATA.emps.find(x=>x.id===id);
+ if(e&&e.active&&e.desig){const c=jdCur(e.desig);if(c&&!jdAck(e.id,e.desig,c.ver))ibAdd(out,{kind:'jd',title:`${L('Read your JD & JS and acknowledge','अपनी JD और JS पढ़कर पावती दें')}: ${nm('desigs',e.desig)} (v${c.ver})`,subject:e.id,page:'profile',tab:'jd',due:addD(jdBase(e,c),7)})}
+ if(canManage()){const need={};RC.req.filter(r=>!jdOk(r.desig)&&(r.jdWait||r.st==='Pending')).forEach(r=>{(need[r.desig]=need[r.desig]||[]).push(r)});
+  Object.keys(need).forEach(d=>ibAdd(out,{kind:'jdneed',title:`${L('Publish the JD & JS of','JD और JS publish करें:')} ${nm('desigs',+d)} · ${need[d].map(r=>r.no).join(', ')}${need[d].some(r=>r.jdWait)?' ('+L('the vacancy waits','वैकेंसी रुकी है')+')':''}`,subject:need[d][0].by,page:'settings',tab:'desigs'}));
+  const late=DATA.emps.filter(x=>x.active&&jdLate(x));if(late.length)ibAdd(out,{kind:'jdpend',title:`${late.length} ${L('employees have not acknowledged their JD & JS for more than 7 days','कर्मचारियों ने 7 दिन से ज़्यादा हो गए, JD और JS की पावती नहीं दी')}`,subject:id,page:'reports',tab:''})}});
+KINDL.jd=['JD & JS','JD और JS'];KINDL.jdneed=['JD & JS','JD और JS'];KINDL.jdpend=['JD & JS','JD और JS'];
+IBKIND.jd=['do','Read and acknowledge','पढ़ें और पावती दें','Open and read','खोलकर पढ़ें'];IBKIND.jdneed=['do','Publish the JD & JS','JD और JS publish करें','Open','खोलें'];IBKIND.jdpend=['info','Pending acknowledgements','बाक़ी पावती','Open the reports','रिपोर्ट खोलें'];
+/* report for HR: who has acknowledged */
+rp('jd_ack','employees','JD & JS acknowledgement','JD और JS की पावती','none','M',(f)=>({cols:[L('Code','कोड'),L('Name','नाम'),L('Branch','शाखा'),L('Designation','पद'),L('JD version','JD वर्ज़न'),t('status'),L('Acknowledged on','पावती की तारीख़')],rows:rActive(rptEmps(f)).map(e=>{const c=jdCur(e.desig), a=c&&jdAck(e.id,e.desig,c.ver);return[e.code,e.name,nm('branches',e.branch),nm('desigs',e.desig),c?'v'+c.ver:'—',!c?L('No JD','JD नहीं'):a?L('Acknowledged','पावती दी'):L('Pending','बाक़ी'),a?a.at:'']})}));
+/* a sample so the screens are not empty in the demo */
+if(!Object.keys(JD).length&&DATA.desigs.some(x=>x.id===21)){JD[21]={versions:[{ver:1,status:'Published',purpose:'Help customers choose, and complete the sale on the shop floor.',resp:'Greet and guide every customer\nKeep the display neat and the stock filled\nMake the bill correctly and offer add-on items\nHandle exchanges as per the policy',reports:'Floor Manager',cond:'Shop floor, 8 hours, rotating weekly off',edu:'10th pass or above',exp:'0 to 1 year in retail',skills:'Communication, basic maths, customer handling',certs:'',other:'',file:null,effective:'2026-04-01',by:'Priya Verma',at:'2026-04-01'}]}}
 orgMigrate();orgCodesFill();
 /* ---------- Salary Earned on the Dashboard, and the "salary is released" notice ---------- */
 TABKEY.dashboard='dtab';
