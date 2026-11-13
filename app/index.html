@@ -38,7 +38,7 @@ select,input{font:inherit;color:inherit}
 label{display:block;font-weight:500;font-size:13px;margin:14px 0 6px}
 .inp{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
 .inp:focus{outline:2px solid var(--teal);outline-offset:0;border-color:var(--teal)}
-.btn{padding:10px 16px;border-radius:9px;font-weight:600;transition:.15s}
+.btn{padding:10px 16px;border-radius:var(--rb,9px);font-weight:600;transition:.15s}
 .btn-p{background:var(--teal);color:#fff}.btn-p:hover{background:var(--teal-d)}
 .btn-o{border:1px solid var(--line);background:var(--card)}.btn-o:hover{border-color:var(--teal);color:var(--teal)}
 .btn-w{width:100%;margin-top:20px}
@@ -10762,7 +10762,22 @@ const SKINS={
   D:'--teal:#6D4FF0;--teal-d:#5538D4;--teal-l:#26214F;--gold-l:#33260D;--bg:#121133;--card:#1B1A45;--text:#E8E8FA;--muted:#9A9CC8;--line:#2C2B63;--sb-bg:#15133A;--sb-h:#2E2A6B;'},
  navy:{n:['Midnight Navy + Mint','मिडनाइट नेवी + मिंट'],d:['Almost black navy sidebar with a mint highlight. Sharp and corporate.','लगभग काला नेवी साइडबार और मिंट हाइलाइट। तेज़ और कॉर्पोरेट।'],k:['#0D9488','#2563EB','#F97316','#8B5CF6'],
   L:'--teal:#0D9488;--teal-d:#0B6F66;--teal-l:#E0F5F2;--gold:#F97316;--gold-l:#FFEDD9;--bg:#F1F5F9;--card:#FFFFFF;--text:#0F172A;--muted:#64748B;--line:#E2E8F0;--sb-bg:#0F172A;--sb-t:#94A3B8;--sb-h:#1E293B;--sb-act:#2DD4A7;--sb-actt:#04342C;--k1:#0D9488;--k2:#2563EB;--k3:#F97316;--k4:#8B5CF6;',
-  D:'--teal:#14A395;--teal-d:#0D8A7E;--teal-l:#10312E;--gold-l:#33200D;--bg:#0B1220;--card:#111A2E;--text:#E2E8F0;--muted:#8FA0B8;--line:#1F2A44;--sb-bg:#0A101E;--sb-h:#1E293B;'}};
+  D:'--teal:#14A395;--teal-d:#0D8A7E;--teal-l:#10312E;--gold-l:#33200D;--bg:#0B1220;--card:#111A2E;--text:#E2E8F0;--muted:#8FA0B8;--line:#1F2A44;--sb-bg:#0A101E;--sb-h:#1E293B;'},
+ warli:{n:['Warli Art','वारली आर्ट'],d:['Earthy terracotta mud wall with rice-paste cream. A folk, handmade look.','मिट्टी के रंग की दीवार और चावल-पेस्ट जैसा क्रीम रंग। एक देसी, हस्तशिल्प रूप।'],k:['#A9632F','#C9A227','#6B7A3A','#8A3412'],
+  L:'--teal:#A9632F;--teal-d:#8A4E23;--teal-l:#F3E6D4;--gold:#C9A227;--gold-l:#F6ECD9;--bg:#F6ECD9;--card:#FFFBF1;--text:#4A2C12;--muted:#8A6A46;--line:#E3D2B4;--sb-bg:#4A2C12;--sb-t:#D9B98A;--sb-h:#6B4A26;--sb-act:#C1662C;--sb-actt:#FFF8EC;--k1:#A9632F;--k2:#C9A227;--k3:#6B7A3A;--k4:#8A3412;--r:4px;--rb:3px;',
+  D:'--teal:#C1783F;--teal-d:#A9632F;--teal-l:#3A2A18;--gold-l:#3A2E12;--bg:#20150B;--card:#2B1D10;--text:#F0E2CC;--muted:#B69A74;--line:#3E2C18;--sb-bg:#150D06;--sb-h:#3E2A16;'},
+ papercut:{n:['Paper Cut Art','पेपर कट आर्ट'],d:['Bright layered paper shapes with a navy header. A playful, handmade look.','चमकीले कटे हुए कागज़ जैसे आकार और नेवी हेडर। एक चंचल, हस्तशिल्प रूप।'],k:['#1F8A82','#E8603C','#F0B429','#1B3A63'],
+  L:'--teal:#1F8A82;--teal-d:#176D66;--teal-l:#E1F3F1;--gold:#F0B429;--gold-l:#FDF1D6;--bg:#FDF6E9;--card:#FFF9EE;--text:#1D2B3A;--muted:#6B7A8A;--line:#EAE0C8;--sb-bg:#1B3A63;--sb-t:#AFC3DB;--sb-h:#28507F;--sb-act:#E8603C;--sb-actt:#FFFFFF;--k1:#1F8A82;--k2:#E8603C;--k3:#F0B429;--k4:#1B3A63;--r:18px;--rb:14px;',
+  D:'--teal:#2CA69D;--teal-d:#1F8A82;--teal-l:#163634;--gold-l:#352C12;--bg:#101A26;--card:#162233;--text:#EAF2F8;--muted:#8CA0B4;--line:#223349;--sb-bg:#0C1A2E;--sb-h:#1E3A5A;'},
+ sandart:{n:['Sand Art','सैंड आर्ट'],d:['Layered desert sand colours, like a bottle of coloured sand. Warm and rustic.','रंगीन रेत की बोतल जैसे परत-दर-परत रेगिस्तानी रंग। गर्म और देहाती।'],k:['#7A3B12','#A85A1F','#C9802F','#E0A847'],
+  L:'--teal:#A85A1F;--teal-d:#7A3B12;--teal-l:#F3E0C4;--gold:#E0A847;--gold-l:#FBEBC9;--bg:#F3E6CD;--card:#FFF6E4;--text:#4A2C12;--muted:#8A6A3C;--line:#E3CE9F;--sb-bg:#5C3414;--sb-t:#E0C294;--sb-h:#7A4A1F;--sb-act:#C9802F;--sb-actt:#FFF6E4;--k1:#7A3B12;--k2:#A85A1F;--k3:#C9802F;--k4:#E0A847;--r:3px;--rb:3px;',
+  D:'--teal:#C9802F;--teal-d:#A85A1F;--teal-l:#3A2710;--gold-l:#3A2A10;--bg:#1C1105;--card:#28190A;--text:#F3E0C4;--muted:#B89866;--line:#3A2812;--sb-bg:#120B04;--sb-h:#3A2410;'},
+ watercolor:{n:['Watercolor Art','वॉटरकलर आर्ट'],d:['Soft pastel colour washes on white paper. A gentle, artistic look.','सफ़ेद कागज़ पर नरम पेस्टल रंगों की धुलाई जैसा। एक सौम्य, कलात्मक रूप।'],k:['#5B8FB0','#D98A9E','#E8C06B','#4F9D8A'],
+  L:'--teal:#5B8FB0;--teal-d:#3F6E8C;--teal-l:#E7F1F7;--gold:#E8C06B;--gold-l:#FBF2DE;--bg:#FFFDF8;--card:#FFFFFF;--text:#2D3B4A;--muted:#8694A2;--line:#EDEAE1;--sb-bg:#3C5168;--sb-t:#C3D2DE;--sb-h:#4F6880;--sb-act:#D98A9E;--sb-actt:#FFFFFF;--k1:#5B8FB0;--k2:#D98A9E;--k3:#E8C06B;--k4:#4F9D8A;--r:18px;--rb:999px;',
+  D:'--teal:#7AA9C7;--teal-d:#5B8FB0;--teal-l:#1C2A36;--gold-l:#332A14;--bg:#121A22;--card:#1A2530;--text:#EAF0F5;--muted:#8FA0AE;--line:#263644;--sb-bg:#0E1820;--sb-h:#243747;'},
+ clayart:{n:['Clay Art','क्ले आर्ट'],d:['Soft 3D clay shapes with gentle shadows. A rounded, modern look.','नरम छाया वाले 3D मिट्टी जैसे आकार। एक गोल, आधुनिक रूप।'],k:['#FF8C6B','#FFC35C','#6FCF97','#5B8DEF'],
+  L:'--teal:#FF8C6B;--teal-d:#E66F4D;--teal-l:#FFE9E1;--gold:#FFC35C;--gold-l:#FFF3DC;--bg:#EEF1F6;--card:#F3F5F9;--text:#3A4356;--muted:#8891A3;--line:#DADFE8;--sb-bg:#3A4356;--sb-t:#AEB6C8;--sb-h:#4C5672;--sb-act:#FF8C6B;--sb-actt:#3A1C10;--k1:#FF8C6B;--k2:#FFC35C;--k3:#6FCF97;--k4:#5B8DEF;--r:24px;--rb:16px;',
+  D:'--teal:#FF9D80;--teal-d:#FF8C6B;--teal-l:#3A241C;--gold-l:#3A2E10;--bg:#161A22;--card:#1E2430;--text:#E8ECF4;--muted:#949CB0;--line:#2A3242;--sb-bg:#10131A;--sb-h:#262E3E;'}};
 (function(){
  try{const s=localStorage.getItem('hrs_skin'), m=localStorage.getItem('hrs_tmode');if(SKINS[s])ORGS.skin=s;if(['auto','light','dark'].includes(m))ORGS.tmode=m}catch(e){}
  const css=Object.entries(SKINS).map(([k,s])=>`:root[data-skin="${k}"]{${s.L}}
