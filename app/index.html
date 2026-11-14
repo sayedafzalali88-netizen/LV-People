@@ -8662,21 +8662,52 @@ function ckActions(){const q=(state.ckaf||'').toLowerCase(), list=ACTS.filter(a=
 function ckActModal(emp){const e=empById(emp), l=ACTS.filter(a=>a.emp&&ckActOk(a)&&!a.soon);openModal(`<h3>⚡ ${L('Actions for','एक्शन')} ${esc(e.name)}</h3><div class="list">${l.map(a=>`<div><a href="#" class="grow" data-ckactemp="${a.id}" style="color:inherit"><b>${esc(L(a.en,a.hi))}</b></a></div>`).join('')}</div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button></div>`,()=>{});
  document.querySelectorAll('[data-ckactemp]').forEach(x=>x.onclick=ev=>{ev.preventDefault();document.querySelectorAll('.modal-bg').forEach(y=>y.remove());ckRun(ACTS.find(a=>a.id===x.dataset.ckactemp),emp)})}
 /* ---------- Imports ---------- */
-const CKB={text:'',res:null,file:''};
+const CKB={text:'',res:null,file:'',mode:'new'};
 /* Employee bulk upload: codes of the organization and of the managers. No CTC: the salary comes from the salary structure, and HR gets a task to set it */
 const CKH=['employee code','name','mobile','email','dob','gender','doj','function code','department code','branch code','division code','sub-division code','designation code','reporting manager code','functional manager code'];
-const CKH_T=['Employee Code','Name','Mobile','Email','DOB','Gender','DOJ','Function Code','Department Code','Branch Code','Division Code','Sub-division Code','Designation Code','Reporting Manager Code','Functional Manager Code'];
+const CKH_T=['Employee Code','Name','Mobile','Email','DOB','Gender','DOJ','Function Code','Department Code','Branch Code','Division Code','Sub-division Code','Designation Code','Reporting Manager Code','Functional Manager Code','Career Level'];
 const reEsc=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const empCodeRule=c=>EMPCODE.mode==='numeric'?/^\d+$/.test(c):new RegExp('^'+reEsc(EMPCODE.prefix)+reEsc(EMPCODE.sep||'')+'\\d+$','i').test(c);
 const empCodeHint=()=>EMPCODE.mode==='numeric'?L('Employee code must be numbers only (like '+empCodeBuild(1)+')','कर्मचारी कोड सिर्फ़ अंक हो (जैसे '+empCodeBuild(1)+')'):L('Employee code must look like '+empCodeBuild(1)+' (letters and numbers, as set in Code series)','कर्मचारी कोड '+empCodeBuild(1)+' जैसा हो (अक्षर और अंक, Code series के अनुसार)');
-function ckBulkParse(text){const lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());if(!lines.length)return{fatal:t('ie_empty')};
+function ckBulkParse(text,mode){mode=mode||'new';const lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());if(!lines.length)return{fatal:t('ie_empty')};
  const sep=lines[0].includes('\t')?'\t':',', hdr=lines[0].split(sep).map(x=>x.trim().toLowerCase());
- if(CKH.some((w,i)=>hdr[i]!==w))return{fatal:L('The first row must be: ','पहली पंक्ति यह हो: ')+CKH_T.join(', ')};
- const ok=[],bad=[],mob=new Set(DATA.emps.map(e=>e.mobile)), mail=new Set(DATA.emps.map(e=>(e.email||'').toLowerCase()).filter(x=>x)), used=new Set(DATA.emps.map(e=>String(e.code).toUpperCase())), pd=s=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');if(!m)return'';const i=`${m[3]}-${m[2]}-${m[1]}`;return isNaN(dt(i))?'':i};
+ if(CKH.some((w,i)=>hdr[i]!==w)||(hdr.length>CKH.length&&hdr[CKH.length]!=='career level'))return{fatal:L('The first row must be: ','पहली पंक्ति यह हो: ')+CKH_T.join(', ')+L(' (Career Level is optional)',' (Career Level ज़रूरी नहीं)')};
+ const hasLv=hdr[CKH.length]==='career level';
+ const ok=[],bad=[],upd=[],same=[],mob=new Set(DATA.emps.map(e=>e.mobile)), mail=new Set(DATA.emps.map(e=>(e.email||'').toLowerCase()).filter(x=>x)), used=new Set(DATA.emps.map(e=>String(e.code).toUpperCase())), pd=s=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');if(!m)return'';const i=`${m[3]}-${m[2]}-${m[1]}`;return isNaN(dt(i))?'':i};
  const byCode=(k,v)=>DATA[k].find(x=>!x.off&&String(x.code||'').toUpperCase()===String(v||'').trim().toUpperCase());
+ const exOf=code=>DATA.emps.find(e=>String(e.code).toUpperCase()===code), cdOf=id=>{const m=DATA.emps.find(e=>String(e.id)===String(id));return m?String(m.code):''};
  const rows=lines.slice(1).map(l=>l.split(sep).map(x=>x.trim())), inFile=new Set(rows.map(c=>(c[0]||'').toUpperCase()).filter(Boolean));
+ const lvOf=s=>{const m=/^L?(\d{1,2})$/i.exec(String(s||'').trim());const n=m?+m[1]:0;return n>=1&&n<=12?n:0};
  rows.forEach((c,i)=>{const row=i+2, er=m=>bad.push({row,msg:m});
-  const ec=(c[0]||'').toUpperCase();
+  const ec=(c[0]||'').toUpperCase(), ex=ec?exOf(ec):null;
+  if(mode==='upd'&&!ec)return er(L('Employee Code is needed to update','बदलने के लिए Employee Code चाहिए'));
+  if(mode==='upd'&&!ex)return er(L('Employee code not found: ','कर्मचारी कोड नहीं मिला: ')+ec);
+  if(ex&&mode!=='new'){
+   if(rows.some((z,j)=>j<i&&(z[0]||'').toUpperCase()===ec))return er(L('Repeated in this file','इस फ़ाइल में दोहराया'));
+   const p={},ch=[],has=k=>(c[k]||'').trim()!=='', put=(f,lab,to,a,b)=>{if(String(ex[f]==null?'':ex[f])!==String(to)){p[f]=to;ch.push([lab,a,b])}};
+   if(has(1))put('name',L('Name','नाम'),c[1],ex.name,c[1]);
+   if(has(2)){if(!/^[6-9]\d{9}$/.test(c[2]))return er(L('Mobile must be 10 digits','मोबाइल 10 अंकों का हो'));if(DATA.emps.some(e=>e!==ex&&e.mobile===c[2]))return er(L('This mobile is already used','यह मोबाइल पहले से है'));put('mobile',L('Mobile','मोबाइल'),c[2],ex.mobile,c[2])}
+   if(has(3)){if(!/^\S+@\S+\.\S+$/.test(c[3]))return er(L('Email is not valid','ईमेल सही नहीं'));if(DATA.emps.some(e=>e!==ex&&(e.email||'').toLowerCase()===c[3].toLowerCase()))return er(L('This email is already used','यह ईमेल पहले से है'));put('email',L('Email','ईमेल'),c[3],ex.email,c[3])}
+   if(has(4)){if(c[4]==='-')put('dob','DOB','',ex.dob||'—','—');else{const d=pd(c[4]);if(!d)return er(L('DOB must be DD/MM/YYYY','DOB DD/MM/YYYY में हो'));put('dob','DOB',d,ex.dob||'—',d)}}
+   if(has(5)){const g=c[5].toUpperCase();if(!['M','F','O'].includes(g))return er(L('Gender must be M, F or O','लिंग M, F या O हो'));put('gender',L('Gender','लिंग'),g,ex.gender,g)}
+   if(has(6)){const d=pd(c[6]);if(!d)return er(L('DOJ must be DD/MM/YYYY','DOJ DD/MM/YYYY में हो'));if(d>addD(TODAY_S,60))return er(L('DOJ is too far ahead','DOJ बहुत आगे है'));put('doj','DOJ',d,ex.doj,d)}
+   const OK=[['func','functions',7,L('Function','फ़ंक्शन')],['dept','depts',8,L('Department','डिपार्टमेंट')],['branch','branches',9,L('Branch','ब्रांच')],['division','divisions',10,L('Division','डिवीज़न')],['subdiv','subdivs',11,L('Sub-division','सब-डिवीज़न')],['desig','desigs',12,L('Designation','पद')]], nw={func:ex.func,dept:ex.dept,branch:ex.branch,division:ex.division,subdiv:ex.subdiv,desig:ex.desig};let orgCh=false,fail='';
+   OK.forEach(([f,k,ix,lab])=>{if(fail||!has(ix))return;const m=byCode(k,c[ix]);if(!m){fail=lab+L(' code not found: ',' कोड नहीं मिला: ')+c[ix];return}if(String(m.id)!==String(ex[f])){nw[f]=m.id;orgCh=true}});
+   if(fail)return er(fail);
+   if(orgCh){if(!orgOk(nw))return er(L('Function, department, branch, division, sub-division and designation do not belong together','फ़ंक्शन, विभाग, शाखा, डिवीज़न, सब-डिवीज़न और पद आपस में नहीं जुड़ते'));OK.forEach(([f,k,ix,lab])=>{if(String(nw[f])!==String(ex[f]))put(f,lab,nw[f],nm(k,ex[f]),nm(k,nw[f]))})}
+   if(hasLv&&has(CKH.length)){const n=lvOf(c[CKH.length]);if(!n)return er(L('Career Level must be L1 to L12','Career Level L1 से L12 हो'));put('level',L('Career level','करियर लेवल'),n,ex.level?'L'+ex.level:'—','L'+n)}
+   let mgrCode='',fmCode='',e2='';
+   const mgf=(ix,lab,cur,pf,isMgr)=>{if(e2||!has(ix))return;const x=c[ix].toUpperCase();
+    if(x==='-'){if(cur){p[pf]='';ch.push([lab,cdOf(cur),'—'])}return}
+    if(x===ec){e2=lab+L(' cannot be the same person',' वही व्यक्ति नहीं हो सकता');return}
+    const m=exOf(x);if(!m&&!inFile.has(x)){e2=lab+L(' code not found: ',' कोड नहीं मिला: ')+x;return}
+    if(m){if(isMgr){let w=m,g=0;while(w&&g++<60){if(w.id===ex.id){e2=L('Reporting manager would make a circle: ','रिपोर्टिंग मैनेजर से गोल चेन बनेगी: ')+x;return}const nx=w.mgr;w=nx?DATA.emps.find(z=>String(z.id)===String(nx)):null}}
+     if(String(m.id)!==String(cur)){p[pf]=String(m.id);ch.push([lab,cdOf(cur)||'—',x])}}
+    else{if(isMgr)mgrCode=x;else fmCode=x;ch.push([lab,cdOf(cur)||'—',x])}};
+   mgf(13,L('Reporting manager','रिपोर्टिंग मैनेजर'),ex.mgr,'mgr',true);mgf(14,L('Functional manager','फ़ंक्शनल मैनेजर'),ex.fm,'fm',false);
+   if(e2)return er(e2);
+   if(!ch.length)return same.push({row,code:ex.code,name:ex.name});
+   return upd.push({row,emp:ex,p,ch,mgrCode,fmCode})}
   if(ec){if(!empCodeRule(ec))return er(empCodeHint());if(used.has(ec))return er(L('This employee code is already used','यह कर्मचारी कोड पहले से है'));if(ok.some(x=>x.code===ec)||rows.some((z,j)=>j<i&&(z[0]||'').toUpperCase()===ec))return er(L('Repeated in this file','इस फ़ाइल में दोहराया'))}
   if(!c[1])return er(L('Name is empty','नाम खाली है'));if(!/^[6-9]\d{9}$/.test(c[2]||''))return er(L('Mobile must be 10 digits','मोबाइल 10 अंकों का हो'));if(!/^\S+@\S+\.\S+$/.test(c[3]||''))return er(L('Email is not valid','ईमेल सही नहीं'));
   if(mob.has(c[2]))return er(L('This mobile is already used','यह मोबाइल पहले से है'));if(mail.has(c[3].toLowerCase()))return er(L('This email is already used','यह ईमेल पहले से है'));
@@ -8685,18 +8716,21 @@ function ckBulkParse(text){const lines=text.replace(/\r/g,'').split('\n').filter
   const fn=byCode('functions',c[7]), dp=byCode('depts',c[8]), br=byCode('branches',c[9]), dv=byCode('divisions',c[10]), sd0=byCode('subdivs',c[11]), ds2=byCode('desigs',c[12]);
   if(!fn)return er(L('Function code not found: ','फ़ंक्शन कोड नहीं मिला: ')+(c[7]||'—'));if(!dp)return er(L('Department code not found: ','डिपार्टमेंट कोड नहीं मिला: ')+(c[8]||'—'));if(!br)return er(L('Branch code not found: ','ब्रांच कोड नहीं मिला: ')+(c[9]||'—'));if(!dv)return er(L('Division code not found: ','डिवीज़न कोड नहीं मिला: ')+(c[10]||'—'));if(!sd0)return er(L('Sub-division code not found: ','सब-डिवीज़न कोड नहीं मिला: ')+(c[11]||'—'));if(!ds2)return er(L('Designation code not found: ','पद कोड नहीं मिला: ')+(c[12]||'—'));
   if(!orgOk({func:fn.id,dept:dp.id,branch:br.id,division:dv.id,subdiv:sd0.id,desig:ds2.id}))return er(L('Function, department, branch, division, sub-division and designation do not belong together','फ़ंक्शन, विभाग, शाखा, डिवीज़न, सब-डिवीज़न और पद आपस में नहीं जुड़ते'));
+  let lvl;if(hasLv&&(c[CKH.length]||'').trim()!==''){lvl=lvOf(c[CKH.length]);if(!lvl)return er(L('Career Level must be L1 to L12','Career Level L1 से L12 हो'))}
   const mc=(c[13]||'').toUpperCase(), fc=(c[14]||'').toUpperCase(), known=x=>DATA.emps.some(e=>String(e.code).toUpperCase()===x)||inFile.has(x);
   if(mc&&(mc===ec||!known(mc)))return er(L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+mc);
   if(fc&&(fc===ec||!known(fc)))return er(L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+fc);
   if(ok.some(x=>x.mobile===c[2]||x.email.toLowerCase()===c[3].toLowerCase()))return er(L('Repeated in this file','इस फ़ाइल में दोहराया'));
-  ok.push({code:ec,name:c[1],mobile:c[2],email:c[3],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sd0.id,dept:dp.id,func:fn.id,desig:ds2.id,mgrCode:mc,fmCode:fc,row})});
+  const o={code:ec,name:c[1],mobile:c[2],email:c[3],dob,gender:g,doj,branch:br.id,division:dv.id,subdiv:sd0.id,dept:dp.id,func:fn.id,desig:ds2.id,mgrCode:mc,fmCode:fc,row};if(lvl)o.level=lvl;ok.push(o)});
  /* a manager must be a person already in the system or a row of this file that is ready; repeat until nothing changes */
- let list=ok.slice(), again=true;while(again){again=false;const have=new Set(list.map(x=>x.code).filter(Boolean)), exists=c=>DATA.emps.some(e=>String(e.code).toUpperCase()===c)||have.has(c);
-  list=list.filter(x=>{const m=x.mgrCode&&!exists(x.mgrCode)?L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+x.mgrCode:x.fmCode&&!exists(x.fmCode)?L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+x.fmCode:'';if(m){bad.push({row:x.row,msg:m});again=true;return false}return true})}
- bad.sort((a,b)=>a.row-b.row);return{ok:list,bad}}
+ let list=ok.slice(), ul=upd.slice(), again=true;while(again){again=false;const have=new Set(list.map(x=>x.code).filter(Boolean)), exists=c=>DATA.emps.some(e=>String(e.code).toUpperCase()===c)||have.has(c);
+  const chk=x=>x.mgrCode&&!exists(x.mgrCode)?L('Reporting manager code not found: ','रिपोर्टिंग मैनेजर कोड नहीं मिला: ')+x.mgrCode:x.fmCode&&!exists(x.fmCode)?L('Functional manager code not found: ','फ़ंक्शनल मैनेजर कोड नहीं मिला: ')+x.fmCode:'';
+  list=list.filter(x=>{const m=chk(x);if(m){bad.push({row:x.row,msg:m});again=true;return false}return true});
+  ul=ul.filter(x=>{const m=chk(x);if(m){bad.push({row:x.row,msg:m});return false}return true})}
+ bad.sort((a,b)=>a.row-b.row);return{ok:list,bad,upd:ul,same,mode}}
 /* the template and the list of master codes are made from the data of this company */
 function ckTplRows(){const e=DATA.emps.find(x=>x.func&&x.dept&&x.branch&&x.division&&x.subdiv&&x.desig)||{}, cd=(k,id)=>((DATA[k].find(x=>x.id==id)||{}).code||'');
- return [CKH_T,['','Asha Rao','9876543210','asha@example.com','14/05/1998','F','01/11/2026',cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),(DATA.emps[0]||{}).code||'','']]}
+ return [CKH_T,['','Asha Rao','9876543210','asha@example.com','14/05/1998','F','01/11/2026',cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),(DATA.emps[0]||{}).code||'','','']]}
 function ckMasterRows(){const rows=[['Type','Code','Name','Under']], PK={depts:'functions',branches:'depts',divisions:'branches',subdivs:'divisions'}, par=(k,x)=>(x.parents||[]).map(i=>nm(PK[k],i)).join('; ');
  const T={functions:'Function',depts:'Department',branches:'Branch',divisions:'Division',subdivs:'Sub-division',desigs:'Designation'};
  Object.keys(T).forEach(k=>DATA[k].filter(x=>!x.off).forEach(x=>rows.push([T[k],x.code||'',x.name,k==='functions'?'':k==='desigs'?(x.divs||[]).map(i=>nm('divisions',i)).join('; '):par(k,x)])));
@@ -8720,10 +8754,10 @@ function ckImports(){const E=can('ck_imp','E'), r=CKB.res, last=(a)=>a&&a[0]?` �
  <p style="font-size:12px;color:var(--muted);margin:0 0 10px">${L('Machine punches are imported in Core Setting > Integration > Punch log and import. The daily attendance with status is at the end of this page.','मशीन के पंच Core Setting > Integration > Punch log and import में इम्पोर्ट होते हैं। स्थिति के साथ रोज़ की हाज़िरी इस पेज के आख़िर में है।')}</p>
  <div class="grid g3" style="margin-bottom:16px">${card('📊','KPI data imports','KPI डेटा इम्पोर्ट',L('Big Bill, stock audit, sales and other KPI data in the import centre','Big Bill, स्टॉक ऑडिट, सेल्स और बाकी KPI डेटा'),L('Open','खोलें'),'kpi')}${card('💼','Business data','बिज़नेस डेटा',L('Sales, footfall and other business numbers','सेल्स, फुटफॉल और बाकी बिज़नेस आँकड़े'),L('Open','खोलें'),'biz')}</div>
  <div class="card"><h3>👥 ${L('Employee bulk upload','कर्मचारी बल्क अपलोड')}</h3><p class="rule" style="font-size:13px">${L('Columns: '+CKH_T.join(', ')+'. Use the CODES of the function, department, branch, division, sub-division and designation (download the master codes to see them), and the employee codes of the two managers. Leave Employee Code empty to get the next code. Dates are DD/MM/YYYY. There is no CTC: after the upload HR gets a task in the Inbox to set the salary structure.','कॉलम: '+CKH_T.join(', ')+'। फ़ंक्शन, डिपार्टमेंट, ब्रांच, डिवीज़न, सब-डिवीज़न और पद के कोड लिखें (कोड देखने के लिए मास्टर कोड डाउनलोड करें) और दोनों मैनेजर के कर्मचारी कोड। अगला कोड चाहिए तो Employee Code ख़ाली छोड़ें। तारीख़ें DD/MM/YYYY। CTC नहीं है: अपलोड के बाद HR के Inbox में सैलरी स्ट्रक्चर तय करने का टास्क आता है।')}</p>
-  <div class="tools"><button class="btn btn-o btn-s" data-ckbtpl>${t('im_tpl')}</button><button class="btn btn-o btn-s" data-ckbmaster>${L('Download master codes','मास्टर कोड डाउनलोड')}</button><label class="btn btn-o btn-s" style="margin:0;cursor:pointer">${t('im_pick')}<input type="file" id="ckbFile" accept=".csv,.txt" style="display:none"></label><span style="color:var(--muted);font-size:12px">${esc(CKB.file)}</span></div>
-  <textarea class="inp" id="ckbText" rows="4" placeholder="${t('im_paste')}" style="font-family:monospace;font-size:12px">${esc(CKB.text)}</textarea><div class="acts" style="margin-top:10px"><button class="btn btn-o" data-ckbchk ${E?'':'disabled'}>${t('im_prev')}</button>${E&&r&&r.ok&&r.ok.length?`<button class="btn btn-p" data-ckbok>${t('im_apply')} (${r.ok.length})</button>`:''}</div></div>
- ${r?(r.fatal?`<div class="card" style="color:var(--bad);margin-top:12px">${esc(r.fatal)}</div>`:`<div class="grid g3" style="margin-top:12px">${kpi(L('Ready','तैयार'),String(r.ok.length),'','ok','M20 6L9 17l-5-5')}${kpi(t('im_err'),String(r.bad.length),'','bad','M18 6L6 18M6 6l12 12')}</div>${r.bad.length?`<div class="card tw" style="margin-top:12px"><table class="tbl"><thead><tr><th>${t('im_row')}</th><th>${t('im_msg')}</th></tr></thead><tbody>${r.bad.map(b=>`<tr><td>${b.row}</td><td style="color:var(--bad)">${esc(b.msg)}</td></tr>`).join('')}</tbody></table></div>`:''}`):''}
- <div class="card tw" style="margin-top:12px"><h3 style="padding:16px 18px 0">${L('Employee upload history','कर्मचारी अपलोड का इतिहास')}</h3><table class="tbl"><tbody>${CKBH.map(h=>`<tr><td>${h.at}</td><td>${esc(h.file)}</td><td>${esc(h.by)}</td><td>${h.n} ${L('employees added','कर्मचारी जुड़े')}</td></tr>`).join('')||`<tr><td style="padding:16px;color:var(--muted)">${t('none_yet')}</td></tr>`}</tbody></table></div>`}
+  ${ckModeHTML()}<div class="tools"><button class="btn btn-o btn-s" data-ckbtpl>${t('im_tpl')}</button><button class="btn btn-o btn-s" data-ckbmaster>${L('Download master codes','मास्टर कोड डाउनलोड')}</button><label class="btn btn-o btn-s" style="margin:0;cursor:pointer">${t('im_pick')}<input type="file" id="ckbFile" accept=".csv,.txt" style="display:none"></label><span style="color:var(--muted);font-size:12px">${esc(CKB.file)}</span></div>
+  <textarea class="inp" id="ckbText" rows="4" placeholder="${t('im_paste')}" style="font-family:monospace;font-size:12px">${esc(CKB.text)}</textarea><div class="acts" style="margin-top:10px"><button class="btn btn-o" data-ckbchk ${E?'':'disabled'}>${t('im_prev')}</button>${E&&r&&!r.fatal&&(r.upd||[]).length?`<button class="btn btn-o" data-ckbbak>${L('Download backup of old values','पुरानी वैल्यू की बैकअप फ़ाइल')}</button>`:''}${E&&r&&!r.fatal&&(r.ok.length+(r.upd||[]).length)?`<button class="btn btn-p" data-ckbok>${t('im_apply')} (${r.ok.length+(r.upd||[]).length})</button>`:''}</div></div>
+ ${ckPrevHTML(r)}
+ <div class="card tw" style="margin-top:12px"><h3 style="padding:16px 18px 0">${L('Employee upload history','कर्मचारी अपलोड का इतिहास')}</h3><table class="tbl"><tbody>${CKBH.map(h=>`<tr><td>${h.at}</td><td>${esc(h.file)}</td><td>${esc(h.by)}</td><td>${h.n} ${L('employees added','कर्मचारी जुड़े')}${h.u?` · ${h.u} ${L('updated','बदले')}`:''}</td></tr>`).join('')||`<tr><td style="padding:16px;color:var(--muted)">${t('none_yet')}</td></tr>`}</tbody></table></div>`}
 const CKBH=[];
 /* ---------- Insights ---------- */
 function ckPending(){const R=[], ok=id=>ckOk(id), mg=id=>id?nm_(+id):'—', age=d=>d?Math.max(0,Math.round((dt(TODAY_S)-dt(String(d).slice(0,10)))/864e5)):'';
@@ -8795,10 +8829,15 @@ bindExtra=function(){_bindExtra50();const m=$('#main'), on=(s,fn)=>m.querySelect
  on('[data-ckimp]',b=>b.onclick=()=>{const g=b.dataset.ckimp;if(g==='att'){state.totab='import';goTo('timeoffice')}else if(g==='punch'){state.page='settings';state.sgrp='intg';state.sgSeen='intg';state.stab='blog';render()}else if(g==='kpi')goTo('import');else goTo('bizdata')});
  on('[data-ckbtpl]',b=>b.onclick=()=>csvDl('employee-upload-template.csv',ckTplRows()));on('[data-ckbmaster]',b=>b.onclick=()=>csvDl('master-codes.csv',ckMasterRows()));
  const ta=$('#ckbText'),fi=$('#ckbFile');if(ta)ta.oninput=()=>{CKB.text=ta.value};if(fi)fi.onchange=()=>{const f=fi.files[0];if(!f)return;f.text().then(x=>{CKB.text=x;CKB.file=f.name;CKB.res=null;render()})};
- on('[data-ckbchk]',b=>b.onclick=()=>{CKB.res=ckBulkParse(CKB.text);render()});
- on('[data-ckbok]',b=>b.onclick=()=>{const r=CKB.res;if(!r||!r.ok.length)return;let n0=DATA.emps.length;const made=[];[...r.ok.filter(x=>x.code),...r.ok.filter(x=>!x.code)].forEach(x=>{const {mgrCode,fmCode,row,...rest}=x, id=Math.max(...DATA.emps.map(e=>e.id))+1, e={id,...rest,code:x.code||takeEmpCode(),mgr:'',fm:'',ctc:((splitFor(+x.desig,+x.level,0)||{total:0}).total)*12,pan:'',aadhaar:'',uan:'',esi:'',bank:'',ifsc:'',acc:'',status:'Working',lwd:'',hist:[],lvlHist:[{from:'0000-00',lvl:x.level,desig:x.desig}],createdAt:TODAY_S};e.active=isActive(e);DATA.emps.push(e);made.push([x,e]);audit('Employee','Add (bulk)',`${e.code} ${e.name}`,'')});made.forEach(([x,e])=>{const f=c=>{const m=DATA.emps.find(z=>String(z.code).toUpperCase()===c);return m?String(m.id):''};if(x.mgrCode)e.mgr=f(x.mgrCode);if(x.fmCode)e.fm=f(x.fmCode)});
-  accSync();CKBH.unshift({at:new Date().toLocaleString(loc(),{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),file:CKB.file||'pasted rows',by:USERS[state.role].name,n:r.ok.length});
-  toast(`${DATA.emps.length-n0} ${L('employees added. First login sent.','कर्मचारी जुड़े। पहला लॉगिन भेजा।')}`);CKB.text='';CKB.res=null;CKB.file='';render()})};
+ on('[data-ckbchk]',b=>b.onclick=()=>{CKB.res=ckBulkParse(CKB.text,CKB.mode);render()});
+ on('[data-ckbok]',b=>b.onclick=()=>{const r=CKB.res, U=(r&&r.upd)||[];if(!r||r.fatal||!(r.ok.length||U.length))return;let n0=DATA.emps.length;const made=[];[...r.ok.filter(x=>x.code),...r.ok.filter(x=>!x.code)].forEach(x=>{const {mgrCode,fmCode,row,...rest}=x, id=Math.max(...DATA.emps.map(e=>e.id))+1, e={id,...rest,code:x.code||takeEmpCode(),mgr:'',fm:'',ctc:((splitFor(+x.desig,+x.level,0)||{total:0}).total)*12,pan:'',aadhaar:'',uan:'',esi:'',bank:'',ifsc:'',acc:'',status:'Working',lwd:'',hist:[],lvlHist:[{from:'0000-00',lvl:x.level,desig:x.desig}],createdAt:TODAY_S};e.active=isActive(e);DATA.emps.push(e);made.push([x,e]);audit('Employee','Add (bulk)',`${e.code} ${e.name}`,'')});
+  const f=c=>{const m=DATA.emps.find(z=>String(z.code).toUpperCase()===c);return m?String(m.id):''};
+  made.forEach(([x,e])=>{if(x.mgrCode)e.mgr=f(x.mgrCode);if(x.fmCode)e.fm=f(x.fmCode)});
+  U.forEach(u=>{const e=u.emp, o={level:e.level,desig:e.desig};Object.assign(e,u.p);if(u.mgrCode)e.mgr=f(u.mgrCode);if(u.fmCode)e.fm=f(u.fmCode);
+   if(String(o.level)!==String(e.level)||String(o.desig)!==String(e.desig)){if(SSTR[e.desig]&&e.level){e.lvlHist=e.lvlHist||[{from:'0000-00',lvl:o.level||1,desig:o.desig}];e.lvlHist.push({from:curMk(),lvl:e.level,desig:e.desig,why:'Bulk update'})}const sp=splitFor(+e.desig,+e.level,0);if(sp)e.ctc=sp.total*12}
+   e.active=isActive(e);audit('Employee','Update (bulk)',`${e.code} ${e.name}`,u.ch.map(z=>z[0]).join(', '))});
+  accSync();CKBH.unshift({at:new Date().toLocaleString(loc(),{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),file:CKB.file||'pasted rows',by:USERS[state.role].name,n:DATA.emps.length-n0,u:U.length});
+  toast(`${DATA.emps.length-n0} ${L('employees added','कर्मचारी जुड़े')}${DATA.emps.length-n0?'. '+L('First login sent.','पहला लॉगिन भेजा।'):''}${U.length?' · '+U.length+' '+L('updated','बदले'):''}`);CKB.text='';CKB.res=null;CKB.file='';render()})};
 
 /* ---------- Batch 51: Expense (expense advance, expense report and reimbursement claim, Accounts desk) ---------- */
 Object.assign(SLA,{xaMaxDays:30,xaDisb:2,xcPay:3,xcSubmitDays:30,xaRepeat:3,xaMgrAfter:2,xRejMax:20});
@@ -12865,6 +12904,77 @@ function setupCardHTML(){if(!can('setupck','V'))return '';const {S,done,total}=s
  m.querySelectorAll('[data-suopen]').forEach(b=>b.onclick=()=>{const [p,tb]=b.dataset.suopen.split(':');goTo(p,tb||undefined)});
  m.querySelectorAll('[data-sumark]').forEach(b=>b.onclick=()=>{if(!canManage())return;SETUPCK[b.dataset.sumark]={at:TODAY_S,by:USERS[state.role].name};SU_CACHE=null;audit('Setup guide','Marked done',suTitle(b.dataset.sumark),'');toast(t('saved'));render()});
  m.querySelectorAll('[data-suundo]').forEach(b=>b.onclick=()=>{if(!canManage())return;delete SETUPCK[b.dataset.suundo];SU_CACHE=null;audit('Setup guide','Marked open again',suTitle(b.dataset.suundo),'');toast(t('saved'));render()})}}
+/* ---------- Bulk import modes: add new only, update existing only, or both. Employee upload and salary structure of many designations ---------- */
+function impModeHTML(cur,attr,kind){const emp=kind==='emp';
+ const O=[['new',L('Add new only (default)','सिर्फ़ नया जोड़ें (डिफ़ॉल्ट)'),emp?L('An employee code that already exists is shown as an error. Nothing is changed.','जो कर्मचारी कोड पहले से है वह गलती दिखेगा। कुछ नहीं बदलेगा।'):L('A designation that already has a structure is shown as an error. Nothing is changed.','जिस पद का स्ट्रक्चर पहले से है वह गलती दिखेगा। कुछ नहीं बदलेगा।')],
+  ['upd',L('Update existing only','सिर्फ़ मौजूदा बदलें'),emp?L('Matched by Employee Code. A code that is not found is an error. A blank cell means no change.','Employee Code से मिलान। जो कोड न मिले वह गलती। ख़ाली सेल का मतलब कोई बदलाव नहीं।'):L('Matched by Designation Code. A designation with no structure is an error. A blank cell means no change. Every changed designation gets a new version; the old one stays in history.','Designation Code से मिलान। जिस पद का स्ट्रक्चर नहीं वह गलती। ख़ाली सेल का मतलब कोई बदलाव नहीं। बदले हर पद का नया वर्ज़न बनता है, पुराना इतिहास में रहता है।')],
+  ['both',L('Add new and update existing','नया जोड़ें और मौजूदा बदलें'),emp?L('A code that is found is updated. A code that is not found (or empty) adds a new employee.','जो कोड मिले उसे बदला जाता है। जो न मिले (या ख़ाली हो) उससे नया कर्मचारी जुड़ता है।'):L('A designation with a structure gets a new version. One without gets a new structure.','जिस पद का स्ट्रक्चर है उसका नया वर्ज़न बनता है, जिसका नहीं है उसका नया स्ट्रक्चर।')]];
+ return `<div style="margin:6px 0 10px"><b style="font-size:13px">${L('Import mode','इम्पोर्ट मोड')}</b>${O.map(([k,n,d])=>`<div ${attr}="${k}" role="radio" aria-checked="${cur===k}" style="display:flex;gap:10px;align-items:flex-start;border:${cur===k?'2px solid var(--teal)':'1px solid var(--line)'};border-radius:8px;padding:8px 12px;margin-top:6px;cursor:pointer;font-size:13px"><span style="font-size:16px">${cur===k?'◉':'○'}</span><div><b>${n}</b><div style="color:var(--muted)">${d}</div></div></div>`).join('')}</div>`}
+const IMP_PILL=(c,x)=>`<span class="pill ${c}" style="margin-right:6px">${x}</span>`;
+function impPrevHTML(r,rows,counts){if(!r)return'';if(r.fatal)return `<div class="card" style="color:var(--bad);margin-top:12px">${esc(r.fatal)}</div>`;
+ const K={n:'p-ok',u:'p-warn',s:'',b:'p-bad'}, N={n:L('New','नया'),u:L('Will change','बदलेगा'),s:L('No change','कोई बदलाव नहीं'),b:L('Error','गलती')};
+ const shown=rows.slice(0,300);
+ return `<div class="card" style="margin-top:12px"><div style="margin-bottom:10px">${IMP_PILL('p-ok',N.n+': '+counts.n)}${IMP_PILL('p-warn',N.u+': '+counts.u)}${IMP_PILL('',N.s+': '+counts.s)}${IMP_PILL('p-bad',N.b+': '+counts.b)}</div>
+ <div class="tw"><table class="tbl"><thead><tr><th>${t('im_row')}</th><th>${L('Code','कोड')}</th><th>${L('Name','नाम')}</th><th>${L('Result','नतीजा')}</th><th>${L('What changes (before → after)','क्या बदलेगा (पहले → बाद में)')}</th></tr></thead><tbody>${shown.map(x=>`<tr><td>${x.row}</td><td>${esc(x.code||'')}</td><td>${esc(x.name||'')}</td><td><span class="pill ${K[x.k]}">${N[x.k]}</span></td><td style="${x.k==='b'?'color:var(--bad)':''}">${x.txt}</td></tr>`).join('')}</tbody></table></div>${rows.length>shown.length?`<p style="font-size:12px;color:var(--muted)">${L('and','और')} ${rows.length-shown.length} ${L('more rows','पंक्तियाँ और')}</p>`:''}
+ <p style="font-size:12px;color:var(--muted);margin:8px 0 0">${L('Lines with an error are not applied. The correct lines are applied.','गलती वाली पंक्तियाँ लागू नहीं होंगी। सही पंक्तियाँ लागू होंगी।')}</p></div>`}
+function ckModeHTML(){return `<p style="font-size:12px;color:var(--muted);margin:0 0 4px">${L('Optional last column: Career Level (L1 to L12). In update mode only the cells you fill are changed. Write - (a dash) to clear the date of birth or a manager. The salary of an employee is not changed here: it comes from the salary structure, and a change of salary goes through the approval workflow.','आख़िरी वैकल्पिक कॉलम: Career Level (L1 से L12)। अपडेट मोड में सिर्फ़ भरी हुई सेल बदलती हैं। जन्मतिथि या मैनेजर हटाने के लिए - (डैश) लिखें। कर्मचारी की सैलरी यहाँ से नहीं बदलती: वह सैलरी स्ट्रक्चर से आती है, और सैलरी बदलाव अप्रूवल वर्कफ़्लो से जाता है।')}</p>${impModeHTML(CKB.mode,'data-ckmode','emp')}`}
+function ckPrevHTML(r){if(!r||r.fatal)return impPrevHTML(r,[],{});const U=r.upd||[],S=r.same||[];
+ const rows=[...r.ok.map(x=>({row:x.row,code:x.code||'—',name:x.name,k:'n',txt:L('A new employee is added','नया कर्मचारी जुड़ेगा')})),...U.map(u=>({row:u.row,code:u.emp.code,name:u.emp.name,k:'u',txt:u.ch.map(z=>`${esc(z[0])}: ${esc(String(z[1]))} → ${esc(String(z[2]))}`).join('<br>')})),...S.map(s=>({row:s.row,code:s.code,name:s.name,k:'s',txt:L('Nothing to change','कुछ बदलना नहीं')})),...r.bad.map(b=>({row:b.row,code:'',name:'',k:'b',txt:esc(b.msg)}))].sort((a,b)=>a.row-b.row);
+ return impPrevHTML(r,rows,{n:r.ok.length,u:U.length,s:S.length,b:r.bad.length})}
+function ckBackup(){const r=CKB.res;if(!r||!r.upd||!r.upd.length)return;const cd=(k,id)=>((DATA[k].find(x=>x.id==id)||{}).code||''), mc=id=>{const m=DATA.emps.find(e=>String(e.id)===String(id));return m?String(m.code):'-'}, ds=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||'');return m?`${m[3]}/${m[2]}/${m[1]}`:'-'};
+ csvDl('employee-backup-before-update.csv',[CKH_T,...r.upd.map(u=>{const e=u.emp;return [e.code,e.name,e.mobile,e.email||'',ds(e.dob),e.gender||'',ds(e.doj),cd('functions',e.func),cd('depts',e.dept),cd('branches',e.branch),cd('divisions',e.division),cd('subdivs',e.subdiv),cd('desigs',e.desig),mc(e.mgr),mc(e.fm),e.level?'L'+e.level:'']})])}
+/* ---- salary structure of many designations in one file ---- */
+const SSB={mode:'new',text:'',file:'',res:null};
+const ssbComps=()=>SCOMP.filter(c=>c.on!==false&&c.method!=='tenure');
+const ssbDesigs=()=>DATA.desigs.filter(d=>d.active!==false&&!d.off);
+function ssbTplRows(only){const cs=ssbComps(), rows=[['Designation Code','Designation','Level',...cs.map(c=>c.name)]];
+ ssbDesigs().filter(d=>!only||only.includes(d.id)).forEach(d=>{const st=SSTR[d.id];for(let n=1;n<=12;n++)rows.push([d.code||'',d.name,'L'+n,...cs.map(c=>st&&st.comps.includes(c.id)?(st.lv[n][c.id]||0):'')])});return rows}
+function ssbParse(text,mode){mode=mode||'new';const rows=ssCsvParse(text).filter(r=>r.some(c=>String(c).trim()!==''));if(rows.length<2)return{fatal:t('ie_empty')};
+ const h=rows[0].map(x=>String(x).toLowerCase()), ic=h.indexOf('designation code'), il=h.indexOf('level');
+ if(ic<0||il<0)return{fatal:L('The first row must have the columns Designation Code and Level, then one column for each component','पहली पंक्ति में Designation Code और Level कॉलम हों, फिर हर कंपोनेंट का एक कॉलम')};
+ const cs=ssbComps(), colOf=[], unknown=[];
+ h.forEach((x,i)=>{if(i===ic||i===il||x==='designation'||x==='designation name')return;const c=cs.find(z=>z.name.toLowerCase()===x||z.id.toLowerCase()===x);if(c)colOf.push([i,c]);else unknown.push(rows[0][i])});
+ if(unknown.length)return{fatal:L('Unknown column: ','अनजान कॉलम: ')+unknown.join(', ')};
+ if(!colOf.length)return{fatal:L('No component column found','कोई कंपोनेंट कॉलम नहीं मिला')};
+ const bad=[], g={};
+ rows.slice(1).forEach((r,i)=>{const row=i+2, er=m=>bad.push({row,msg:m}), code=String(r[ic]||'').trim();
+  const d=ssbDesigs().find(x=>String(x.code||'').toUpperCase()===code.toUpperCase());if(!d)return er(L('Designation code not found: ','पद कोड नहीं मिला: ')+(code||'—'));
+  const m=/^L?(\d{1,2})$/i.exec(String(r[il]||'').trim()), n=m?+m[1]:0;if(!(n>=1&&n<=12))return er(d.name+': '+L('Level must be L1 to L12','Level L1 से L12 हो'));
+  const o=(g[d.id]=g[d.id]||{d,cells:{},rows:[],err:false});if(o.cells[n])return er(d.name+': '+L('Level repeated','लेवल दोहराया'));
+  o.cells[n]={};o.rows.push(row);
+  colOf.forEach(([i2,c])=>{const v=String(r[i2]||'').trim();if(v==='')return;const x=Math.round(+v);if(isNaN(x)||x<0){o.err=true;return er(d.name+' L'+n+' '+c.name+': '+L('amount must be a number, 0 or more','राशि 0 या उससे ज़्यादा का अंक हो'))}o.cells[n][c.id]=x})});
+ const ok=[], same=[];
+ Object.values(g).forEach(o=>{const d=o.d, st=SSTR[d.id], first=o.rows[0], er=m=>bad.push({row:first,msg:d.name+': '+m});if(o.err)return;
+  if(mode==='new'&&st)return er(L('already has a salary structure (nothing changed)','का सैलरी स्ट्रक्चर पहले से है (कुछ नहीं बदला)'));
+  if(mode==='upd'&&!st)return er(L('has no salary structure yet that can be updated','का सैलरी स्ट्रक्चर अभी है नहीं जिसे बदला जा सके'));
+  const used=colOf.map(x=>x[1].id).filter(id=>Object.values(o.cells).some(z=>z[id]!==undefined));let comps, lv={};
+  if(!st){const miss=[];for(let n=1;n<=12;n++)if(!o.cells[n])miss.push('L'+n);if(miss.length)return er(L('A new structure needs all 12 levels. Missing: ','नए स्ट्रक्चर में सभी 12 लेवल चाहिए। कम हैं: ')+miss.join(', '));
+   comps=used;if(!comps.length)return er(L('no amounts given','कोई राशि नहीं दी'));for(let n=1;n<=12;n++){lv[n]={};comps.forEach(id=>lv[n][id]=o.cells[n][id]||0)}}
+  else{comps=st.comps.slice();used.forEach(id=>{if(!comps.includes(id))comps.push(id)});for(let n=1;n<=12;n++){lv[n]={};comps.forEach(id=>{lv[n][id]=o.cells[n]&&o.cells[n][id]!==undefined?o.cells[n][id]:(st.lv[n][id]||0)})}}
+  const pfc=comps.find(id=>(SCOMP.find(x=>x.id===id)||{}).pf);if(pfc)for(let n=2;n<=12;n++)if(lv[n][pfc]<lv[n-1][pfc])return er(L('The PF component must not fall as the level rises (L'+n+')','PF वाला कंपोनेंट लेवल बढ़ने पर घट नहीं सकता (L'+n+')'));
+  const ch=[];if(st){for(let n=1;n<=12;n++)comps.forEach(id=>{const a=st.lv[n][id], b=lv[n][id];if((a||0)!==b||!st.comps.includes(id))ch.push(`L${n} ${(SCOMP.find(x=>x.id===id)||{name:id}).name}: ${a==null?'—':a} → ${b}`)});if(!ch.length){same.push({row:first,d});return}}
+  ok.push({d,st:!!st,comps,lv,ch,row:first})});
+ bad.sort((a,b)=>a.row-b.row);return{ok,bad,same,mode}}
+function ssbApply(r){let a=0,u=0;r.ok.forEach(x=>{const d=x.d.id;if(x.st){const st=SSTR[d];st.hist.push({v:st.v,at:TODAY_S,by:USERS[state.role].name,lv:JSON.parse(JSON.stringify(st.lv))});st.v++;st.comps=x.comps;st.lv=x.lv;st.demo=false;audit('Salary structure','New version (bulk)',x.d.name,'v'+st.v);u++}else{SSTR[d]={v:1,from:curMk(),status:'Published',demo:false,comps:x.comps,lv:x.lv,hist:[],next:0};audit('Salary structure','Created (bulk)',x.d.name,'');a++}});return[a,u]}
+function ssbPrev(r){if(!r||r.fatal)return impPrevHTML(r,[],{});
+ const rows=[...r.ok.map(x=>({row:x.row,code:x.d.code||'',name:x.d.name,k:x.st?'u':'n',txt:x.st?x.ch.slice(0,6).map(esc).join('<br>')+(x.ch.length>6?`<br><small>+ ${x.ch.length-6} ${L('more','और')}</small>`:'')+`<br><small>v${SSTR[x.d.id].v} → v${SSTR[x.d.id].v+1}</small>`:L('New structure, L1 to L12','नया स्ट्रक्चर, L1 से L12')})),...r.same.map(s=>({row:s.row,code:s.d.code||'',name:s.d.name,k:'s',txt:L('Same amounts','राशियाँ वही हैं')})),...r.bad.map(b=>({row:b.row,code:'',name:'',k:'b',txt:esc(b.msg)}))].sort((a,b)=>a.row-b.row);
+ return impPrevHTML(r,rows,{n:r.ok.filter(x=>!x.st).length,u:r.ok.filter(x=>x.st).length,s:r.same.length,b:r.bad.length})}
+function ssbCard(){const r=SSB.res, can_=r&&!r.fatal&&r.ok.length;
+ return `<div class="card" style="margin-bottom:14px"><h3>📥 ${L('Bulk upload: salary structure of many designations','बल्क अपलोड: कई पदों का सैलरी स्ट्रक्चर')}</h3><p class="rule" style="font-size:13px">${L('One file for all designations. Columns: Designation Code, Level (L1 to L12), then one column for each component. The template has every designation with its current amounts (empty where there is no structure yet). A new structure needs all 12 levels. For a designation that already has a structure, only the cells you fill are changed.','सारे पदों के लिए एक फ़ाइल। कॉलम: Designation Code, Level (L1 से L12), फिर हर कंपोनेंट का एक कॉलम। टेम्पलेट में हर पद अपनी मौजूदा राशियों के साथ आता है (जहाँ स्ट्रक्चर नहीं वहाँ ख़ाली)। नए स्ट्रक्चर में सभी 12 लेवल चाहिए। जिस पद का स्ट्रक्चर है, उसमें सिर्फ़ भरी हुई सेल बदलती हैं।')}</p>
+ ${impModeHTML(SSB.mode,'data-ssbmode','sal')}
+ <div class="tools"><button class="btn btn-o btn-s" data-ssbtpl>${t('im_tpl')}</button><label class="btn btn-o btn-s" style="margin:0;cursor:pointer">${t('im_pick')}<input type="file" id="ssbFile" accept=".csv,.txt" style="display:none"></label><span style="color:var(--muted);font-size:12px">${esc(SSB.file)}</span></div>
+ <textarea class="inp" id="ssbText" rows="4" placeholder="${t('im_paste')}" style="font-family:monospace;font-size:12px">${esc(SSB.text)}</textarea><div class="acts" style="margin-top:10px"><button class="btn btn-o" data-ssbchk>${t('im_prev')}</button>${can_&&r.ok.some(x=>x.st)?`<button class="btn btn-o" data-ssbbak>${L('Download backup of old values','पुरानी वैल्यू की बैकअप फ़ाइल')}</button>`:''}${can_?`<button class="btn btn-p" data-ssbok>${t('im_apply')} (${r.ok.length})</button>`:''}</div>${ssbPrev(r)}</div>`}
+const _sstrSSB=sstrTab;
+sstrTab=function(){let h=_sstrSSB();if(!canManage())return h;const k='<div class="tools"><b>'+L('Designation','पद')+'</b>', i=h.indexOf(k);return i<0?h+ssbCard():h.slice(0,i)+ssbCard()+h.slice(i)};
+const _bindExtraSSB=bindExtra;
+bindExtra=function(){_bindExtraSSB();const m=$('#main'), on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
+ on('[data-ckmode]',b=>b.onclick=()=>{CKB.mode=b.dataset.ckmode;CKB.res=null;render()});on('[data-ckbbak]',b=>b.onclick=ckBackup);
+ on('[data-ssbmode]',b=>b.onclick=()=>{SSB.mode=b.dataset.ssbmode;SSB.res=null;render()});
+ on('[data-ssbtpl]',b=>b.onclick=()=>csvDl('salary-structure-all-designations.csv',ssbTplRows()));
+ on('[data-ssbbak]',b=>b.onclick=()=>{const r=SSB.res;if(r&&r.ok)csvDl('salary-structure-backup-before-update.csv',ssbTplRows(r.ok.filter(x=>x.st).map(x=>x.d.id)))});
+ const ta=$('#ssbText'), fi=$('#ssbFile');if(ta)ta.oninput=()=>{SSB.text=ta.value};if(fi)fi.onchange=()=>{const f=fi.files[0];if(!f)return;f.text().then(x=>{SSB.text=x;SSB.file=f.name;SSB.res=null;render()})};
+ on('[data-ssbchk]',b=>b.onclick=()=>{SSB.res=ssbParse(SSB.text,SSB.mode);render()});
+ on('[data-ssbok]',b=>b.onclick=()=>{const r=SSB.res;if(!canManage()||!r||r.fatal||!r.ok.length)return;const [a,u]=ssbApply(r);SSB.text='';SSB.res=null;SSB.file='';toast(`${a} ${L('structures created','स्ट्रक्चर बने')}, ${u} ${L('new versions saved','नए वर्ज़न सेव हुए')}`);render()})};
 orgMigrate();orgCodesFill();
 /* ---------- Salary Earned on the Dashboard, and the "salary is released" notice ---------- */
 TABKEY.dashboard='dtab';
