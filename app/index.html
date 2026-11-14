@@ -3232,11 +3232,11 @@ function listModal(title,rows){openModal(`<h3>${title}</h3><div class="list" sty
 
 /* ---- Report Import Center ---- */
 const IMPT=[
- {id:'esale',name:'Employee Daily Sales (Till Date)',cols:['Date','Emp Number','Name','Division','Till Date Sale'],opt:[]},
- {id:'ebill',name:'Employee Daily Bills (Till Date)',cols:['Date','Emp Number','Name','Division','Till Date Bills'],opt:[]},
- {id:'dsale',name:'Division Daily Sales (Till Date)',cols:['Date','Division','Till Date Sale','R/E Amount'],opt:['R/E Amount']},
- {id:'dbill',name:'Division Daily Bills (Till Date)',cols:['Date','Division','Till Date Bills'],opt:[]},
- {id:'ecat',name:'Employee Category Sales (Till Date)',cols:['Date','Emp Number','Name','Division','Category','Till Date Sale'],opt:[]}];
+ {id:'esale',name:'Employee Daily Sales (Till Date)',cols:['Date','Emp Number','Name','Division Code','Till Date Sale'],opt:[]},
+ {id:'ebill',name:'Employee Daily Bills (Till Date)',cols:['Date','Emp Number','Name','Division Code','Till Date Bills'],opt:[]},
+ {id:'dsale',name:'Division Daily Sales (Till Date)',cols:['Date','Division Code','Till Date Sale','R/E Amount'],opt:['R/E Amount']},
+ {id:'dbill',name:'Division Daily Bills (Till Date)',cols:['Date','Division Code','Till Date Bills'],opt:[]},
+ {id:'ecat',name:'Employee Category Sales (Till Date)',cols:['Date','Emp Number','Name','Division Code','Category','Till Date Sale'],opt:[]}];
 const IMPLOG=[], IMPC={tpl:'esale',text:'',file:'',res:null};
 const IMPSAMPLE={esale:[['01/10/2026','E004','Sana Ali','Ladies Wear','50000'],['27/10/2026','E004','Sana Ali','Ladies Wear','245000']],ebill:[['27/10/2026','E004','Sana Ali','Ladies Wear','82']],dsale:[['27/10/2026','Ladies Wear','565000','22600']],dbill:[['27/10/2026','Ladies Wear','132']],ecat:[['27/10/2026','E004','Sana Ali','Ladies Wear','Kurti','84000']]};
 function csvParse(text){return text.replace(/\r/g,'').split('\n').filter(l=>l.trim()).map(l=>{const o=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'&&l[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===','){o.push(cur.trim());cur=''}else cur+=c}o.push(cur.trim());return o})}
@@ -3251,7 +3251,7 @@ function impCheck(tpl,text){
     for(let c=0;c<head.length;c++){const nm_=tpl.cols[c], v=r[c]||'';if(!v&&!tpl.opt.includes(nm_)){bad=`${nm_}: ${t('e_req')}`;break}
       if(nm_==='Date'){rec.date=impDate(v);if(!rec.date){bad=`${nm_}: ${t('e_date')}`;break}}
       else if(nm_==='Emp Number'){const e=DATA.emps.find(x=>x.code.toLowerCase()===v.toLowerCase());if(!e){bad=`${nm_}: ${t('e_emp')}`;break}rec.emp=e.id}
-      else if(nm_==='Division'){const d=DATA.divisions.find(x=>x.name.toLowerCase()===v.toLowerCase());if(!d){bad=`${nm_}: ${t('e_div')}`;break}rec.division=d.id}
+      else if(nm_==='Division Code'){const d=DATA.divisions.find(x=>x.code&&String(x.code).toLowerCase()===v.toLowerCase());if(!d){bad=`${nm_}: ${t('e_div')}`;break}rec.division=d.id}
       else if(nm_==='Category')rec.category=v;
       else if(nm_==='Name'){}
       else if(v!==''){const n=Number(v);if(!isFinite(n)||n<0){bad=`${nm_}: ${t('e_num')}`;break}rec[nm_==='R/E Amount'?'re':nm_==='Till Date Qty'?'qty':'val']=n}}
@@ -3367,7 +3367,7 @@ bindExtra=function(){
   on('[data-wfl]',b=>b.onclick=()=>{if(b.dataset.wfl)wfListModal(b.dataset.wfl)});
   if($('#wfp'))$('#wfp').onchange=e=>{state.wfp=e.target.value;render()};
   if($('#imTpl'))$('#imTpl').onchange=e=>{IMPC.tpl=e.target.value;IMPC.res=null;render()};
-  if($('#imDl'))$('#imDl').onclick=()=>{const tp=IMPT.find(x=>x.id===IMPC.tpl);csvDl(tp.id+'-sample.csv',[tp.cols,...(IMPSAMPLE[tp.id]||[])])};
+  if($('#imDl'))$('#imDl').onclick=()=>{const tp=IMPT.find(x=>x.id===IMPC.tpl);csvDl(tp.id+'-sample.csv',[tp.cols,...(IMPSAMPLE[tp.id]||[]).map(r=>r.map(v=>{const d=DATA.divisions.find(x=>x.name===v);return d&&d.code?d.code:v}))])};
   if($('#imFile'))$('#imFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{IMPC.text=String(rd.result).replace(/^﻿/,'');IMPC.file=f.name;IMPC.res=impCheck(IMPT.find(x=>x.id===IMPC.tpl),IMPC.text);render()};rd.readAsText(f)};
   if($('#imChk'))$('#imChk').onclick=()=>{if(!IMPC.text)return toast(t('im_nofile'));IMPC.res=impCheck(IMPT.find(x=>x.id===IMPC.tpl),IMPC.text);render()};
   if($('#imGo'))$('#imGo').onclick=()=>{const tp=IMPT.find(x=>x.id===IMPC.tpl), r=IMPC.res;impApply(tp,r);
@@ -6968,7 +6968,7 @@ AUTO2['KPI-201']=(e,k,p)=>{const rows=BIGB.filter(r=>inM(r.date,p));if(!rows.len
  if(!n)return kN(L('No working day with data','डेटा वाला कोई कामकाजी दिन नहीं'));return kS(k,sum/n*k.max,`${L('Average of the days','दिनों का औसत')} ${r2(sum/n*100)}% · ${n} ${L('days','दिन')}`)};
 AUTO_IMPL.add('KPI-201');
 [4,21].forEach(d=>KRULES.push({id:++seq,kpi:'KPI-201',scope:'Designation',value:d,from:'2026-04-01',until:'',st:'Active'}));
-IMPT.push({id:'bigbill',name:'Employee Highest Bill (Daily)',cols:['Date','Emp Number','Name','Division','Highest Bill'],opt:[]});
+IMPT.push({id:'bigbill',name:'Employee Highest Bill (Daily)',cols:['Date','Emp Number','Name','Division Code','Highest Bill'],opt:[]});
 IMPSAMPLE.bigbill=[['27/10/2026','E004','Sana Ali','Ladies Wear','18500'],['27/10/2026','E005','Imran Sheikh','Ladies Wear','12400'],['27/10/2026','E012','Karan Mehta','Ladies Wear','9300']];
 const _ic37=impCheck;impCheck=function(tpl,text){const r=_ic37(tpl,text);if(tpl.id!=='bigbill'||r.head)return r;
  r.final=r.ok.map(x=>({...x,month:monthLabel(x.date)}));r.created=r.updated=r.same=0;r.final.forEach(x=>{const y=impTarget('bigbill',x);if(!y.rec)r.created++;else if(y.same)r.same++;else r.updated++});return r};
@@ -9522,7 +9522,7 @@ Object.assign(SLA,{tgGreen:100,tgAmber:80});
 SLAR.push({id:'SLA-048',kpi:'—',name:['Target colours on the Dashboard','डैशबोर्ड पर टारगेट के रंग'],dir:'max',note:'The colour compares what is achieved with what should have been achieved by today (the days gone in the month). Green at or above the first limit, yellow at or above the second, red below it.',params:[P('tgGreen','Green when achieved is at least this percent of what was due by today','हरा तब जब हुआ काम, आज तक के हिसाब का कम से कम इतने प्रतिशत हो','%',{max:200}),P('tgAmber','Yellow when achieved is at least this percent of what was due by today','पीला तब जब हुआ काम, आज तक के हिसाब का कम से कम इतने प्रतिशत हो','%',{max:200})],versions:[{ver:1,effective:'2026-04-01',by:'System',note:'Initial value',values:{tgGreen:100,tgAmber:80}}]});
 Object.assign(T.en,{bd_qty:'Quantity'});Object.assign(T.hi,{bd_qty:'मात्रा'});
 /* the new format of the two daily sales reports: a quantity column is added */
-{const e=IMPT.find(x=>x.id==='esale'), d=IMPT.find(x=>x.id==='dsale');e.cols=['Date','Emp Number','Name','Division','Till Date Sale','Till Date Qty'];d.cols=['Date','Division','Till Date Sale','Till Date Qty','R/E Amount'];d.opt=['R/E Amount'];
+{const e=IMPT.find(x=>x.id==='esale'), d=IMPT.find(x=>x.id==='dsale');e.cols=['Date','Emp Number','Name','Division Code','Till Date Sale','Till Date Qty'];d.cols=['Date','Division Code','Till Date Sale','Till Date Qty','R/E Amount'];d.opt=['R/E Amount'];
  IMPSAMPLE.esale=[['01/10/2026','E004','Sana Ali','Ladies Wear','50000','45'],['27/10/2026','E004','Sana Ali','Ladies Wear','245000','212']];IMPSAMPLE.dsale=[['27/10/2026','Ladies Wear','565000','498','22600']];
  const r=STORES.rep_emp[1];if(!r.some(f=>f[0]==='qty'))r.push(['qty','num']);const q=STORES.rep_div[1];if(!q.some(f=>f[0]==='qty'))q.splice(q.findIndex(f=>f[0]==='bills')+1,0,['qty','num'])}
 const SALEH=[], SALEH_DIRTY=new Set(), SALEH_IX=new Map();
