@@ -12973,6 +12973,12 @@ setupCardHTML=function(){let h=_scOld.apply(this,arguments), P;try{P=suMProg()}c
  m.querySelectorAll('[data-sutabgo]').forEach(b=>{const o=b.onclick;b.onclick=()=>{state.sutab=b.dataset.sutabgo;o&&o()}});
  m.querySelectorAll('[data-summ]').forEach(b=>b.onclick=()=>{if(!canManage())return;SETUPCK[b.dataset.summ]={at:TODAY_S,by:USERS[state.role].name};SU_CACHE=null;audit('Setup guide','Marked done',suMTitle(b.dataset.summ),'');toast(t('saved'));render()});
  m.querySelectorAll('[data-sumu]').forEach(b=>b.onclick=()=>{if(!canManage())return;delete SETUPCK[b.dataset.sumu];SU_CACHE=null;audit('Setup guide','Marked open again',suMTitle(b.dataset.sumu),'');toast(t('saved'));render()})}}
+/* a small banner at the top of a module page: how many setups of this module are pending */
+const SU_PAGEMOD={training:'training',crm:'crm',pms:'pms',recruit:'recruit',library:'library',stock:'stock'};
+{const _rSU=render;render=function(){_rSU.apply(this,arguments);try{const gid=SU_PAGEMOD[state.page], m=document.getElementById('main');if(!gid||!m||!can('setupck','V'))return;const x=suMProg().G.find(z=>z.g.id===gid);if(!x||!x.pend.length)return;
+ const d=document.createElement('div');d.className='card';d.style.cssText='margin-bottom:14px;border-left:4px solid #C9A227;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap';
+ d.innerHTML='<span><b>'+x.pend.length+' '+L('setup(s) of this module are pending','सेटअप इस मॉड्यूल के बाक़ी हैं')+'</b> <small style="color:var(--muted)">· '+x.pend.slice(0,2).map(i=>esc(L(...i.t))).join(', ')+(x.pend.length>2?'…':'')+'</small></span><button class="btn btn-o btn-s">'+L('See in Setup guide','Setup guide में देखें')+'</button>';
+ d.querySelector('button').onclick=()=>{state.sutab='mod';goTo('setupck')};m.insertBefore(d,m.firstChild)}catch(e){}}}
 /* ---------- Bulk import modes: add new only, update existing only, or both. Employee upload and salary structure of many designations ---------- */
 function impModeHTML(cur,attr,kind){const emp=kind==='emp';
  const O=[['new',L('Add new only (default)','सिर्फ़ नया जोड़ें (डिफ़ॉल्ट)'),emp?L('An employee code that already exists is shown as an error. Nothing is changed.','जो कर्मचारी कोड पहले से है वह गलती दिखेगा। कुछ नहीं बदलेगा।'):L('A designation that already has a structure is shown as an error. Nothing is changed.','जिस पद का स्ट्रक्चर पहले से है वह गलती दिखेगा। कुछ नहीं बदलेगा।')],
