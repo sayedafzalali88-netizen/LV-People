@@ -1412,7 +1412,7 @@ Object.assign(T.en,{
  sh_code:"Code",sh_name:"Shift name",sh_start:"Start",sh_end:"End",sh_break:"Break (min)",sh_grace:"Grace (min)",
  as_shift:"Shift",wo:"Weekly off",wo_type:"Weekly off type",wo_full:"Full day",wo_fh:"First half",wo_sh:"Second half",wo_none:"None",
  repeat_m:"Repeat every month",stop_repeat:"Stop repeat",auto_t:"Auto",repeat_log:"Repeat log",
- e_overlap2:"This employee already has a shift in these dates",e_shift_off:"Select an active shift",e_before_doj:"Date is before joining",
+ e_overlap2:"This employee already has a shift in these dates",e_locked:"The attendance of this month is already processed. A change is not allowed",e_notteam:"You can change only the people who report to you",e_shift_off:"Select an active shift",e_before_doj:"Date is before joining",
  hb_name:"Holiday name",hc_year:"Year",hc_scope:"Applicable on",hc_company:"Company",hc_type:"Type",hc_fixed:"Fixed",hc_restricted:"Restricted",
  hc_max:"Max restricted per employee per year",hc_new:"New calendar",hc_item:"Add holiday",hc_holiday:"Holiday",
  e_year:"Date is outside the calendar year",e_dupdate:"A holiday already exists on this date",e_caldup:"An active calendar already exists for this year and scope",
@@ -1432,7 +1432,7 @@ Object.assign(T.hi,{
  sh_code:"कोड",sh_name:"शिफ़्ट का नाम",sh_start:"शुरू",sh_end:"खत्म",sh_break:"ब्रेक (मिनट)",sh_grace:"ग्रेस (मिनट)",
  as_shift:"शिफ़्ट",wo:"साप्ताहिक अवकाश",wo_type:"अवकाश का प्रकार",wo_full:"पूरा दिन",wo_fh:"पहला आधा दिन",wo_sh:"दूसरा आधा दिन",wo_none:"कोई नहीं",
  repeat_m:"हर महीने दोहराएँ",stop_repeat:"दोहराना बंद करें",auto_t:"अपने आप",repeat_log:"दोहराने का लॉग",
- e_overlap2:"इन तारीख़ों में इस कर्मचारी की शिफ़्ट पहले से है",e_shift_off:"चालू शिफ़्ट चुनें",e_before_doj:"तारीख़ जॉइनिंग से पहले की है",
+ e_overlap2:"इन तारीख़ों में इस कर्मचारी की शिफ़्ट पहले से है",e_locked:"इस महीने की हाज़िरी प्रोसेस हो चुकी है। बदलाव नहीं हो सकता",e_notteam:"आप सिर्फ़ अपने रिपोर्टी में बदलाव कर सकते हैं",e_shift_off:"चालू शिफ़्ट चुनें",e_before_doj:"तारीख़ जॉइनिंग से पहले की है",
  hb_name:"छुट्टी का नाम",hc_year:"वर्ष",hc_scope:"किस पर लागू",hc_company:"कंपनी",hc_type:"प्रकार",hc_fixed:"तय",hc_restricted:"ऐच्छिक",
  hc_max:"साल में हर कर्मचारी के लिए अधिकतम ऐच्छिक छुट्टियाँ",hc_new:"नया कैलेंडर",hc_item:"छुट्टी जोड़ें",hc_holiday:"छुट्टी",
  e_year:"तारीख़ कैलेंडर के वर्ष से बाहर है",e_dupdate:"इस तारीख़ पर छुट्टी पहले से है",e_caldup:"इस वर्ष और दायरे का चालू कैलेंडर पहले से है",
@@ -1568,18 +1568,18 @@ function shiftModal(id){
     close();toast(t('saved'));render()});
 }
 function assignTab(){
-  const rows=[...ASSIGN].sort((a,b)=>a.from<b.from?1:a.from>b.from?-1:a.emp-b.emp);
+  const tm=asgMgr()?teamIds(me()):null, rows=[...ASSIGN].filter(a=>!tm||tm.has(a.emp)).sort((a,b)=>a.from<b.from?1:a.from>b.from?-1:a.emp-b.emp);
   return `<div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('as_shift')}</th><th>${t('from')}</th><th>${t('to')}</th><th>${t('wo')}</th><th>${t('repeat_m')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(a=>{const sh=SHIFTS.find(s=>s.id===a.shift)||{};return `<tr><td><b>${esc(empById(a.emp).name)}</b></td><td>${esc(sh.name||'-')} <small style="color:var(--muted)">${hm(sh.start||0)}</small></td><td>${fmtS(a.from)}</td><td>${fmtS(a.to)}</td>
    <td>${a.wo>=0?`${WDN(a.wo)} · ${t(a.wot==='F'?'wo_full':a.wot==='FH'?'wo_fh':'wo_sh')}`:t('wo_none')}</td>
    <td>${a.repeat?'✓':'—'} ${a.auto?`<span class="pill p-teal">${t('auto_t')}</span>`:''}</td><td><span class="pill p-ok">${t('approved')}</span></td>
-   <td style="text-align:right;white-space:nowrap">${a.repeat&&can('timeoffice','E')?`<button class="btn btn-o btn-s" data-stop="${a.id}">${t('stop_repeat')}</button>`:''}</td></tr>
+   <td style="text-align:right;white-space:nowrap">${(can('timeoffice','E')||asgMgr())?`<button class="btn btn-o btn-s" data-woch="${a.id}">${L('Change weekly off','साप्ताहिक अवकाश बदलें')}</button> `:''}${a.repeat&&(can('timeoffice','E')||asgMgr())?`<button class="btn btn-o btn-s" data-stop="${a.id}">${t('stop_repeat')}</button>`:''}</td></tr>
    ${a.log&&a.log.length?`<tr><td colspan="8" style="padding-top:0;font-size:12px;color:var(--muted)">${t('repeat_log')}: ${a.log.map(l=>`${l.month} ${esc(l.text)}`).join('; ')}</td></tr>`:''}`}).join('')}</tbody></table></div>`;
 }
 function assignModal(){
   const today=TODAY_S;
   openModal(`<h3>${t('add')} · ${t('to_assign')}</h3>
-   <label>${t('employees')}</label><select class="inp" name="emp">${DATA.emps.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>
+   <label>${t('employees')}</label><select class="inp" name="emp">${asgPeople().map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>
    <label>${t('as_shift')}</label><select class="inp" name="shift">${SHIFTS.filter(s=>!s.off).map(s=>`<option value="${s.id}">${esc(s.name)} ${hm(s.start)}-${hm(s.end)}</option>`).join('')}</select>
    <label>${t('from')}</label><input class="inp" type="date" name="from" value="${today}" required>
    <label>${t('to')}</label><input class="inp" type="date" name="to">
@@ -1594,6 +1594,8 @@ function assignModal(){
     if(!sh||sh.off)return err('e_shift_off');
     if(to<from)return err('e_dates');
     if(from<e.doj)return err('e_before_doj');
+    if(asgMgr()&&!asgPeople().some(x=>x.id===emp))return err('e_notteam');
+    if(asgMgr()&&asgLocked(emp,from,to))return err('e_locked');
     if(ASSIGN.some(a=>a.emp===emp&&a.st==='Approved'&&overlap(a.from,a.to,from,to)))return err('e_overlap2');
     const a={id:++seq,emp,shift:sh.id,from,to,wo:+v.wo,wot:v.wot,repeat:!!v.repeat,st:'Approved',log:[]};
     ASSIGN.push(a);if(a.repeat)createRepeat(a);
@@ -12233,13 +12235,31 @@ const _tp79=timeofficePage;
 TOT.splice(0,TOT.length,'assign','atv','exc','process','ot');
 timeofficePage=function(){const full=can('timeoffice','E');
  if(full&&state.totab!=='atv')return _tp79();
- const tabs=full?[...TOT]:['atv'];
- return `<div class="page-h"><div><h1>${t('timeoffice')}</h1><p>${t('timeoffice_sub')}</p></div></div><div class="tabs">${tabs.map(k=>`<button data-totab="${k}" class="${k==='atv'?'on':''}">${t('to_'+k)}</button>`).join('')}</div>${atvBody()}`};
+ const tabs=full?[...TOT]:asgMgr()?['assign','atv']:['atv'], tab=full?'atv':(tabs.includes(state.totab)?state.totab:'atv');
+ const addB=tab==='assign'&&asgMgr()?`<button class="btn btn-p" data-toadd="assign">+ ${t('add')} ${t('to_assign').toLowerCase()}</button>`:'';
+ const body=tab==='assign'?`<div class="tools"><span style="color:var(--muted);font-size:13px">${L('Your team only. A change is recorded with your name. It is not allowed for a month whose attendance is already processed.','सिर्फ़ आपकी टीम। हर बदलाव आपके नाम से दर्ज होता है। जिस महीने की हाज़िरी प्रोसेस हो चुकी है उसमें बदलाव नहीं हो सकता।')}</span></div>${assignTab()}`:atvBody();
+ return `<div class="page-h"><div><h1>${t('timeoffice')}</h1><p>${t('timeoffice_sub')}</p></div>${addB}</div><div class="tabs">${tabs.map(k=>`<button data-totab="${k}" class="${k===tab?'on':''}">${t('to_'+k)}</button>`).join('')}</div>${body}`};
+/* ---- Reporting manager: shift assignment and weekly off of the own team; Change weekly off (for HR and Admin too) ---- */
+const asgMgr=()=>state.role==='manager'&&!canManage();
+const asgPeople=()=>asgMgr()?DATA.emps.filter(e=>e.active&&teamIds(me()).has(e.id)):DATA.emps.filter(e=>e.active);
+function asgLocked(emp,from,to){try{for(let m=from.slice(0,7);m<=to.slice(0,7);m=mkNext(m)){if((PAYRUN[m]&&PAYRUN[m]!=='draft')||(ATTP[m]&&ATTP[m].rows&&ATTP[m].rows[emp]))return true}}catch(e){}return false}
+function woModal(id){const a=ASSIGN.find(x=>x.id===id);if(!a)return;const e=empById(a.emp);if(asgMgr()&&!teamIds(me()).has(a.emp))return toast(t('e_notteam'));
+ const woTxt=x=>x.wo>=0?`${WDN(x.wo)} · ${t(x.wot==='F'?'wo_full':x.wot==='FH'?'wo_fh':'wo_sh')}`:t('wo_none');
+ openModal(`<h3>${L('Change weekly off','साप्ताहिक अवकाश बदलें')} · ${esc(e.name)}</h3><p style="font-size:13px"><span style="color:var(--muted)">${L('Now','अभी')}:</span> ${woTxt(a)}, ${L('until','तक')} ${fmtS(a.to)}</p>
+  <div class="fgrid"><div><label>${L('New weekly off','नया साप्ताहिक अवकाश')}</label><select class="inp" name="wo"><option value="-1" ${a.wo<0?'selected':''}>${t('wo_none')}</option>${[0,1,2,3,4,5,6].map(i=>`<option value="${i}" ${a.wo===i?'selected':''}>${WDN(i)}</option>`).join('')}</select></div><div><label>${t('wo_type')}</label><select class="inp" name="wot"><option value="F" ${a.wot==='F'?'selected':''}>${t('wo_full')}</option><option value="FH" ${a.wot==='FH'?'selected':''}>${t('wo_fh')}</option><option value="SH" ${a.wot==='SH'?'selected':''}>${t('wo_sh')}</option></select></div></div>
+  <label>${L('From date','किस तारीख़ से')}</label><input class="inp" type="date" name="from" value="${TODAY_S>a.from&&TODAY_S<=a.to?TODAY_S:a.from}" min="${a.from}" max="${a.to}">
+  <p style="font-size:12px;color:var(--muted);margin:8px 0 0">${L('The new weekly off works from this date to the end of this assignment ('+fmtS(a.to)+'). Before that date the old day stays. The shift does not change. Later months keep their own weekly off.','नया साप्ताहिक अवकाश इस तारीख़ से इस असाइनमेंट के अंत ('+fmtS(a.to)+') तक चलेगा। उससे पहले पुराना दिन रहेगा। शिफ़्ट नहीं बदलती। बाद के महीनों का अपना साप्ताहिक अवकाश रहता है।')}</p><div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
+  <div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+  (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=k=>{bg.querySelector('#me').textContent=t(k)}, from=v.from;if(!from||from<a.from||from>a.to)return err('e_dates');if(asgLocked(a.emp,from,a.to))return err('e_locked');
+   const was=woTxt(a);let tgt=a;
+   if(from===a.from){a.wo=+v.wo;a.wot=v.wot}else{const b={id:++seq,emp:a.emp,shift:a.shift,from,to:a.to,wo:+v.wo,wot:v.wot,repeat:false,st:'Approved',log:[],split:a.id};a.to=addD(from,-1);ASSIGN.push(b);tgt=b}
+   audit('Shift assignment','Weekly off changed',`${e.code} ${e.name}`,`${was} → ${woTxt(tgt)} from ${from}`);close();toast(t('saved'));render()})}
+{const _bw=bindExtra;bindExtra=function(){_bw();try{$('#main').querySelectorAll('[data-woch]').forEach(b=>b.onclick=()=>woModal(+b.dataset.woch))}catch(e){}}}
 const _be79=bindExtra;
 bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEach(b=>b.onclick=()=>atvModal(b.dataset.atvopen));$('#main').querySelectorAll('[data-asbulk]').forEach(b=>b.onclick=bulkAssignModal)};
 /* shift assignment in bulk: pick a group (function, department, branch, division, designation) or paste employee codes, tick who is included, one shift for all */
 const _at79=assignTab;
-assignTab=function(){return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('To give one shift to many employees at once, use Bulk assign.','कई कर्मचारियों को एक साथ एक शिफ़्ट देने के लिए Bulk assign इस्तेमाल करें।')}</span><div style="flex:1"></div>${can('timeoffice','A')?`<button class="btn btn-p" data-asbulk>${L('Bulk assign','एक साथ असाइन')}</button>`:''}</div>`+_at79()};
+assignTab=function(){if(asgMgr())return _at79();return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('To give one shift to many employees at once, use Bulk assign.','कई कर्मचारियों को एक साथ एक शिफ़्ट देने के लिए Bulk assign इस्तेमाल करें।')}</span><div style="flex:1"></div>${can('timeoffice','A')?`<button class="btn btn-p" data-asbulk>${L('Bulk assign','एक साथ असाइन')}</button>`:''}</div>`+_at79()};
 function bulkAssignModal(){
  const f0={func:'',dept:'',branch:'',division:'',desig:''}, opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk shift assignment','एक साथ शिफ़्ट असाइनमेंट')}</h3>
