@@ -7768,7 +7768,7 @@ function bdevTab(){const E=canManage(), onN=BIODEV.filter(d=>d.st==='Active'&&bi
  <div class="grid g3" style="margin-bottom:14px">${kpi(L('Online','चालू'),String(onN),'','ok','M20 6L9 17l-5-5')}${kpi(L('Not reporting','डेटा नहीं आ रहा'),String(offN),'',offN?'bad':'ok','M18 6L6 18M6 6l12 12')}${kpi(L('Punches stored','जमा पंच'),String(BIOP.length),'','teal','M12 8v4l3 2')}</div>
  <div class="tools"><b>${L('Devices','मशीनें')}</b><div style="flex:1"></div>${E?`<button class="btn btn-p btn-s" data-bdnew>+ ${L('Device','मशीन')}</button>`:''}</div>
  <div class="card tw"><table class="tbl"><thead><tr><th>${L('Name','नाम')}</th><th>${L('Serial number','सीरियल नंबर')}</th><th>${L('Source','सोर्स')}</th><th>${t('branch')}</th><th>${L('Last data','आखिरी डेटा')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${BIODEV.map(d=>{const s=bioState(d);return `<tr style="${d.st==='Active'?'':'opacity:.55'}"><td><b>${esc(d.name)}</b>${d.auto?`<small style="display:block;color:var(--warn)">${L('Found automatically, please name it','अपने आप मिली, कृपया नाम दें')}</small>`:''}</td><td>${esc(d.serial)}</td><td>${esc(bioSrc(d.src).name)}</td><td>${bioBr(d.branch)}</td><td>${d.last?tsFmt(d.last):'—'}</td><td><span class="pill ${d.st!=='Active'?'p-bad':s==='on'?'p-ok':s==='off'?'p-bad':'p-teal'}">${d.st!=='Active'?L('Switched off','बंद'):s==='on'?L('Online','चालू'):s==='off'?L('Offline','ऑफ़लाइन'):L('No data yet','अभी डेटा नहीं')}</span></td><td style="text-align:right;white-space:nowrap">${E?`<button class="btn btn-o btn-s" data-bded="${d.id}">${t('edit')}</button> <button class="btn btn-o btn-s" data-bdtog="${d.id}">${d.st==='Active'?L('Switch off','बंद करें'):L('Switch on','चालू करें')}</button>`:''}</td></tr>`}).join('')||`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">${L('No device yet','अभी कोई मशीन नहीं')}</td></tr>`}</tbody></table></div>`}
-function bdModal(id){const d=id?BIODEV.find(x=>x.id===id):{name:'',serial:'',src:BIOSRC[0]?BIOSRC[0].id:0,branch:''};
+function bdevModal(id){const d=id?BIODEV.find(x=>x.id===id):{name:'',serial:'',src:BIOSRC[0]?BIOSRC[0].id:0,branch:''};
  openModal(`<h3>${id?t('edit'):L('Device','मशीन')}</h3><label>${L('Name','नाम')} *</label><input class="inp" name="n" value="${esc(d.name)}"><label>${L('Serial number','सीरियल नंबर')} *</label><input class="inp" name="s" value="${esc(d.serial)}">
   <label>${L('Source','सोर्स')}</label><select class="inp" name="r">${BIOSRC.map(s=>`<option value="${s.id}" ${d.src===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><label>${t('branch')}</label><select class="inp" name="b">${bioSelBr(d.branch)}</select>
   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
@@ -7857,7 +7857,7 @@ bindExtra=function(){_bindExtra46();const m=$('#main'), on=(s,fn)=>m.querySelect
  const du=$('#bioDup');if(du)du.onchange=()=>{BIOSET.dup=Math.max(0,Math.min(30,+du.value||0));du.value=BIOSET.dup;audit('Biometric rule','Repeat window',String(BIOSET.dup),'');toast(t('saved'))};
  on('[data-bsnew]',b=>b.onclick=()=>bsModal(0));on('[data-bsed]',b=>b.onclick=()=>bsModal(+b.dataset.bsed));on('[data-bsset]',b=>b.onclick=()=>bsSetup(+b.dataset.bsset));
  on('[data-bstog]',b=>b.onclick=()=>{const s=BIOSRC.find(x=>x.id==b.dataset.bstog);s.st=s.st==='Active'?'Off':'Active';audit('Biometric source',s.st==='Active'?'Switch on':'Switch off',s.name,'');toast(t('saved'));render()});
- on('[data-bdnew]',b=>b.onclick=()=>bdModal(0));on('[data-bded]',b=>b.onclick=()=>bdModal(+b.dataset.bded));
+ on('[data-bdnew]',b=>b.onclick=()=>bdevModal(0));on('[data-bded]',b=>b.onclick=()=>bdevModal(+b.dataset.bded));
  on('[data-bdtog]',b=>b.onclick=()=>{const d=BIODEV.find(x=>x.id==b.dataset.bdtog);d.st=d.st==='Active'?'Off':'Active';audit('Biometric device',d.st==='Active'?'Switch on':'Switch off',d.name,'');toast(t('saved'));render()});
  on('[data-bmed]',b=>b.onclick=()=>bmModal(+b.dataset.bmed));
  on('[data-bmfill]',b=>b.onclick=()=>{let n=0;DATA.emps.filter(e=>e.active!==false&&!e.bio&&/\d/.test(e.code)).forEach(e=>{const v=String(+e.code.replace(/\D/g,''));if(!DATA.emps.some(x=>(x.bio||'')===v)){e.bio=v;n++}});audit('Biometric ID','Fill from code',String(n),'');toast(`${n} ${L('IDs filled','ID भरे गए')}`);render()});
@@ -13519,6 +13519,191 @@ const GVEMP={'payroll:earned':['What your salary structure promised, what you ea
  'pms:recog':['Appreciation you received: the type, the title, the points and who gave it.','आपको मिली सराहना: प्रकार, शीर्षक, पॉइंट और किसने दी।'],
  'support:fb':['Rate a ticket of yours after it is resolved.','अपनी टिकट हल होने के बाद उसकी रेटिंग दें।']};
 {const _rGv=render;render=function(){const r=_rGv.apply(this,arguments);if(gvSnapDay!==TODAY_S&&canManage())setTimeout(gvSnapAll,4000);try{gvAfter()}catch(e){try{document.getElementById('app').classList.remove('gvhome')}catch(x){}console.warn('game view',e)}return r}}
+/* ================= Rewards & Recognition: quarterly, branch-wise, auto-nominated, decided by team voting ================= */
+Object.assign(T.en,{rewards:'Rewards'});Object.assign(T.hi,{rewards:'रिवॉर्ड्स'});
+MODS.push({id:'rewards',name:['Rewards & Recognition','रिवॉर्ड्स और रिकग्निशन'],desc:['A quarterly reward in each category of each branch. The system itself works out who qualifies from real KPI, attendance and sales data (never a raw rupee or quantity number, always a %, so a lower-priced range is never at a disadvantage); the team then votes among those nominees. Winners are announced before the ceremony, with the number and the votes shown, so nobody has to wonder why.','हर ब्रांच की हर कैटेगरी का तिमाही रिवॉर्ड। कौन योग्य है यह सिस्टम ख़ुद असली KPI, हाज़िरी और सेल्स डेटा से निकालता है (कभी रुपये या मात्रा का सीधा आँकड़ा नहीं, हमेशा %, ताकि कम कीमत वाली रेंज को नुक़सान न हो); फिर टीम इन नामांकितों में वोट करती है। विजेता सेरेमनी से पहले ही आँकड़े और वोट के साथ बताए जाते हैं, ताकि किसी के मन में सवाल न रहे।'],pages:['rewards'],needs:[]});
+['Starter','Business','Performance','Complete'].forEach(p=>{if(PLANS[p])PLANS[p].push('rewards')});
+PAGEMOD.rewards='rewards';PAGES.push('rewards');LIC.mods.rewards=true;
+Object.keys(RIGHTS).forEach(r=>{RIGHTS[r].rewards=r==='platform'?[]:['V']});
+NAV.splice(NAV.findIndex(n=>n.id==='engage')+1,0,{id:'rewards',ic:'M12 15a7 7 0 100-14 7 7 0 000 14zM8.2 13.9L7 23l5-3 5 3-1.2-9.1',roles:[],day:'—',built:true});
+NAVMODS.splice(NAVMODS.findIndex(g=>g.ids.includes('engage'))+1,0,{h:['Rewards','रिवॉर्ड्स'],ids:['rewards']});
+TABKEY.rewards='rwtab';
+PAGEFN.rewards=()=>rewardsPage();
+{const _ph=placeholder;placeholder=function(P){return P==='rewards'?rewardsPage():_ph(P)}}
+
+/* ---------- masters: role groups (which designations a role-based category looks at) and categories ---------- */
+const RWGROUP=[
+ {id:1,name:['Sales & Retail','सेल्स और रिटेल'],desigs:[]},
+ {id:2,name:['Operations & Warehouse','ऑपरेशन्स और वेयरहाउस'],desigs:[]},
+ {id:3,name:['Support Services','सपोर्ट सर्विसेज़'],desigs:[]},
+ {id:4,name:['Admin & Back Office','एडमिन और बैक ऑफ़िस'],desigs:[]}
+];
+const RWCAT=[
+ {id:1,name:['Top Seller','टॉप सेलर'],group:1,metric:'target',active:true,desc:['Highest target achievement % of the quarter (not the rupee amount), so a lower-priced range is never at a disadvantage.','तिमाही की सबसे ज़्यादा टारगेट अचीवमेंट % (रुपये का आँकड़ा नहीं), ताकि कम कीमत वाली रेंज को नुक़सान न हो।']},
+ {id:2,name:['Operations Star','ऑपरेशन्स स्टार'],group:2,metric:'kpi',active:true,desc:['Highest average KPI score of the quarter.','तिमाही का सबसे ज़्यादा औसत KPI स्कोर।']},
+ {id:3,name:['Support Champion','सपोर्ट चैंपियन'],group:3,metric:'kpi',active:true,desc:['Highest average KPI score of the quarter.','तिमाही का सबसे ज़्यादा औसत KPI स्कोर।']},
+ {id:4,name:['Back Office Excellence','बैक ऑफ़िस एक्सीलेंस'],group:4,metric:'kpi',active:true,desc:['Highest average KPI score of the quarter.','तिमाही का सबसे ज़्यादा औसत KPI स्कोर।']},
+ {id:5,name:['Employee of the Quarter','तिमाही का कर्मचारी'],group:null,metric:'kpi',active:true,desc:['Highest average KPI score of the quarter, any designation.','तिमाही का सबसे ज़्यादा औसत KPI स्कोर, कोई भी पद।']},
+ {id:6,name:['Most Improved','सबसे ज़्यादा सुधार'],group:null,metric:'improve',active:true,desc:['Biggest rise in KPI score from the quarter before.','पिछली तिमाही से KPI स्कोर में सबसे ज़्यादा बढ़त।']},
+ {id:7,name:['Perfect Attendance','परफ़ेक्ट अटेंडेंस'],group:null,metric:'attendance',active:true,desc:['Highest attendance % of the quarter.','तिमाही की सबसे ज़्यादा उपस्थिति %।']},
+ {id:8,name:['Best Team Player','बेस्ट टीम प्लेयर'],group:null,metric:'vote',active:true,desc:['Decided only by colleagues: a short nomination round, then a vote among the most-named people. No KPI, sales or manager score decides it.','सिर्फ़ साथियों की राय से तय: पहले छोटा नामांकन दौर, फिर सबसे ज़्यादा नाम आने वालों में वोट। कोई KPI, सेल्स या मैनेजर स्कोर तय नहीं करता।']}
+];
+let rwSeq=9;
+const RWMET={target:['Target achievement','टारगेट अचीवमेंट'],kpi:['KPI score','KPI स्कोर'],improve:['KPI score, rise from last quarter','KPI स्कोर, पिछली तिमाही से बढ़त'],attendance:['Attendance','हाज़िरी'],vote:['Peer nomination only','सिर्फ़ साथियों का नामांकन']};
+
+/* ---------- quarter math: reward cycles run on the same April-March year as Recognition and the career KPI year ---------- */
+const RW_MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function rwQKeys(fy,qn){const months={1:[3,4,5],2:[6,7,8],3:[9,10,11],4:[0,1,2]}[qn];
+ return months.map(mi=>{const yy=qn===4?fy+1:fy;return{hi:RW_MN[mi]+'-'+yy,lo:yy+'-'+String(mi+1).padStart(2,'0')}})}
+const rwQStr=(fy,qn)=>fy+'-Q'+qn;
+const rwQLabel=(fy,qn)=>`${RW_MN[{1:3,2:6,3:9,4:0}[qn]]}–${RW_MN[{1:5,2:8,3:11,4:2}[qn]]} ${qn===4?fy+1:fy} (Q${qn}, FY${String(fy).slice(2)}-${String(fy+1).slice(2)})`;
+function rwPrevQ(fy,qn){return qn===1?{fy:fy-1,qn:4}:{fy,qn:qn-1}}
+function rwThisQ(){const fy=M>=3?Y:Y-1, qn=M>=3&&M<=5?1:M>=6&&M<=8?2:M>=9&&M<=11?3:4;return{fy,qn}}
+function rwLastClosedQ(){const t=rwThisQ();return rwPrevQ(t.fy,t.qn)}
+function rwQOpts(n){const out=[];let q=rwLastClosedQ();for(let i=0;i<n;i++){out.push({...q});q=rwPrevQ(q.fy,q.qn)}return out}
+
+/* ---------- the metric for one employee, for one category, in one quarter: always a %, never a raw number ---------- */
+function rwKpiAvg(e,per){const v=per.map(p=>(KFS[e.id+'|'+p.hi]||{}).pct).filter(x=>x!=null);return v.length?r2(v.reduce((s,x)=>s+x,0)/v.length):null}
+function rwMetricVal(cat,e,q){const per=rwQKeys(q.fy,q.qn);
+ if(cat.metric==='target'){let t=0,a=0,any=false;per.forEach(p=>{const tg=SRC.tgt_emp.find(x=>x.emp===e.id&&x.month===p.hi&&x.status==='Approved');if(tg){any=true;t+=+tg.amount||0;const rp=SRC.rep_emp.find(x=>x.emp===e.id&&x.month===p.hi);a+=(rp&&rp.sale)||0}});return any&&t?r2(a/t*100):null}
+ if(cat.metric==='kpi')return rwKpiAvg(e,per);
+ if(cat.metric==='improve'){const cur=rwKpiAvg(e,per), pv=rwPrevQ(q.fy,q.qn), prev=rwKpiAvg(e,rwQKeys(pv.fy,pv.qn));return(cur!=null&&prev!=null)?r2(cur-prev):null}
+ if(cat.metric==='attendance'){let pr=0,base=0;per.forEach(p=>{try{const r=withMonth(p.lo,()=>attRow(e,p.lo));pr+=r.present;base+=r.present+r.lop}catch(x){}});return base?r2(pr/base*100):null}
+ return null}
+const rwFmtVal=(cat,v)=>v==null?'—':cat.metric==='attendance'||cat.metric==='target'?v+'%':cat.metric==='improve'?(v>=0?'+':'')+v+' pts':v+'/100';
+
+/* ---------- eligible employees for a category, in a branch: active, has the designation (role categories) or any designation (universal) ---------- */
+function rwEligible(cat,branch){const grp=cat.group?RWGROUP.find(g=>g.id===cat.group):null;
+ return DATA.emps.filter(e=>e.active&&e.branch===branch&&(!grp||grp.desigs.includes(+e.desig)))}
+
+/* ---------- one cycle = one category + one branch + one quarter ---------- */
+const RWC={};
+const rwKey=(cat,branch,q)=>cat+'|'+branch+'|'+rwQStr(q.fy,q.qn);
+function rwGet(cat,branch,q){return RWC[rwKey(cat,branch,q)]}
+function rwEnsure(cat,branch,q){const k=rwKey(cat,branch,q);return RWC[k]||(RWC[k]={id:++rwSeq,cat,branch,q,status:'draft',nominees:[],peerNoms:{},votes:{},winner:null,votingFrom:'',votingTo:'',publishedAt:'',heldAt:'',heldNote:''})}
+const NOM_N=5;
+/* auto-generate the nominees of a category+branch+quarter from real data; for "vote" categories this instead opens the nomination round */
+function rwGenerate(cat,branch,q){const c=rwEnsure(cat.id,branch,q);
+ if(cat.metric==='vote'){c.status='nominating';c.peerNoms={};return c}
+ const vals=rwEligible(cat,branch).map(e=>({emp:e.id,val:rwMetricVal(cat,e,q)})).filter(x=>x.val!=null).sort((a,b)=>b.val-a.val);
+ c.nominees=vals.slice(0,NOM_N);c.status=c.nominees.length?'nominated':'empty';return c}
+function rwClosePeerNoms(cat,branch,q){const c=rwGet(cat.id,branch,q);if(!c||c.status!=='nominating')return;
+ const ranked=Object.keys(c.peerNoms).filter(id=>id!=='__by').map(id=>({emp:+id,val:c.peerNoms[id]})).sort((a,b)=>b.val-a.val);
+ c.nominees=ranked.slice(0,NOM_N);c.status=c.nominees.length?'nominated':'empty'}
+function rwOpenVoting(cat,branch,q,days){const c=rwGet(cat.id,branch,q);if(!c||c.status!=='nominated')return;
+ c.status='voting';c.votingFrom=TODAY_S;c.votingTo=addD(TODAY_S,Math.max(1,+days||5));c.votes={};
+ const emps=c.nominees.map(n=>n.emp);notify(rwEligible(cat,branch).map(e=>e.id),`${L('Vote now','अभी वोट करें')}: ${L(...cat.name)} — ${esc(nm('branches',branch))}`,{page:'rewards',tab:'vote'},'rwv'+c.id)}
+function rwCloseVoting(cat,branch,q){const c=rwGet(cat.id,branch,q);if(!c||c.status!=='voting')return;
+ const tally={};Object.values(c.votes).forEach(v=>tally[v]=(tally[v]||0)+1);
+ const ranked=c.nominees.map(n=>({...n,votes:tally[n.emp]||0})).sort((a,b)=>b.votes-a.votes||(b.val||0)-(a.val||0));
+ c.nominees=ranked;c.winner=ranked.length?ranked[0].emp:null;c.status='closed'}
+function rwPublish(cat,branch,q){const c=rwGet(cat.id,branch,q);if(!c||c.status!=='closed'||!c.winner)return;
+ c.status='published';c.publishedAt=TODAY_S;const w=empById(c.winner);
+ egAddNotice({title:`🏆 ${L(...cat.name)} — ${esc(nm('branches',branch))}: ${esc(w.name)}`,body:L('Chosen by the team’s own vote. See Rewards > Hall of Fame for the full count.','टीम के अपने वोट से चुना गया। पूरी गिनती Rewards > Hall of Fame में देखें।'),aud:[{d:'branch',v:branch}],by:me(),pin:true});
+ notify([c.winner],`🏆 ${L('Congratulations! You have won','बधाई हो! आपने जीता')}: ${L(...cat.name)}`,{page:'rewards',tab:'hof'},'rww'+c.id);
+ audit('Rewards','Published',`${L(...cat.name)[0]} · ${nm('branches',branch)} · ${rwQLabel(q.fy,q.qn)}`,w.name)}
+function rwMarkHeld(cat,branch,q,note){const c=rwGet(cat.id,branch,q);if(!c||c.status!=='published')return;c.status='held';c.heldAt=TODAY_S;c.heldNote=(note||'').trim()}
+
+/* ---------- Inbox: a pending vote (or nomination) shows up like everything else ---------- */
+INBOX_SRC.push((id,out)=>{const e=empById(id);if(!e)return;
+ Object.values(RWC).forEach(c=>{if(c.branch!==e.branch)return;const cat=RWCAT.find(x=>x.id===c.cat);if(!cat)return;
+  if(c.status==='nominating'&&!c.peerNoms._by)return; // handled by its own "nominate" card below, not duplicated here
+  if(c.status==='voting'&&c.votes[e.id]==null&&rwEligible(cat,c.branch).some(x=>x.id===e.id))ibAdd(out,{kind:'rwvote',title:`${L('Vote','वोट करें')}: ${L(...cat.name)} — ${esc(nm('branches',c.branch))}`,subject:0,page:'rewards',tab:'vote',due:c.votingTo})});
+ Object.values(RWC).forEach(c=>{if(c.branch!==e.branch||c.status!=='nominating')return;const cat=RWCAT.find(x=>x.id===c.cat);if(!cat)return;
+  if(!(c.peerNoms.__by&&c.peerNoms.__by[e.id]))ibAdd(out,{kind:'rwnom',title:`${L('Nominate a colleague','साथी को नामांकित करें')}: ${L(...cat.name)} — ${esc(nm('branches',c.branch))}`,subject:0,page:'rewards',tab:'vote'})})});
+KINDL.rwvote=['Rewards','रिवॉर्ड्स'];KINDL.rwnom=['Rewards','रिवॉर्ड्स'];
+IBKIND.rwvote=['do','Vote','वोट करें','Open and vote','खोलकर वोट करें'];IBKIND.rwnom=['do','Nominate someone','किसी को नामांकित करें','Open and nominate','खोलकर नामांकित करें'];
+
+/* ---------- screens ---------- */
+Object.assign(state,{rwtab:null,rwb:0,rwq:0});
+function rwQSel(){const opts=rwQOpts(6);if(!state.rwqv)state.rwqv=opts[0];
+ return `<select class="inp" data-rwqsel style="max-width:230px">${opts.map((q,i)=>`<option value="${i}" ${state.rwqv.fy===q.fy&&state.rwqv.qn===q.qn?'selected':''}>${esc(rwQLabel(q.fy,q.qn))}</option>`).join('')}</select>`}
+function rwBranchSel(){const brs=DATA.branches.filter(b=>!b.off);if(!state.rwb)state.rwb=brs[0]?brs[0].id:0;
+ return `<select class="inp" data-rwbsel style="max-width:200px">${brs.map(b=>`<option value="${b.id}" ${+state.rwb===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select>`}
+const RW_ST={draft:['Not started','शुरू नहीं हुआ','p-teal'],nominating:['Nomination open','नामांकन खुला','p-warn'],nominated:['Nominees ready','नामांकित तैयार','p-teal'],empty:['No one qualified','कोई योग्य नहीं','p-bad'],voting:['Voting open','वोटिंग खुली','p-warn'],closed:['Winner decided','विजेता तय','p-ok'],published:['Announced','घोषित','p-ok'],held:['Ceremony held','सेरेमनी हो गई','p-ok']};
+function rwCycleTab(){const hr=canManage();if(!hr)return `<div class="card empty">${L('Only Admin and HR run the quarterly cycle. Everyone can vote (Vote tab) and see the results (Hall of Fame).','तिमाही साइकिल सिर्फ़ Admin और HR चलाते हैं। वोट (Vote टैब) और नतीजे (Hall of Fame) सब देख सकते हैं।')}</div>`;
+ const q=rwQOpts(6)[state.rwqv?rwQOpts(6).findIndex(x=>x.fy===state.rwqv.fy&&x.qn===state.rwqv.qn):0]||rwQOpts(6)[0], branch=+state.rwb||DATA.branches.find(b=>!b.off).id;
+ const rows=RWCAT.filter(c=>c.active).map(cat=>{const c=rwGet(cat.id,branch,q), st=c?c.status:'draft', grp=cat.group?RWGROUP.find(g=>g.id===cat.group):null;
+  const btn=!c||st==='draft'?`<button class="btn btn-p btn-s" data-rwgen="${cat.id}">${L('Generate nominees','नामांकित निकालें')}</button>`
+   :st==='empty'?`<button class="btn btn-o btn-s" data-rwgen="${cat.id}">${L('Try again','फिर कोशिश करें')}</button>`
+   :st==='nominating'?`<button class="btn btn-p btn-s" data-rwclosenom="${cat.id}">${L('Close nominations, start voting setup','नामांकन बंद करें')}</button>`
+   :st==='nominated'?`<button class="btn btn-p btn-s" data-rwopen="${cat.id}">${L('Open voting (5 days)','वोटिंग खोलें (5 दिन)')}</button>`
+   :st==='voting'?`<button class="btn btn-o btn-s" data-rwclose="${cat.id}">${L('Close voting now','अभी वोटिंग बंद करें')}</button> <small style="color:var(--muted)">${L('till','तक')} ${fmtS(c.votingTo)}</small>`
+   :st==='closed'?`<button class="btn btn-p btn-s" data-rwpub="${cat.id}">${L('Publish winner','विजेता घोषित करें')}</button>`
+   :st==='published'?`<button class="btn btn-o btn-s" data-rwheld="${cat.id}">${L('Mark ceremony held','सेरेमनी हो गई, दर्ज करें')}</button>`
+   :`<span class="pill p-ok">${L('Done','पूरा')}</span>`;
+  return `<tr><td><b>${esc(L(...cat.name))}</b><small style="display:block;color:var(--muted)">${grp?esc(L(...grp.name)):L('All designations','सभी पद')} · ${esc(L(...RWMET[cat.metric]))}</small></td>
+   <td><span class="pill ${RW_ST[st][2]}">${L(RW_ST[st][0],RW_ST[st][1])}</span></td>
+   <td>${c&&c.nominees.length?c.nominees.map(n=>`<div style="font-size:12.5px">${esc(nm_(n.emp))}${n.val!=null?' · '+rwFmtVal(cat,n.val):''}${n.votes!=null?' · '+n.votes+' '+L('votes','वोट'):''}</div>`).join(''):'—'}</td>
+   <td style="white-space:nowrap">${btn}</td></tr>`}).join('');
+ return `<div class="tools">${rwBranchSel()}${rwQSel()}</div>
+ <div class="card tw"><table class="tbl"><thead><tr><th>${L('Category','कैटेगरी')}</th><th>${t('status')}</th><th>${L('Nominees','नामांकित')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+ <p class="rule" style="font-size:12px;margin-top:10px">${L('Nominees are always worked out from a %, never a raw rupee or piece-count number, so no price range is at a disadvantage. Team Player has no number at all: colleagues nominate, then the branch votes among the most-named.','नामांकित हमेशा % से निकाले जाते हैं, रुपये या नग की सीधी गिनती से नहीं, ताकि कोई भी कीमत वाली रेंज नुक़सान में न रहे। Team Player का कोई आँकड़ा नहीं होता: साथी नामांकित करते हैं, फिर ब्रांच सबसे ज़्यादा नाम वालों में वोट करती है।')}</p>`}
+function rwVoteTab(){const id=me(), e=empById(id);if(!e)return '';
+ const items=[];Object.values(RWC).forEach(c=>{if(c.branch!==e.branch)return;const cat=RWCAT.find(x=>x.id===c.cat);if(!cat)return;
+  if(c.status==='nominating')items.push({c,cat,kind:'nom'});
+  else if(c.status==='voting'&&rwEligible(cat,c.branch).some(x=>x.id===id))items.push({c,cat,kind:'vote'})});
+ if(!items.length)return `<div class="card empty">${L('Nothing to vote or nominate right now.','अभी वोट या नामांकन के लिए कुछ नहीं है।')}</div>`;
+ return items.map(({c,cat,kind})=>{
+  if(kind==='nom'){const done=c.peerNoms.__by&&c.peerNoms.__by[id];const pool=rwEligible(cat,c.branch).filter(x=>x.id!==id);
+   return `<div class="card" style="margin-bottom:14px"><h3>${esc(L(...cat.name))} <small style="color:var(--muted);font-weight:400">· ${esc(nm('branches',c.branch))}</small></h3><p style="font-size:13px;color:var(--muted)">${esc(L(...cat.desc))}</p>
+    ${done?`<span class="pill p-ok">${L('You nominated','आपने नामांकित किया')}: ${esc(nm_(done))}</span>`:`<select class="inp" data-rwnomsel="${c.id}" style="max-width:260px"><option value="">${L('Choose a colleague','साथी चुनें')}</option>${pool.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select> <button class="btn btn-p btn-s" data-rwnomgo="${c.id}">${L('Nominate','नामांकित करें')}</button>`}</div>`}
+  const my=c.votes[id];
+  return `<div class="card" style="margin-bottom:14px"><h3>${esc(L(...cat.name))} <small style="color:var(--muted);font-weight:400">· ${esc(nm('branches',c.branch))} · ${L('till','तक')} ${fmtS(c.votingTo)}</small></h3><p style="font-size:13px;color:var(--muted)">${esc(L(...cat.desc))}</p>
+   <div class="grid g3">${c.nominees.map(n=>n.emp===id?'':`<div class="card" style="text-align:center"><b>${esc(nm_(n.emp))}</b>${n.val!=null?`<br><small style="color:var(--muted)">${rwFmtVal(cat,n.val)}</small>`:''}<div style="margin-top:8px">${my===n.emp?`<span class="pill p-ok">${L('Your vote','आपका वोट')}</span>`:my!=null?'':`<button class="btn btn-o btn-s" data-rwvotego="${c.id}:${n.emp}">${L('Vote','वोट करें')}</button>`}</div></div>`).join('')}</div></div>`}).join('')}
+function rwHofTab(){const brs=DATA.branches.filter(b=>!b.off), id=me(), e=empById(id), mine=e?e.branch:(brs[0]&&brs[0].id);
+ const branch=+state.rwb||mine, all=Object.values(RWC).filter(c=>c.branch===branch&&['published','held'].includes(c.status)).sort((a,b)=>(b.q.fy-a.q.fy)||(b.q.qn-a.q.qn));
+ if(!all.length)return `${rwBranchSel()}<div class="card empty" style="margin-top:12px">${L('No results announced yet for this branch.','इस ब्रांच के लिए अभी कोई नतीजा घोषित नहीं हुआ।')}</div>`;
+ const byQ={};all.forEach(c=>{const k=rwQStr(c.q.fy,c.q.qn);(byQ[k]=byQ[k]||[]).push(c)});
+ return `${rwBranchSel()}${Object.keys(byQ).map(k=>{const cs=byQ[k], q=cs[0].q;
+  return `<div class="card tw" style="margin-top:14px"><h3 style="padding:16px 18px 0">${esc(rwQLabel(q.fy,q.qn))}</h3><table class="tbl"><thead><tr><th>${L('Category','कैटेगरी')}</th><th>${L('Winner','विजेता')}</th><th>${L('Why','क्यों')}</th><th>${L('Other nominees and votes','बाकी नामांकित और वोट')}</th></tr></thead><tbody>${
+   cs.map(c=>{const cat=RWCAT.find(x=>x.id===c.cat), w=c.nominees.find(n=>n.emp===c.winner);
+    return `<tr><td><b>${esc(L(...cat.name))}</b></td><td>🏆 <b>${esc(nm_(c.winner))}</b></td><td>${w&&w.val!=null?rwFmtVal(cat,w.val)+' · ':''}${w?w.votes+' '+L('votes','वोट'):''}</td>
+     <td style="font-size:12.5px">${c.nominees.filter(n=>n.emp!==c.winner).map(n=>`${esc(nm_(n.emp))} (${n.votes||0})`).join(', ')||'—'}</td></tr>`}).join('')}</tbody></table></div>`}).join('')}`}
+function rwGroupModal(id){const g=id?RWGROUP.find(x=>x.id===id):{name:['',''],desigs:[]}, dl=DATA.desigs.filter(x=>x.active!==false);
+ openModal(`<h3>${id?L('Edit role group','रोल ग्रुप बदलें'):L('New role group','नया रोल ग्रुप')}</h3><label>${L('Name (English)','नाम (अंग्रेज़ी)')}</label><input class="inp" name="n0" value="${esc(g.name[0])}"><label>${L('Name (Hindi)','नाम (हिंदी)')}</label><input class="inp" name="n1" value="${esc(g.name[1])}">
+  <label style="margin-top:10px;display:block">${L('Designations in this group','इस ग्रुप में पद')}</label><div style="max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px">${dl.map(d=>`<label style="display:flex;gap:8px;font-weight:400;padding:3px 0"><input type="checkbox" value="${d.id}" ${g.desigs.includes(d.id)?'checked':''}> ${esc(d.name)}</label>`).join('')}</div>
+  <div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+ (f,close)=>{const v=Object.fromEntries(new FormData(f)), desigs=[...f.querySelectorAll('input[type=checkbox]:checked')].map(c=>+c.value);
+  if(id)Object.assign(g,{name:[v.n0.trim(),v.n1.trim()],desigs});else RWGROUP.push({id:++rwSeq,name:[v.n0.trim(),v.n1.trim()],desigs});
+  close();toast(t('saved'));render()})}
+function rwCatModal(id){const c=id?RWCAT.find(x=>x.id===id):{name:['',''],group:'',metric:'kpi',desc:['',''],active:true};
+ openModal(`<h3>${id?L('Edit category','कैटेगरी बदलें'):L('New category','नई कैटेगरी')}</h3><label>${L('Name (English)','नाम (अंग्रेज़ी)')}</label><input class="inp" name="n0" value="${esc(c.name[0])}"><label>${L('Name (Hindi)','नाम (हिंदी)')}</label><input class="inp" name="n1" value="${esc(c.name[1])}">
+  <label>${L('Role group (blank = all designations)','रोल ग्रुप (ख़ाली = सभी पद)')}</label><select class="inp" name="group"><option value="">—</option>${RWGROUP.map(g=>`<option value="${g.id}" ${c.group==g.id?'selected':''}>${esc(L(...g.name))}</option>`).join('')}</select>
+  <label>${L('How the nominees are worked out','नामांकित कैसे निकलेंगे')}</label><select class="inp" name="metric">${Object.keys(RWMET).map(k=>`<option value="${k}" ${c.metric===k?'selected':''}>${esc(L(...RWMET[k]))}</option>`).join('')}</select>
+  <label>${L('Shown to employees as the reason','कर्मचारियों को कारण के रूप में दिखेगा')}</label><textarea class="inp" name="d0" rows="2">${esc(c.desc[0])}</textarea><textarea class="inp" name="d1" rows="2">${esc(c.desc[1])}</textarea>
+  <label style="display:flex;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" name="active" ${c.active?'checked':''}> ${L('Active','चालू')}</label>
+  <div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+ (f,close)=>{const v=Object.fromEntries(new FormData(f)), o={name:[v.n0.trim(),v.n1.trim()],group:v.group?+v.group:null,metric:v.metric,desc:[v.d0.trim(),v.d1.trim()],active:!!v.active};
+  if(id)Object.assign(c,o);else RWCAT.push({id:++rwSeq,...o});
+  close();toast(t('saved'));render()})}
+function rwSetupTab(){if(!canManage())return '';
+ return `<div class="tools"><span style="color:var(--muted)">${L('Role groups decide who competes in a role-based category. A category with no group (blank) looks at every designation.','रोल ग्रुप तय करते हैं कि रोल-आधारित कैटेगरी में कौन मुक़ाबला करेगा। बिना ग्रुप वाली कैटेगरी हर पद को देखती है।')}</span></div>
+ <div class="card tw" style="margin-bottom:16px"><h3 style="padding:16px 18px 0">${L('Role groups','रोल ग्रुप')} <button class="btn btn-o btn-s" data-rwgnew style="float:right;margin:-4px 18px 0 0">+ ${L('Add','जोड़ें')}</button></h3><table class="tbl"><thead><tr><th>${L('Name','नाम')}</th><th>${L('Designations','पद')}</th><th></th></tr></thead><tbody>${
+  RWGROUP.map(g=>`<tr><td><b>${esc(L(...g.name))}</b></td><td style="font-size:12.5px">${g.desigs.map(d=>esc(nm('desigs',d))).join(', ')||'—'}</td><td style="text-align:right"><button class="btn btn-o btn-s" data-rwgedit="${g.id}">${t('edit')}</button></td></tr>`).join('')}</tbody></table></div>
+ <div class="card tw"><h3 style="padding:16px 18px 0">${L('Categories','कैटेगरी')} <button class="btn btn-o btn-s" data-rwcnew style="float:right;margin:-4px 18px 0 0">+ ${L('Add','जोड़ें')}</button></h3><table class="tbl"><thead><tr><th>${L('Name','नाम')}</th><th>${L('Group','ग्रुप')}</th><th>${L('Metric','मेट्रिक')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+  RWCAT.map(c=>`<tr><td><b>${esc(L(...c.name))}</b></td><td>${c.group?esc(L(...RWGROUP.find(g=>g.id===c.group).name)):L('All','सभी')}</td><td>${esc(L(...RWMET[c.metric]))}</td><td><span class="pill ${c.active?'p-ok':'p-bad'}">${c.active?L('Active','चालू'):L('Inactive','बंद')}</span></td><td style="text-align:right"><button class="btn btn-o btn-s" data-rwcedit="${c.id}">${t('edit')}</button></td></tr>`).join('')}</tbody></table></div>`}
+function rewardsPage(){const hr=canManage(), tabs=[['cycle',L('This quarter','इस तिमाही'),hr],['vote',L('Vote','वोट'),true],['hof',L('Hall of Fame','हॉल ऑफ़ फ़ेम'),true],['setup',L('Setup','सेटअप'),hr]].filter(x=>x[2]), tab=tabs.some(x=>x[0]===state.rwtab)?state.rwtab:tabs[0][0];
+ return `<div class="page-h"><div><h1>${L('Rewards & Recognition','रिवॉर्ड्स और रिकग्निशन')}</h1><p>${L('A quarterly reward in each category of each branch, decided by the team’s own vote.','हर ब्रांच की हर कैटेगरी का तिमाही रिवॉर्ड, टीम के अपने वोट से तय।')}</p></div></div>
+ <div class="tabs">${tabs.map(x=>`<button data-rwtab="${x[0]}" class="${tab===x[0]?'on':''}">${x[1]}</button>`).join('')}</div>
+ ${tab==='cycle'?rwCycleTab():tab==='vote'?rwVoteTab():tab==='hof'?rwHofTab():rwSetupTab()}`}
+{const _bi=bindExtra;bindExtra=function(){_bi();const m=$('#main'), on=(s,fn)=>m.querySelectorAll(s).forEach(fn);
+ on('[data-rwtab]',b=>b.onclick=()=>{state.rwtab=b.dataset.rwtab;render()});
+ on('[data-rwbsel]',s=>s.onchange=()=>{state.rwb=+s.value;render()});
+ on('[data-rwqsel]',s=>s.onchange=()=>{state.rwqv=rwQOpts(6)[+s.value];render()});
+ const curQ=()=>state.rwqv||rwQOpts(6)[0], curB=()=>+state.rwb||DATA.branches.find(b=>!b.off).id;
+ on('[data-rwgen]',b=>b.onclick=()=>{const cat=RWCAT.find(x=>x.id==b.dataset.rwgen);rwGenerate(cat,curB(),curQ());audit('Rewards','Nominees generated',L(...cat.name),nm('branches',curB()));toast(t('saved'));render()});
+ on('[data-rwclosenom]',b=>b.onclick=()=>{const cat=RWCAT.find(x=>x.id==b.dataset.rwclosenom);rwClosePeerNoms(cat,curB(),curQ());toast(t('saved'));render()});
+ on('[data-rwopen]',b=>b.onclick=()=>{const cat=RWCAT.find(x=>x.id==b.dataset.rwopen);rwOpenVoting(cat,curB(),curQ(),5);audit('Rewards','Voting opened',L(...cat.name),nm('branches',curB()));toast(t('saved'));render()});
+ on('[data-rwclose]',b=>b.onclick=()=>{const cat=RWCAT.find(x=>x.id==b.dataset.rwclose);rwCloseVoting(cat,curB(),curQ());audit('Rewards','Voting closed',L(...cat.name),nm('branches',curB()));toast(t('saved'));render()});
+ on('[data-rwpub]',b=>b.onclick=()=>{const cat=RWCAT.find(x=>x.id==b.dataset.rwpub);rwPublish(cat,curB(),curQ());toast(t('saved'));render()});
+ on('[data-rwheld]',b=>b.onclick=()=>{const cat=RWCAT.find(x=>x.id==b.dataset.rwheld);const note=prompt(L('Any note for the record? (optional)','रिकॉर्ड के लिए कोई नोट? (वैकल्पिक)')||'');rwMarkHeld(cat,curB(),curQ(),note);audit('Rewards','Ceremony held',L(...cat.name),nm('branches',curB()));toast(t('saved'));render()});
+ on('[data-rwnomgo]',b=>b.onclick=()=>{const cid=+b.dataset.rwnomgo, c=Object.values(RWC).find(x=>x.id===cid), sel=m.querySelector(`[data-rwnomsel="${cid}"]`), v=+sel.value;if(!v)return toast(L('Choose someone first','पहले किसी को चुनें'));
+  c.peerNoms[v]=(c.peerNoms[v]||0)+1;c.peerNoms.__by=c.peerNoms.__by||{};c.peerNoms.__by[me()]=v;toast(t('saved'));render()});
+ on('[data-rwvotego]',b=>b.onclick=()=>{const [cid,emp]=b.dataset.rwvotego.split(':').map(Number), c=Object.values(RWC).find(x=>x.id===cid);if(c.votes[me()]!=null)return;
+  c.votes[me()]=emp;toast(t('saved'));render()});
+ on('[data-rwgnew]',b=>b.onclick=()=>rwGroupModal(null));on('[data-rwgedit]',b=>b.onclick=()=>rwGroupModal(+b.dataset.rwgedit));
+ on('[data-rwcnew]',b=>b.onclick=()=>rwCatModal(null));on('[data-rwcedit]',b=>b.onclick=()=>rwCatModal(+b.dataset.rwcedit))}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
