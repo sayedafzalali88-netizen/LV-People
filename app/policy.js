@@ -236,7 +236,7 @@ function policiesPage(){
       <td style="text-align:right;white-space:nowrap">${b(`data-pmview="${p.id}"`,L('View','देखें'))} ${s.k==='ready'?b(`data-pmpub="${s.last.id}"`,L('Publish','प्रकाशित करें'),'btn-p'):''} ${s.k==='failed'?b(`data-pmretry="${s.last.id}"`,L('Try again','फिर कोशिश')):''} ${s.k!=='processing'?b(`data-pmnew="${p.id}"`,L('New version','नया वर्ज़न')):''} ${b(`data-pmedit="${p.id}"`,L('Edit','बदलें'))} ${p.status==='archived'?b(`data-pmres="${p.id}"`,L('Restore','वापस लाएँ')):b(`data-pmarc="${p.id}"`,L('Archive','आर्काइव'))} ${b(`data-pmdel="${p.id}"`,L('Delete','हटाएँ'),'btn-d')}</td></tr>`}).join('');
   const act=PM.pols.filter(p=>polState(p).k==='active').length;
   return head+(PM.err?`<p class="pill p-bad" style="display:block;white-space:normal">${esc(PM.err)}</p>`:'')+
-  `<div class="tools"><span class="ps-small">${PM.pols.length} ${L('policies','पॉलिसी')} · ${act} ${L('active','चालू')}</span><div style="flex:1"></div><button class="btn btn-o btn-s" data-pmreload>${L('Refresh','रीफ़्रेश')}</button></div>
+  `<div class="tools"><span class="ps-small">${PM.pols.length} ${L('policies','पॉलिसी')} · ${act} ${L('active','चालू')}</span><div style="flex:1"></div>${libTodo().length?`<span class="ps-small">${libTodo().length} ${L('only here, not in the Library','सिर्फ़ यहाँ हैं, Library में नहीं')}</span> <button class="btn btn-p btn-s" data-pmlib>${L('Add all to Library','सब Library में जोड़ें')}</button>`:''}<button class="btn btn-o btn-s" data-pmreload>${L('Refresh','रीफ़्रेश')}</button></div>
   <div class="card tw"><table class="tbl"><thead><tr><th>${L('Policy','पॉलिसी')}</th><th>${L('Live version','चालू वर्ज़न')}</th><th>${L('Who can see','कौन देख सकता है')}</th><th>${t('status')}</th><th>${L('Updated','अपडेट')}</th><th></th></tr></thead>
   <tbody>${rows||`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">${L('No policy yet. Click "Upload policy" to add the first one (PDF, DOCX or TXT).','अभी कोई पॉलिसी नहीं। पहली पॉलिसी जोड़ने के लिए "पॉलिसी अपलोड करें" दबाएँ (PDF, DOCX या TXT)।')}</td></tr>`}</tbody></table></div>`}
 
@@ -372,6 +372,7 @@ function csv(name,head,rows){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"'
   m.querySelectorAll('[data-poltab]').forEach(b=>b.onclick=()=>{state.poltab=b.dataset.poltab;if(b.dataset.poltab==='list')PM.loaded=false;render()});
   const on=(s,f)=>m.querySelectorAll(s).forEach(f);
   on('[data-pmup]',b=>b.onclick=()=>uploadModal(null));
+  on('[data-pmlib]',b=>b.onclick=()=>libImport(b));
   on('[data-pmreload]',b=>b.onclick=()=>{PM.loaded=false;render()});
   on('[data-pmnew]',b=>b.onclick=()=>uploadModal(b.dataset.pmnew));
   on('[data-pmedit]',b=>b.onclick=()=>editModal(b.dataset.pmedit));
@@ -441,4 +442,13 @@ function mountGuideCard(){
     GI.busy=false;guideLoad()};
   if(!GI.status&&!GI.err)guideLoad()}
 {const _r2=render;render=function(){_r2.apply(this,arguments);try{mountGuideCard()}catch(e){}}}
+/* ---------- the Library and the HR Assistant share one file: the bridge ---------- */
+window.LIBPA={on:()=>{try{return !!(LIVE.on&&modOn('policy')&&isHR())}catch(e){return false}},cats:()=>CATS,roles:ROLES.map(r=>r[0]),send:fd=>pa(fd),arch:id=>pa({action:'archive',policy_id:id}),restore:id=>pa({action:'restore',policy_id:id}),
+ status:async ids=>{const r=await sb().from('policy_versions').select('id,status,note,error').in('id',ids);if(r.error)throw r.error;const pv=await sb().from('policies').select('id,live_version_id');const live=new Set((pv.data||[]).map(x=>x.live_version_id));return (r.data||[]).map(x=>x.status==='ready'&&live.has(x.id)?{...x,status:'active'}:x)}};
+const libTodo=()=>{try{return (PM.pols||[]).filter(p=>p.status!=='archived'&&p.live_version_id&&!DOCS.some(d=>d.hraPol===p.id))}catch(e){return []}};
+async function libImport(btn){const todo=libTodo();if(!todo.length)return;btn.disabled=true;let ok=0,bad=0;
+ for(const p of todo){const live=versOf(p.id).find(v=>v.id===p.live_version_id);if(!live){bad++;continue}
+  try{const r=await pa({action:'file_url',version_id:live.id}), blob=await (await fetch(r.url)).blob(), url=await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob)});
+   DOCS.push({id:++seq,no:'DOC-'+String(DOCS.length+1).padStart(3,'0'),title:p.name,cat:'Policy',hraPol:p.id,acks:{},versions:[{ver:1,status:'Published',title:p.name,desc:'',file:live.file_name,fileUrl:url,effective:live.effective_date||TODAY_S,review:addD(TODAY_S,365),by:'HR Assistant',at:TODAY_S,ack:false,dl:true,aud:{all:true},hra:true,hcat:p.category||'Other',hraVer:live.id}]});ok++}catch(e){bad++}}
+ audit('Library','Policies of the HR Assistant added','',ok+' added'+(bad?', '+bad+' failed':''));toast(L(ok+' added to the Library'+(bad?', '+bad+' could not be added':''),ok+' Library में जुड़ीं'+(bad?', '+bad+' नहीं जुड़ सकीं':'')));PM.loaded=false;render()}
 })();
