@@ -122,6 +122,8 @@ async function loadStores(){
     if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>{if(Array.isArray(v[k]))v[k]=[];else delete v[k]})}
       if(!demo&&n==='PAYRUN')Object.keys(v).forEach(k=>v[k]='draft');
       if(!demo&&n==='ORGS'&&LIVE.client){v.org=LIVE.client.name}
+      /* the ready roles of the sample company point to sample people (employee numbers 1, 2, 3...): a new client starts with no holder, the admin maps each role to a real person in the Setup guide */
+      if(!demo&&n==='ROLES'&&Array.isArray(v))v.forEach(r=>{if(r&&Array.isArray(r.maps))r.maps=r.maps.filter(m=>m&&+m.holder===1)});
       LIVE.stSnap[n]={}; continue }
     if(Array.isArray(v)){v.length=0;mine.sort((a,b)=>{const x=a.key.split(':'), y=b.key.split(':');return (+x[1]||0)-(+y[1]||0)}).forEach(r=>v.push(r.data))}
     else{/* SLA: a value added by a newer version of the app stays when the saved list does not have it yet */
@@ -337,8 +339,8 @@ async function loadAccounts(){if(!isHRrole())return;const r=await sb.from('profi
 function showPasswords(list){if(!list.length)return;try{openModal(`<h3>${L('Give these first passwords','ये पहले पासवर्ड दें')}</h3><p style="font-size:13px;color:var(--muted)">${L('SMS and email are not connected yet, so give each person the company code, the employee number and this password. They must change it at the first sign-in. This list is shown only now.','SMS और ईमेल अभी नहीं जुड़े, इसलिए हर व्यक्ति को कंपनी कोड, कर्मचारी नंबर और यह पासवर्ड दें। पहले साइन-इन पर बदलना होगा। यह सूची सिर्फ़ अभी दिखती है।')}</p>
   <div class="card tw"><table class="tbl"><thead><tr><th>${L('Company code','कंपनी कोड')}</th><th>${L('Employee','कर्मचारी')}</th><th>${L('Password','पासवर्ड')}</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(LIVE.client.code)}</td><td><b>${esc(x.code)}</b> ${esc(x.name)}</td><td style="font-family:monospace">${esc(x.pw)}</td></tr>`).join('')}</tbody></table></div><div class="acts"><button type="button" class="btn btn-p" data-close>${L('Done','हो गया')}</button></div>`,(f,close)=>close())}catch(e){}}
 async function ensureLogins(ids){if(!isHRrole())return;const made=[];
-  for(const e of DATA.emps){if(!ids.includes(e.id)||!e.active||LIVE.prof[e.id])continue;const uuid=LIVE.map.emps[e.id];if(!uuid)continue;const pw=tmpPw(), role=['admin','hr','manager','employee'].includes(roleOf(e))?roleOf(e):'employee';
-    const r=await sb.rpc('create_login',{p_employee:uuid,p_role:role==='admin'?'employee':role,p_password:pw});if(r.error)continue;made.push({code:e.code,name:e.name,pw})}
+  for(const e of DATA.emps){if(!ids.includes(e.id)||!e.active||LIVE.prof[e.id])continue;const uuid=LIVE.map.emps[e.id];if(!uuid)continue;const pw=tmpPw(), role='employee'; /* every new login starts as Employee; the HR and Manager roles are given by the admin in Accounts (no guessing from the designation or the reporting line) */
+    const r=await sb.rpc('create_login',{p_employee:uuid,p_role:role,p_password:pw});if(r.error)continue;made.push({code:e.code,name:e.name,pw})}
   if(made.length){await loadAccounts();showPasswords(made)}}
 try{hrReset=async function(eid){const p=LIVE.prof[eid], e=empById(eid);if(!p)return toast(L('This person has no login yet','इस व्यक्ति का लॉगिन अभी नहीं है'));const pw=tmpPw();
   const r=await sb.rpc('reset_login_password',{p_user:p.user_id,p_password:pw});if(r.error)return toast(r.error.message);await loadAccounts();showPasswords([{code:e.code,name:e.name,pw}]);render()}}catch(e){}
