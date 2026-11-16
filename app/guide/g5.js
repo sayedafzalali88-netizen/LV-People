@@ -136,7 +136,7 @@ G('leave', ['Leave', 'छुट्टी'], ['Apply for leave, approve leave, en
     why: ['So that you know the days off.', 'ताकि आपको पता रहे कि कब अवकाश है।'],
     who: ['Everyone.', 'सब।'],
     steps: [['Open Leave > Holidays and read the list.', 'Leave > Holidays खोलें और लिस्ट पढ़ें।']],
-    notes: [['HR sets the holidays in Core Setting > Time Office > Holiday calendar.', 'HR छुट्टियाँ Core Setting > Time Office > Holiday calendar में तय करता है।']] }
+    notes: [['HR sets the holidays in Core Setting > Time Office > Public/Festival Calendar.', 'HR छुट्टियाँ Core Setting > Time Office > Public/Festival Calendar में तय करता है।']] }
 ]);
 
 G('attendance', ['Attendance', 'हाज़िरी'], ['Your own attendance and the attendance of your team today.', 'आपकी अपनी हाज़िरी और आज आपकी टीम की हाज़िरी।'], [
