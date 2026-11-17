@@ -12571,6 +12571,8 @@ bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEa
 /* shift assignment in bulk: pick a group (function, department, branch, division, designation) or paste employee codes, tick who is included, one shift for all */
 const _at79=assignTab;
 assignTab=function(){if(asgMgr())return _at79();return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('To give one shift to many employees at once, use Bulk assign.','कई कर्मचारियों को एक साथ एक शिफ़्ट देने के लिए Bulk assign इस्तेमाल करें।')}</span><div style="flex:1"></div>${can('timeoffice','A')?`<button class="btn btn-p" data-asbulk>${L('Bulk assign','एक साथ असाइन')}</button>`:''}</div>`+_at79()};
+/* pasted employee codes: an exact code, or the same number without the leading zeros (Excel drops them: 1 for 0001) */
+function codeMatch(cs,pool){const ids=new Set(),miss=[];cs.forEach(c=>{const u=String(c).toUpperCase();let e=pool.find(x=>String(x.code).toUpperCase()===u);if(!e&&/^\d+$/.test(c))e=pool.find(x=>/^\d+$/.test(String(x.code))&&+x.code===+c);if(e)ids.add(e.id);else miss.push(c)});return{ids,miss}}
 function bulkAssignModal(pre){pre=pre&&pre.emp?pre:null;const picked=new Set(pre?pre.emp:[]);
  const f0={func:'',dept:'',branch:'',division:'',desig:''}, opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk shift assignment','एक साथ शिफ़्ट असाइनमेंट')}</h3>
@@ -12606,7 +12608,7 @@ function bulkAssignModal(pre){pre=pre&&pre.emp?pre:null;const picked=new Set(pre
  const $$=s=>bg.querySelector(s), codesEl=$$('[name=codes]');
  const shown=()=>{const f={...f0};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
   const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), q=($$('#asQ').value||'').trim().toLowerCase();
-  return DATA.emps.filter(e=>e.active&&(codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||e[k]==f[k]))&&(!q||(e.name+' '+e.code+' '+(nm('desigs',e.desig)||'')).toLowerCase().includes(q)))};
+  const cids=codes.length?codeMatch(codes,DATA.emps.filter(x=>x.active)).ids:null;return DATA.emps.filter(e=>e.active&&(codes.length?cids.has(e.id):Object.keys(f).every(k=>!f[k]||e[k]==f[k]))&&(!q||(e.name+' '+e.code+' '+(nm('desigs',e.desig)||'')).toLowerCase().includes(q)))};
  const prev=()=>{const fm=bg.querySelector('[name=from]').value, to0=bg.querySelector('[name=to]').value, to=to0||(fm?monthEnd(fm):''), rep=bg.querySelector('[name=mode]:checked').value==='replace', box=$$('#asPrev');
   if(!fm||!picked.size){box.innerHTML='';return}
   const hits=[];picked.forEach(id=>ASSIGN.filter(a=>a.emp===id&&a.st==='Approved'&&overlap(a.from,a.to,fm,to)).forEach(a=>hits.push({e:empById(id),a})));
@@ -12616,7 +12618,7 @@ function bulkAssignModal(pre){pre=pre&&pre.emp?pre:null;const picked=new Set(pre
  const cnt=()=>{$$('#asCnt').textContent=`${picked.size} ${L('selected of','चुने,')} ${DATA.emps.filter(e=>e.active).length}`;$$('#asGo').textContent=picked.size?`${L('Assign to','असाइन करें:')} ${picked.size}`:L('Assign','असाइन करें');prev()};
  const list=()=>{const rows=shown();
   $$('#asList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${picked.has(e.id)?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${esc(nm('desigs',e.desig))}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
- bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=()=>{const cs=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), miss=[];cs.forEach(c=>{const e=DATA.emps.find(x=>x.active&&String(x.code).toUpperCase()===c);if(e)picked.add(e.id);else miss.push(c)});$$('#asCodeNote').innerHTML=cs.length?`<span style="color:#0f766e">${cs.length-miss.length} ${L('found and ticked','मिले और टिक हुए')}</span>${miss.length?` · <span style="color:var(--bad)">${miss.length} ${L('not found','नहीं मिले')}: ${esc(miss.join(', '))}</span>`:''}`:'';list()};$$('#asQ').oninput=list;bg.querySelectorAll('[name=from],[name=to],[name=mode]').forEach(x=>x.onchange=prev);
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=()=>{const cs=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), miss=[];{const m=codeMatch(cs,DATA.emps.filter(x=>x.active));m.ids.forEach(i=>picked.add(i));miss.push(...m.miss)}$$('#asCodeNote').innerHTML=cs.length?`<span style="color:#0f766e">${cs.length-miss.length} ${L('found and ticked','मिले और टिक हुए')}</span>${miss.length?` · <span style="color:var(--bad)">${miss.length} ${L('not found','नहीं मिले')}: ${esc(miss.join(', '))}</span>`:''}`:'';list()};$$('#asQ').oninput=list;bg.querySelectorAll('[name=from],[name=to],[name=mode]').forEach(x=>x.onchange=prev);
  $$('#asTick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.add(x.id));list()};
  $$('#asUntick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.delete(x.id));list()};
  $$('#asClear').onclick=e=>{e.preventDefault();picked.clear();list()};
@@ -12673,11 +12675,11 @@ function bulkMgrModal(){const picked=new Set();
  const $$=s=>bg.querySelector(s), codesEl=$$('[name=codes]');
  const shown=()=>{const f={};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
   const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), q=($$('#mgQ').value||'').trim().toLowerCase();
-  return emps.filter(e=>(codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||String(e[k])===f[k]))&&(!q||(e.name+' '+e.code+' '+(nm('desigs',e.desig)||'')).toLowerCase().includes(q)))};
+  const cids=codes.length?codeMatch(codes,emps).ids:null;return emps.filter(e=>(codes.length?cids.has(e.id):Object.keys(f).every(k=>!f[k]||String(e[k])===f[k]))&&(!q||(e.name+' '+e.code+' '+(nm('desigs',e.desig)||'')).toLowerCase().includes(q)))};
  const cnt=()=>{$$('#mgCnt').textContent=`${picked.size} ${L('selected of','चुने,')} ${emps.length}`};
  const list=()=>{const rows=shown();
   $$('#mgList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${picked.has(e.id)?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${L('Reports to','रिपोर्ट')}: ${e.mgr?esc(nm_(+e.mgr)):'—'}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
- bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=()=>{const cs=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), miss=[];cs.forEach(c=>{const e=emps.find(x=>String(x.code).toUpperCase()===c);if(e)picked.add(e.id);else miss.push(c)});$$('#mgCodeNote').innerHTML=cs.length?`<span style="color:#0f766e">${cs.length-miss.length} ${L('found and ticked','मिले और टिक हुए')}</span>${miss.length?` · <span style="color:var(--bad)">${miss.length} ${L('not found','नहीं मिले')}: ${esc(miss.join(', '))}</span>`:''}`:'';list()};$$('#mgQ').oninput=list;
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=()=>{const cs=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), miss=[];{const m=codeMatch(cs,emps);m.ids.forEach(i=>picked.add(i));miss.push(...m.miss)}$$('#mgCodeNote').innerHTML=cs.length?`<span style="color:#0f766e">${cs.length-miss.length} ${L('found and ticked','मिले और टिक हुए')}</span>${miss.length?` · <span style="color:var(--bad)">${miss.length} ${L('not found','नहीं मिले')}: ${esc(miss.join(', '))}</span>`:''}`:'';list()};$$('#mgQ').oninput=list;
  $$('#mgTick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.add(x.id));list()};
  $$('#mgUntick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.delete(x.id));list()};
  $$('#mgClear').onclick=e=>{e.preventDefault();picked.clear();list()};
