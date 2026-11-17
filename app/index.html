@@ -12559,19 +12559,20 @@ bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEa
 /* shift assignment in bulk: pick a group (function, department, branch, division, designation) or paste employee codes, tick who is included, one shift for all */
 const _at79=assignTab;
 assignTab=function(){if(asgMgr())return _at79();return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('To give one shift to many employees at once, use Bulk assign.','कई कर्मचारियों को एक साथ एक शिफ़्ट देने के लिए Bulk assign इस्तेमाल करें।')}</span><div style="flex:1"></div>${can('timeoffice','A')?`<button class="btn btn-p" data-asbulk>${L('Bulk assign','एक साथ असाइन')}</button>`:''}</div>`+_at79()};
-function bulkAssignModal(){
+function bulkAssignModal(){const picked=new Set();
  const f0={func:'',dept:'',branch:'',division:'',desig:''}, opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk shift assignment','एक साथ शिफ़्ट असाइनमेंट')}</h3>
   <div class="fgrid"><div><label>${t('fn1')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('div1')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div></div>
   <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005, E006"></textarea>
-  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="asAll" checked> <b>${L('Select all','सभी चुनें')}</b> <span id="asCnt" style="color:var(--muted)"></span></label>
+  <label style="margin-top:10px">${L('Search employee','कर्मचारी खोजें')}</label><input class="inp" id="asQ" placeholder="${L('Name, code or designation','नाम, कोड या पद')}">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span id="asCnt" class="pill p-teal"></span><span style="font-size:12px"><a href="#" id="asTick">${L('Tick all shown','दिखे हुए सब चुनें')}</a> · <a href="#" id="asUntick">${L('Untick all shown','दिखे हुए सब हटाएँ')}</a> · <a href="#" id="asClear">${L('Clear all','सब हटाएँ')}</a></span></div>
   <div id="asList" class="card tw" style="padding:6px 10px;max-height:180px;overflow:auto"></div>
   <label>${t('as_shift')}</label><select class="inp" name="shift">${SHIFTS.filter(s=>!s.off).map(s=>`<option value="${s.id}">${esc(s.name)} ${hm(s.start)}-${hm(s.end)}</option>`).join('')}</select>
   <div class="fgrid"><div><label>${t('from')}</label><input class="inp" type="date" name="from" value="${TODAY_S}" required></div><div><label>${t('to')}</label><input class="inp" type="date" name="to"></div></div>
   <div class="fgrid"><div><label>${t('wo')}</label><select class="inp" name="wo"><option value="-1">${t('wo_none')}</option>${[0,1,2,3,4,5,6].map(i=>`<option value="${i}" ${i===0?'selected':''}>${WDN(i)}</option>`).join('')}</select></div><div><label>${t('wo_type')}</label><select class="inp" name="wot"><option value="F">${t('wo_full')}</option><option value="FH">${t('wo_fh')}</option><option value="SH">${t('wo_sh')}</option></select></div></div>
   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="repeat" checked> ${t('repeat_m')}</label>
-  <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Assign','असाइन करें')}</button></div>`,
- (f,close,bgm)=>{const v=Object.fromEntries(new FormData(f)), ids=[...bgm.querySelectorAll('#asList input:checked')].map(x=>+x.value), sh=SHIFTS.find(s=>s.id==v.shift), er=m=>bgm.querySelector('#me').textContent=m;
+  <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p" id="asGo">${L('Assign','असाइन करें')}</button></div>`,
+ (f,close,bgm)=>{const v=Object.fromEntries(new FormData(f)), ids=[...picked], sh=SHIFTS.find(s=>s.id==v.shift), er=m=>bgm.querySelector('#me').textContent=m;
   if(!ids.length)return er(L('Select at least one employee','कम से कम एक कर्मचारी चुनें'));if(!sh||sh.off)return er(t('e_shift_off'));
   const from=v.from, to=v.to||monthEnd(from);if(to<from)return er(t('e_dates'));
   const skip=[];let n=0;
@@ -12582,14 +12583,17 @@ function bulkAssignModal(){
   audit('Shift assignment','Bulk',`${sh.name} ${from} to ${to}`,`${n} assigned, ${skip.length} skipped`);close();toast(`${n} ${L('assigned','असाइन हुए')}`);
   if(skip.length)listModal(`${L('Not assigned','असाइन नहीं हुए')}: ${skip.length}`,skip.map(esc));else render();if(skip.length)render()});
  const $$=s=>bg.querySelector(s), codesEl=$$('[name=codes]');
- const list=()=>{const f={...f0};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
-  const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
-  const rows=DATA.emps.filter(e=>e.active&&(codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||e[k]==f[k])));
-  $$('#asList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${$$('#asAll').checked?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${esc(nm('desigs',e.desig))}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
- const cnt=()=>{const a=[...bg.querySelectorAll('#asList input')];$$('#asCnt').textContent=`${a.filter(x=>x.checked).length} / ${a.length}`};
- bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;
- $$('#asAll').onchange=()=>{bg.querySelectorAll('#asList input').forEach(x=>x.checked=$$('#asAll').checked);cnt()};
- $$('#asList').onchange=cnt;list()}
+ const shown=()=>{const f={...f0};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
+  const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), q=($$('#asQ').value||'').trim().toLowerCase();
+  return DATA.emps.filter(e=>e.active&&(codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||e[k]==f[k]))&&(!q||(e.name+' '+e.code+' '+(nm('desigs',e.desig)||'')).toLowerCase().includes(q)))};
+ const cnt=()=>{$$('#asCnt').textContent=`${picked.size} ${L('selected of','चुने,')} ${DATA.emps.filter(e=>e.active).length}`;$$('#asGo').textContent=picked.size?`${L('Assign to','असाइन करें:')} ${picked.size}`:L('Assign','असाइन करें')};
+ const list=()=>{const rows=shown();
+  $$('#asList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${picked.has(e.id)?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${esc(nm('desigs',e.desig))}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;$$('#asQ').oninput=list;
+ $$('#asTick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.add(x.id));list()};
+ $$('#asUntick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.delete(x.id));list()};
+ $$('#asClear').onclick=e=>{e.preventDefault();picked.clear();list()};
+ $$('#asList').onchange=e=>{const c=e.target;if(c.type==='checkbox'){c.checked?picked.add(+c.value):picked.delete(+c.value);cnt()}};list()}
 
 /* ---------- bulk change of reporting manager and functional manager, through a workflow; the pending work of the old manager moves to the new one ---------- */
 const mgrWfEnsure=()=>{if(!WF_TYPES.includes('Manager Change'))WF_TYPES.push('Manager Change');
