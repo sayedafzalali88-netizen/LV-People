@@ -1923,7 +1923,7 @@ function pmAssign(){
   <div class="card tw"><table class="tbl"><thead><tr><th>${t('k_id')}</th><th>${t('sc_scope')}</th><th>${t('sc_value')}</th><th>${t('sc_from')}</th><th>${t('sc_until')}</th><th>${t('emp_count')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(r=>`<tr style="${r.st==='Active'?'':'opacity:.55'}"><td><b>${r.kpi}</b><small style="display:block;color:var(--muted)">${esc(kpiById(r.kpi).name)}</small></td><td>${t('scope_'+r.scope)}</td><td>${ruleLabel(r)}</td><td>${fmtS(r.from)}</td><td>${r.until?fmtS(r.until):'—'}</td>
    <td><span class="pill p-teal">${DATA.emps.filter(e=>e.active&&ruleHits(r,e)).length}</span></td><td><span class="pill ${r.st==='Active'?'p-ok':'p-bad'}">${r.st==='Active'?t('active'):t('inactive_i')}</span></td>
-   <td style="text-align:right">${can('pms','E')?`<button class="btn btn-o btn-s ${r.st==='Active'?'btn-d':''}" data-rtog="${r.id}">${r.st==='Active'?t('inactivate'):t('activate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+   <td style="text-align:right;white-space:nowrap">${can('pms','E')?`<button class="btn btn-o btn-s" data-redit="${r.id}">${t('edit')}</button> <button class="btn btn-o btn-s ${r.st==='Active'?'btn-d':''}" data-rtog="${r.id}">${r.st==='Active'?t('inactivate'):t('activate')}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
   <p class="rule" style="font-size:13px;margin-top:10px">${t('sc_priority')}</p>`;
 }
 /* the KPI list of Add KPI assignment: search, a filter by scoring method, and the method on the right of every KPI */
@@ -1939,23 +1939,29 @@ function kpPick(){const items=KPI.filter(k=>k.active&&!kpiModOff(k)), hid=$('#kp
  tabs.addEventListener('click',e=>{const b=e.target.closest('[data-kpf]');if(!b)return;flt=b.dataset.kpf;draw()});
  list.addEventListener('click',e=>{const r=e.target.closest('[data-kpi]');if(!r)return;const k=items.find(x=>x.id===r.dataset.kpi);if(k){show(k);panel.style.display='none'}});
  if(items[0])show(items[0]);draw()}
-function ruleModal(){const sel=new Set();
-  openModal(`<h3>${t('add')} · ${t('pm_assign')}</h3><label>${t('k_id')}</label><div id="kpBox"><input type="hidden" name="kpi" value=""><button type="button" class="inp" id="kpBtn" style="display:flex;justify-content:space-between;align-items:center;text-align:left;cursor:pointer;width:100%"></button><div id="kpPanel" style="display:none;border:1px solid var(--line);border-radius:8px;margin-top:4px;background:var(--surface-2,#fff)"><input class="inp" id="kpQ" placeholder="${L('Search KPI number or name','KPI नंबर या नाम खोजें')}" style="margin:6px;width:calc(100% - 12px)"><div id="kpTabs" style="display:flex;gap:6px;flex-wrap:wrap;padding:0 8px 6px"></div><div id="kpList" style="max-height:240px;overflow:auto"></div></div></div>
-   <label>${t('sc_scope')}</label><select class="inp" name="scope" id="rscope">${SCOPES.map(s=>`<option value="${s}">${t('scope_'+s)}</option>`).join('')}</select>
+function ruleModal(rid){const sel=new Set(), ER=rid?KRULES.find(x=>x.id==rid):null;
+  openModal(`<h3>${ER?t('edit'):t('add')} · ${t('pm_assign')}</h3><label>${t('k_id')}</label><div id="kpBox"><input type="hidden" name="kpi" value=""><button type="button" class="inp" id="kpBtn" style="display:flex;justify-content:space-between;align-items:center;text-align:left;cursor:pointer;width:100%"></button><div id="kpPanel" style="display:none;border:1px solid var(--line);border-radius:8px;margin-top:4px;background:var(--surface-2,#fff)"><input class="inp" id="kpQ" placeholder="${L('Search KPI number or name','KPI नंबर या नाम खोजें')}" style="margin:6px;width:calc(100% - 12px)"><div id="kpTabs" style="display:flex;gap:6px;flex-wrap:wrap;padding:0 8px 6px"></div><div id="kpList" style="max-height:240px;overflow:auto"></div></div></div>
+   <label>${t('sc_scope')}</label><select class="inp" name="scope" id="rscope">${SCOPES.map(s=>`<option value="${s}" ${ER&&ER.scope===s?'selected':''}>${t('scope_'+s)}</option>`).join('')}</select>
    <label>${t('sc_value')}</label><div id="rvbox"></div>
-   <label>${t('sc_from')}</label><input class="inp" type="date" name="from" value="2026-10-01" required>
-   <label>${t('sc_until')}</label><input class="inp" type="date" name="until">
+   <label>${t('sc_from')}</label><input class="inp" type="date" name="from" value="${ER?ER.from:'2026-10-01'}" required>
+   <label>${t('sc_until')}</label><input class="inp" type="date" name="until" value="${ER?ER.until||'':''}">
+   ${ER?`<p class="rule" style="font-size:12px;margin:8px 0 0">${L('The KPI cannot be changed. The change counts from the From date. Scores of closed months are not changed.','KPI नहीं बदलता। बदलाव From तारीख़ से लागू होता है। बंद हो चुके महीनों के स्कोर नहीं बदलते।')}</p>`:''}
    <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
    <div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
   (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=k=>{bg.querySelector('#me').textContent=t(k)};
     const vals=v.scope==='Organization'?['']:[...sel];
     if(v.scope!=='Organization'&&!vals.length)return err('e_value');
     if(v.until&&v.until<v.from)return err('e_kdates');
+    if(ER){const first=vals[0];
+      if(KRULES.some(r=>r!==ER&&r.st==='Active'&&r.kpi===ER.kpi&&r.scope===v.scope&&r.value===first))return err('e_ruledup');
+      const was=`${ER.scope} ${ER.value} ${ER.from}→${ER.until||''}`;Object.assign(ER,{scope:v.scope,value:first,from:v.from,until:v.until});
+      let more=0;vals.slice(1).forEach(val=>{if(KRULES.some(r=>r.st==='Active'&&r.kpi===ER.kpi&&r.scope===v.scope&&r.value===val))return;KRULES.push({id:++seq,kpi:ER.kpi,scope:v.scope,value:val,from:v.from,until:v.until,st:'Active'});more++});
+      audit('KPI assignment','Edit',ER.kpi,`${was} → ${v.scope} ${vals.join(', ')} ${v.from}→${v.until||''}${more?' (+'+more+')':''}`);close();toast(t('saved'));render();return}
     let add=0,dup=0;
     vals.forEach(val=>{if(KRULES.some(r=>r.st==='Active'&&r.kpi===v.kpi&&r.scope===v.scope&&r.value===val)){dup++;return}KRULES.push({id:++seq,kpi:v.kpi,scope:v.scope,value:val,from:v.from,until:v.until,st:'Active'});add++});
     if(!add)return err('e_ruledup');
     audit('KPI assignment','Add',v.kpi,`${v.scope} ${vals.join(', ')}${add>1?' ('+add+' rules)':''}`);close();toast(dup?L(`${add} added, ${dup} already existed`,`${add} जुड़े, ${dup} पहले से थे`):add>1?L(`${add} assignments added`,`${add} असाइनमेंट जुड़े`):t('saved'));render()});
-  const fill=()=>{const sc=$('#rscope').value, box=$('#rvbox');sel.clear();
+  const fill=()=>{const sc=$('#rscope').value, box=$('#rvbox');sel.clear();if(ER&&sc===ER.scope&&ER.value!=='')sel.add(ER.value);
     if(sc==='Organization'){box.innerHTML=`<div style="color:var(--muted);font-size:13px">—</div>`;return}
     const items=DATA[SCOPE_SRC[sc]].filter(x=>!x.off&&(sc!=='Specific'||x.active));
     box.innerHTML=`<input class="inp" id="rvq" placeholder="${L('Search name or code','नाम या कोड खोजें')}" style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:4px"><span id="rvn" class="pill p-teal"></span><span><a href="#" id="rvall">${L('Select all shown','दिखे हुए सब चुनें')}</a> · <a href="#" id="rvclr">${L('Clear','हटाएँ')}</a></span></div><div id="rvl" style="border:1px solid var(--line);border-radius:8px;max-height:190px;overflow:auto"></div>`;
@@ -1964,6 +1970,7 @@ function ruleModal(){const sel=new Set();
       $('#rvl').querySelectorAll('input').forEach(c=>c.onchange=()=>{c.checked?sel.add(+c.value):sel.delete(+c.value);cnt()});cnt()};
     $('#rvq').oninput=draw;$('#rvall').onclick=e=>{e.preventDefault();shownNow().forEach(x=>sel.add(x.id));draw()};$('#rvclr').onclick=e=>{e.preventDefault();sel.clear();draw()};draw()};
   $('#rscope').onchange=fill;fill();kpPick();
+  if(ER){const h=$('#kpBox input[name=kpi]'), b=$('#kpBtn');h.value=ER.kpi;b.textContent=ER.kpi+' '+kpiById(ER.kpi).name;b.disabled=true}
 }
 function pmFormula(){
   return `<div class="card tw"><table class="tbl"><thead><tr><th>${t('k_id')}</th><th>${t('k_name')}</th><th>${t('k_method')}</th><th>${t('f_ok')}</th><th></th></tr></thead><tbody>${
@@ -2029,7 +2036,8 @@ bindExtra=function(){
   if($('#kmeth'))$('#kmeth').onchange=e=>{state.kmeth=e.target.value;render()};
   if($('#kf'))$('#kf').onchange=e=>{state.kfilt=e.target.value;render()};
   const kt=$('#kTbl');if(kt)kt.onclick=e=>{const r=e.target.closest('[data-kv]');if(r)kpiModal(r.dataset.kv)};
-  on('[data-radd]',b=>b.onclick=ruleModal);
+  on('[data-radd]',b=>b.onclick=()=>ruleModal());
+  on('[data-redit]',b=>b.onclick=()=>ruleModal(+b.dataset.redit));
   on('[data-rtog]',b=>b.onclick=()=>{const r=KRULES.find(x=>x.id==b.dataset.rtog);r.st=r.st==='Active'?'Inactive':'Active';audit('KPI assignment',r.st==='Active'?'Activate':'Inactivate',r.kpi,'');toast(t('saved'));render()});
   on('[data-fm]',b=>b.onclick=()=>methodModal(b.dataset.fm));
   if($('#mcp'))$('#mcp').onchange=e=>{state.mcp=e.target.value;render()};
