@@ -121,6 +121,8 @@ async function loadStores(){
   for(const n of [...CONFIG,...DATASTORES]){const v=ref(n);if(v==null||!itemsOf(n))continue;const mine=rows.filter(r=>r.store===n);
     if(!mine.length){ if(!demo&&DATASTORES.includes(n)){if(Array.isArray(v))v.length=0;else Object.keys(v).forEach(k=>{if(Array.isArray(v[k]))v[k]=[];else delete v[k]})}
       if(!demo&&n==='PAYRUN')Object.keys(v).forEach(k=>v[k]='draft');
+      /* the sample eSSL source and the two sample machines belong to the demo company only: a new client starts with none, and sets up its own in Integration */
+      if(!demo&&(n==='BIOSRC'||n==='BIODEV')&&Array.isArray(v))v.length=0;
       if(!demo&&n==='ORGS'&&LIVE.client){v.org=LIVE.client.name}
       /* the ready roles of the sample company point to sample people (employee numbers 1, 2, 3...): a new client starts with no holder, the admin maps each role to a real person in the Setup guide */
       if(!demo&&n==='ROLES'&&Array.isArray(v))v.forEach(r=>{if(r&&Array.isArray(r.maps))r.maps=r.maps.filter(m=>m&&+m.holder===1)});
