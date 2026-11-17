@@ -1876,11 +1876,11 @@ const mPill=m=>`<span class="pill ${m==='Auto'?'p-ok':m==='Manager Scoring'?'p-w
 /* ---------- PMS page ---------- */
 RIGHTS.hr.pms='VAEPX'.split('');RIGHTS.admin.pms='VAEPX'.split('');
 Object.assign(state,{pmtab:null,kq:'',kcat:'',kmeth:'',kfilt:'',mcp:CUR_P,mcview:null});
-function pmsTabs(){return can('pms','E')?['overview','dash','master','assign','formula','dsr','eval','audit','chk','survey','perf','close','counsel','career','cframe','pcase','letters','recog','mycareer','mine']:state.role==='manager'?['eval','audit','counsel','pcase','letters','survey','recog','mycareer','mine','team']:['mine','mycareer','audit','letters','survey','recog']}
+function pmsTabs(){return can('pms','E')?['overview','desk','dash','master','assign','formula','dsr','eval','audit','chk','survey','perf','close','counsel','career','cframe','pcase','letters','recog','mycareer','mine']:state.role==='manager'?['desk','eval','audit','counsel','pcase','letters','survey','recog','mycareer','mine','team']:['mine','mycareer','audit','letters','survey','recog']}
 function pmsPage(){
   try{pcSweep()}catch(x){}
   const tabs=pmsTabs(), tab=tabs.includes(state.pmtab)?state.pmtab:tabs[0];
-  const body={mycareer:pmMyCareer,cframe:pmCFrame,pcase:pmCases,overview:pmOverview,master:pmMaster,assign:pmAssign,formula:pmFormula,perf:pmPerf,close:pmClose,mine:pmMine,team:pmTeamTab,eval:pmEval,counsel:pmCounsel,career:pmCareer,letters:pmLetters,audit:pmAudit,chk:pmChk,survey:pmSurvey,dash:pmDash,recog:pmRecog,dsr:pmDsr}[tab]();
+  const body={mycareer:pmMyCareer,cframe:pmCFrame,pcase:pmCases,overview:pmOverview,master:pmMaster,assign:pmAssign,formula:pmFormula,perf:pmPerf,close:pmClose,mine:pmMine,team:pmTeamTab,eval:pmEval,counsel:pmCounsel,career:pmCareer,letters:pmLetters,audit:pmAudit,chk:pmChk,survey:pmSurvey,dash:pmDash,recog:pmRecog,dsr:pmDsr,desk:pmDesk}[tab]();
   const add=tab==='assign'&&can('pms','A')?`<button class="btn btn-p" data-radd>+ ${t('add')} ${t('pm_assign').toLowerCase()}</button>`:'';
   return `<div class="page-h"><div><h1>${t('pms')}</h1><p>${t('pms_sub')} · ${CUR_P} (${t('in_progress')})</p></div>${add}</div>
   <div class="tabs">${tabs.map(k=>`<button data-pmtab="${k}" class="${tab===k?'on':''}">${t('pm_'+k)}</button>`).join('')}</div>${body}`;
@@ -13171,6 +13171,48 @@ INBOX_SRC.push((id,out)=>{if(!sqPurchase().includes(id))return;SRQ.forEach(r=>{i
 rp('stk_req','stock','Stock requirements','स्टॉक रिक्वायरमेंट','month','M',f=>{const mk=f.mk||curMk(), H=['Requirement','Date','Division','Raised by','Kind','Code','Article','Colour, size','Qty','In store','Now in store','Sold in 30 days','Customers asked','Advance booking','Seen on','Priority','Needed by','Status','Photos'];
  const rows=SRQ.filter(r=>r.kind!=='none'&&r.date.slice(0,7)===mk&&sqSees(r)).flatMap(r=>(r.items||[]).map(i=>[r.no,r.date,divName(r.div),nm_(r.emp),sqKindL(r.kind),i.code||'',i.name,i.cs||'',i.qty,r.inst==='yes'?'Yes':r.inst==='no'?'No':'',r.sn,r.s30,r.cc,r.adv,r.seen,r.prio,r.need,sqSt(r),(r.photos||[]).length]));
  return{cols:H.map(x=>L(x,x)),rows,note:`${mk} · ${rows.length} ${L('lines','पंक्तियाँ')}`,dl:[{label:'Excel (.xlsx)',run:()=>{audit('Report','Stock requirements',mk,'');chlnXlsx('Stock-requirements-'+mk+'.xlsx','xlsx',[H,...rows],[14,12,14,20,22,12,24,16,8,8,12,14,14,12,14,10,12,22,8])}}]}});
+/* ---------- Employee Score Desk: one employee, every KPI, and why the points went ---------- */
+Object.assign(state,{dkEmp:0,dkb:''});
+Object.assign(T.en,{pm_desk:'Score desk'});Object.assign(T.hi,{pm_desk:'स्कोर डेस्क'});
+const DK_WORK=['P','L','HD','A'];
+/* day by day trail for the KPIs that are built from daily data: ok true / false / null (not a working day) */
+function dkTrail(e,k,n){
+ if(!['KPI-400','KPI-001','KPI-002'].includes(k.id))return null;
+ const o=[];for(let d=Math.max(1,TODAY_D-n+1);d<=TODAY_D;d++){const s=ds(d), st=dayRec(e.id,d).st, work=DK_WORK.includes(st);let ok=null;
+  if(k.id==='KPI-400'){if(work)ok=SRQ.some(r=>r.emp===e.id&&r.date===s)}
+  else if(k.id==='KPI-001'){if(work||st==='LV')ok=st!=='A'}
+  else if(work)ok=st!=='L';
+  o.push({s,ok})}
+ return o}
+function dkSummary(id){const e=empById(id), ms=monthState(id,CUR_P), sc=ms.rows.filter(x=>x.r.state==='SCORED'), mx=sc.reduce((a,x)=>a+x.k.max,0), got=sc.reduce((a,x)=>a+(x.r.score||0),0);
+ return{ms,pct:mx?Math.round(got/mx*100):null,lost:r2(mx-got),pend:ms.rows.filter(x=>x.r.state==='PENDING').length}}
+function dkRow({k,r},e){
+ const lost=r.state==='SCORED'?r2(k.max-r.score):0, tr=dkTrail(e,k,14);
+ const dots=tr?`<div style="margin-top:5px;display:flex;gap:2px;flex-wrap:wrap">${tr.map(x=>`<span title="${fmtS(x.s)}" style="width:14px;height:14px;border-radius:3px;background:${x.ok==null?'var(--line,#e5e7eb)':x.ok?'#0f766e':'#c0392b'}"></span>`).join('')}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${L('Last 14 days: green done, red missed, grey not a working day','पिछले 14 दिन: हरा हुआ, लाल छूटा, ग्रे कार्यदिवस नहीं')}${tr.filter(x=>x.ok===false).length?` · ${L('Missed','छूटे')}: ${tr.filter(x=>x.ok===false).map(x=>fmtS(x.s)).join(', ')}`:''}</div>`:'';
+ const go=k.id==='KPI-400'?`<div style="margin-top:4px"><a href="#" data-dkgo="stock:req" style="font-size:12px">${L('Open the task','काम खोलें')}</a></div>`:'';
+ return `<tr><td><b>${k.id}</b> ${esc(k.name)}<div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(r.text||'')}</div>${dots}${go}</td><td>${mPill(k.method)}</td><td style="text-align:right;white-space:nowrap">${r.state==='SCORED'?`<b>${r.score}</b> / ${k.max}${lost>0?`<div style="font-size:11px;color:var(--bad,#c0392b)">−${lost}</div>`:''}`:sPill(r.state)}</td></tr>`}
+function pmDesk(){
+ const all=scope().slice().sort((a,b)=>a.name<b.name?-1:1), brs=[...new Set(all.map(e=>e.branch))], list=all.filter(e=>!state.dkb||e.branch==state.dkb);
+ if(!all.length)return `<div class="card empty">${t('no_team')}</div>`;
+ if(!all.some(e=>e.id===state.dkEmp))state.dkEmp=all[0].id;
+ const sums={};list.forEach(e=>sums[e.id]=dkSummary(e.id));
+ const e=empById(state.dkEmp), S=dkSummary(e.id), ms=S.ms;
+ const rows=ms.rows.slice().sort((a,b)=>{const la=a.r.state==='SCORED'?a.k.max-a.r.score:-1, lb=b.r.state==='SCORED'?b.k.max-b.r.score:-1;return lb-la});
+ const top=rows.filter(x=>x.r.state==='SCORED'&&x.k.max-x.r.score>0).slice(0,3);
+ const side=list.map(x=>{const s=sums[x.id];return `<div data-dkemp="${x.id}" data-dkn="${esc((x.name+' '+x.id).toLowerCase())}" style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:7px 8px;border-radius:8px;cursor:pointer;margin-top:2px;${x.id===e.id?'background:var(--teal-bg,#e1f5ee);font-weight:600':''}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</span>${s.pct!=null?`<span class="pill ${band(s.pct)[1]}">${s.pct}</span>`:'<span class="pill p-teal">—</span>'}</div>`}).join('');
+ return `<div style="display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start">
+  <div class="card" style="padding:10px"><input class="inp" id="dkq" placeholder="${L('Search employee','कर्मचारी खोजें')}" style="width:100%"><select class="inp" id="dkb" style="width:100%;margin-top:6px"><option value="">${L('All branches','सभी शाखाएँ')}</option>${brs.map(b=>`<option value="${b}" ${state.dkb==b?'selected':''}>${esc(nm('branches',b))}</option>`).join('')}</select><div id="dklist" style="margin-top:8px;max-height:620px;overflow:auto">${side}</div><div style="font-size:12px;color:var(--muted);margin-top:6px">${list.length} ${L('employees','कर्मचारी')}</div></div>
+  <div>
+   <div class="card" style="margin-bottom:12px"><h3 style="margin:0">${esc(e.name)} · ${esc(nm('desigs',e.desig)||'')}</h3><div style="color:var(--muted);font-size:13px">${esc(nm('branches',e.branch)||'')} · ${CUR_P}</div>
+    <div class="grid g4" style="margin-top:10px"><div class="card"><small style="color:var(--muted)">${L('Score so far','अब तक स्कोर')}</small><div style="font-size:24px;font-weight:700">${S.pct!=null?S.pct+'%':'—'}</div></div><div class="card"><small style="color:var(--muted)">${L('Points lost','गए अंक')}</small><div style="font-size:24px;font-weight:700">${S.lost}</div></div><div class="card"><small style="color:var(--muted)">${L('Waiting on others','दूसरों पर रुके')}</small><div style="font-size:24px;font-weight:700">${S.pend} KPI</div></div></div></div>
+   ${top.length?`<div class="card" style="margin-bottom:12px;border-left:3px solid #C9A227"><b>${L('Most points lost','सबसे ज़्यादा अंक यहाँ गए')}</b>: ${top.map(x=>`${x.k.id} ${esc(x.k.name)} (−${r2(x.k.max-x.r.score)})`).join(' · ')}</div>`:''}
+   ${rows.length?`<div class="card tw"><table class="tbl"><thead><tr><th>${L('KPI and why','KPI और कारण')}</th><th>${t('k_method')}</th><th style="text-align:right">${t('k_score')}</th></tr></thead><tbody>${rows.map(x=>dkRow(x,e)).join('')}</tbody></table></div>`:`<div class="card empty">${t('no_kpi')}</div>`}
+   <p class="rule" style="font-size:12px;margin-top:8px">${L('The score comes from the month so far. A KPI that is scored at month end by a manager shows Pending until that is done.','स्कोर इस महीने तक का है। जिस KPI का स्कोर मैनेजर महीने के अंत में देता है वह तब तक Pending दिखता है।')}</p>
+  </div></div>`}
+document.addEventListener('click',ev=>{const a=ev.target.closest&&ev.target.closest('[data-dkemp],[data-dkgo]');if(!a)return;
+ if(a.dataset.dkemp){state.dkEmp=+a.dataset.dkemp;render()}else{ev.preventDefault();const [p,tb]=a.dataset.dkgo.split(':');goTo(p,tb)}});
+document.addEventListener('input',ev=>{if(ev.target.id!=='dkq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#dklist [data-dkn]').forEach(x=>x.style.display=x.dataset.dkn.includes(q)?'':'none')});
+document.addEventListener('change',ev=>{if(ev.target.id==='dkb'){state.dkb=ev.target.value;render()}});
 /* ---------- shell events ---------- */
 function resetViews(){Object.assign(state,{view:null,payview:null,atab:'mine',ltab:'mine',paytab:null})}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelector('.modal-bg')?.remove()});
