@@ -806,7 +806,7 @@ function openModal(html,onSubmit){
   bg.innerHTML=`<form class="modal">${html}</form>`;
   document.body.appendChild(bg);
   const close=()=>bg.remove();
-  bg.onclick=e=>{if(e.target===bg)close()};
+  /* a window closes only with its Cancel or Close button, never by a click outside it (a click outside, or a list that redraws under the pointer, used to close it and lose what was typed) */
   bg.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);
   bg.querySelector('form').onsubmit=e=>{e.preventDefault();onSubmit(e.target,close,bg)};
   const i=bg.querySelector('input,select');if(i)i.focus();
@@ -1570,12 +1570,12 @@ function shiftModal(id){
 }
 function assignTab(){
   const tm=asgMgr()?teamIds(me()):null, rows=[...ASSIGN].filter(a=>!tm||tm.has(a.emp)).sort((a,b)=>a.from<b.from?1:a.from>b.from?-1:a.emp-b.emp);
-  return `<div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('as_shift')}</th><th>${t('from')}</th><th>${t('to')}</th><th>${t('wo')}</th><th>${t('repeat_m')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
-   rows.map(a=>{const sh=SHIFTS.find(s=>s.id===a.shift)||{};return `<tr><td><b>${esc(empById(a.emp).name)}</b></td><td>${esc(sh.name||'-')} <small style="color:var(--muted)">${hm(sh.start||0)}</small></td><td>${fmtS(a.from)}</td><td>${fmtS(a.to)}</td>
+  return `<div class="tools"><input class="inp grow" id="asq" placeholder="${L('Search employee by name or code','नाम या कोड से कर्मचारी खोजें')}"></div><div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('as_shift')}</th><th>${t('from')}</th><th>${t('to')}</th><th>${t('wo')}</th><th>${t('repeat_m')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+   rows.map(a=>{const sh=SHIFTS.find(s=>s.id===a.shift)||{}, em=empById(a.emp), asn=esc((em.name+' '+em.code).toLowerCase());return `<tr data-asn="${asn}"><td><b>${esc(em.name)}</b></td><td>${esc(sh.name||'-')} <small style="color:var(--muted)">${hm(sh.start||0)}</small></td><td>${fmtS(a.from)}</td><td>${fmtS(a.to)}</td>
    <td>${a.wo>=0?`${WDN(a.wo)} · ${t(a.wot==='F'?'wo_full':a.wot==='FH'?'wo_fh':'wo_sh')}`:t('wo_none')}</td>
    <td>${a.repeat?'✓':'—'} ${a.auto?`<span class="pill p-teal">${t('auto_t')}</span>`:''}</td><td><span class="pill p-ok">${t('approved')}</span></td>
-   <td style="text-align:right;white-space:nowrap">${(can('timeoffice','E')||asgMgr())?`<button class="btn btn-o btn-s" data-woch="${a.id}">${L('Change weekly off','साप्ताहिक अवकाश बदलें')}</button> `:''}${a.repeat&&(can('timeoffice','E')||asgMgr())?`<button class="btn btn-o btn-s" data-stop="${a.id}">${t('stop_repeat')}</button>`:''}</td></tr>
-   ${a.log&&a.log.length?`<tr><td colspan="8" style="padding-top:0;font-size:12px;color:var(--muted)">${t('repeat_log')}: ${a.log.map(l=>`${l.month} ${esc(l.text)}`).join('; ')}</td></tr>`:''}`}).join('')}</tbody></table></div>`;
+   <td style="text-align:right;white-space:nowrap">${can('timeoffice','E')&&!asgMgr()?`<button class="btn btn-p btn-s" data-shch="${a.id}">${L('Change shift','शिफ़्ट बदलें')}</button> `:''}${(can('timeoffice','E')||asgMgr())?`<button class="btn btn-o btn-s" data-woch="${a.id}">${L('Change weekly off','साप्ताहिक अवकाश बदलें')}</button> `:''}${a.repeat&&(can('timeoffice','E')||asgMgr())?`<button class="btn btn-o btn-s" data-stop="${a.id}">${t('stop_repeat')}</button>`:''}</td></tr>
+   ${a.log&&a.log.length?`<tr data-asn="${asn}"><td colspan="8" style="padding-top:0;font-size:12px;color:var(--muted)">${t('repeat_log')}: ${a.log.map(l=>`${l.month} ${esc(l.text)}`).join('; ')}</td></tr>`:''}`}).join('')}</tbody></table></div>`;
 }
 function assignModal(){
   const today=TODAY_S;
@@ -8228,10 +8228,22 @@ bindExtra=function(){_bindExtra46();const m=$('#main'), on=(s,fn)=>m.querySelect
  on('[data-bimtpl]',b=>b.onclick=()=>csvDl('punch-log-sample.csv',punchSample()));
  on('[data-bimtplx]',b=>b.onclick=()=>xlsxLib().then(()=>{const ws=XLSX.utils.aoa_to_sheet(punchSample());ws['!cols']=[{wch:10},{wch:20},{wch:12},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Punches');XLSX.writeFile(wb,'punch-log-sample.xlsx')}).catch(()=>toast(L('Excel could not load. Use the sample CSV.','Excel लोड नहीं हुआ। सैंपल CSV लें।'))));
  on('[data-bimchk]',b=>b.onclick=()=>{BIMP.src=+(bs&&bs.value)||BIMP.src;BIMP.res=parsePunchLog(BIMP.text);render()});
- on('[data-bimok]',b=>b.onclick=()=>{const s=BIOSRC.find(x=>x.id===(+(bs&&bs.value)||BIMP.src))||BIOSRC.find(x=>x.con==='file'), r=BIMP.res, a=bioIngest(s,r.ok);
-  BIOIMP.unshift({at:new Date().toLocaleString(loc(),{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),file:BIMP.file||'pasted rows',src:s.name,by:USERS[state.role].name,ok:a.added+a.nomatch,total:r.ok.length+r.bad.length});
-  audit('Biometric import','Applied',BIMP.file||'pasted rows',`${a.added} matched, ${a.nomatch} unmatched, ${a.dup} repeat, ${r.bad.length} errors`);
-  BIMP.text='';BIMP.res=null;BIMP.file='';toast(`${a.added+a.nomatch} ${L('punches stored','पंच जमा हुईं')}${a.dup?`, ${a.dup} ${L('repeats ignored','दोहराई अनदेखी')}`:''}`);render()})};
+ on('[data-bimok]',b=>b.onclick=()=>{const r=BIMP.res;if(!r||!r.ok||!r.ok.length)return;
+  const show=(ok,title,body)=>openModal('<h3>'+L('Import report','इम्पोर्ट रिपोर्ट')+'</h3><div style="border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:600;background:'+(ok?'#e6f6ef;color:#0f766e':'#fdeaea;color:#c0392b')+'">'+(ok?'\u2714 ':'\u2716 ')+title+'</div>'+body+'<div class="acts"><button type="button" class="btn btn-p" data-close>'+L('Close','बंद करें')+'</button></div>',(f,close)=>close());
+  toast(L('Importing, please wait…','इम्पोर्ट हो रहा है, रुकें…'));
+  setTimeout(()=>{try{
+   let s=BIOSRC.find(x=>x.id===(+(bs&&bs.value)||BIMP.src))||BIOSRC.find(x=>x.st==='Active'&&x.con==='file')||BIOSRC.find(x=>x.st==='Active');
+   if(!s){s={id:++seq,name:L('File import','फ़ाइल इम्पोर्ट'),con:'file',branch:'',every:0,key:bioKey(),st:'Active',last:''};BIOSRC.push(s);audit('Biometric source','Add',s.name,'file (automatic)')}
+   const a=bioIngest(s,r.ok), emps=new Set(), days=new Set(), dts=[];
+   r.ok.forEach(x=>{const e=bioEmp(x.code);if(e){emps.add(e.id);days.add(e.id+'|'+x.ts.slice(0,10))}dts.push(x.ts.slice(0,10))});dts.sort();
+   BIOIMP.unshift({at:new Date().toLocaleString(loc(),{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),file:BIMP.file||'pasted rows',src:s.name,by:USERS[state.role].name,ok:a.added+a.nomatch,total:r.ok.length+r.bad.length});
+   audit('Biometric import','Applied',BIMP.file||'pasted rows',`${a.added} matched, ${a.nomatch} unmatched, ${a.dup} repeat, ${r.bad.length} errors`);
+   BIMP.text='';BIMP.res=null;BIMP.file='';render();
+   const box=(n,l)=>'<div style="background:var(--surface-1,#f4f7f6);border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:700">'+n+'</div><div style="font-size:11px;color:var(--muted)">'+l+'</div></div>';
+   show(a.added>0||a.nomatch>0,a.added>0?`${L('Import done','इम्पोर्ट पूरा')}: ${a.added} ${L('punches stored','पंच जमा हुए')}`:L('Nothing new was stored','कुछ नया जमा नहीं हुआ'),
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+box(a.added,L('Punches stored','जमा पंच'))+box(emps.size,L('Employees','कर्मचारी'))+box(days.size,L('Days with attendance','हाज़िरी वाले दिन'))+box(a.nomatch+a.dup+r.bad.length,L('Unmatched, repeats or errors','बिना मिलान, दोहराए या ग़लत'))+'</div>'+
+    '<p class="rule" style="font-size:12px;margin-top:10px">'+L('Source','सोर्स')+': '+esc(s.name)+(dts.length?' · '+fmtS(dts[0])+' '+L('to','से')+' '+fmtS(dts[dts.length-1]):'')+(a.dup?' · '+a.dup+' '+L('repeats ignored','दोहराए अनदेखे'):'')+(a.nomatch?' · '+a.nomatch+' '+L('with an ID that matches no employee','जिनका ID किसी कर्मचारी से नहीं मिला'):'')+'. '+L('The punches are in the Punch log below and in the Import history. Next: Time Office > Attendance Processing.','पंच नीचे पंच लॉग और इम्पोर्ट हिस्ट्री में हैं। अगला: Time Office > Attendance Processing।')+'</p>')
+  }catch(err){show(false,L('Import failed','इम्पोर्ट नहीं हुआ'),'<p class="rule" style="font-size:13px">'+esc(String(err&&err.message||err))+'</p>')}},60)})};
 
 /* ---------- Batch 47: attendance day rules (half day, WOP, HP, missed punch) and the punch exception tool in Time Office ---------- */
 Object.assign(SLA,{attFullHrs:8,attHalfHrs:4,attLateHalf:120,attEarlyHalf:120,attEarly:15,attEarlyMax:3,attMissMax:2,attFixDays:7});
@@ -12555,23 +12567,23 @@ function woModal(id){const a=ASSIGN.find(x=>x.id===id);if(!a)return;const e=empB
    audit('Shift assignment','Weekly off changed',`${e.code} ${e.name}`,`${was} → ${woTxt(tgt)} from ${from}`);close();toast(t('saved'));render()})}
 {const _bw=bindExtra;bindExtra=function(){_bw();try{$('#main').querySelectorAll('[data-woch]').forEach(b=>b.onclick=()=>woModal(+b.dataset.woch))}catch(e){}}}
 const _be79=bindExtra;
-bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEach(b=>b.onclick=()=>atvModal(b.dataset.atvopen));$('#main').querySelectorAll('[data-asbulk]').forEach(b=>b.onclick=bulkAssignModal)};
+bindExtra=function(){_be79();$('#main').querySelectorAll('[data-atvopen]').forEach(b=>b.onclick=()=>atvModal(b.dataset.atvopen));$('#main').querySelectorAll('[data-asbulk]').forEach(b=>b.onclick=()=>bulkAssignModal());$('#main').querySelectorAll('[data-shch]').forEach(b=>b.onclick=()=>{const a=ASSIGN.find(x=>x.id==b.dataset.shch);if(a)bulkAssignModal({emp:[a.emp],from:a.from>TODAY_S?a.from:TODAY_S})})};
 /* shift assignment in bulk: pick a group (function, department, branch, division, designation) or paste employee codes, tick who is included, one shift for all */
 const _at79=assignTab;
 assignTab=function(){if(asgMgr())return _at79();return `<div class="tools"><span style="color:var(--muted);font-size:13px">${L('To give one shift to many employees at once, use Bulk assign.','कई कर्मचारियों को एक साथ एक शिफ़्ट देने के लिए Bulk assign इस्तेमाल करें।')}</span><div style="flex:1"></div>${can('timeoffice','A')?`<button class="btn btn-p" data-asbulk>${L('Bulk assign','एक साथ असाइन')}</button>`:''}</div>`+_at79()};
-function bulkAssignModal(){const picked=new Set();
+function bulkAssignModal(pre){pre=pre&&pre.emp?pre:null;const picked=new Set(pre?pre.emp:[]);
  const f0={func:'',dept:'',branch:'',division:'',desig:''}, opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk shift assignment','एक साथ शिफ़्ट असाइनमेंट')}</h3>
   <div class="fgrid"><div><label>${t('fn1')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('div1')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div></div>
-  <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005, E006"></textarea>
+  <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005, E006"></textarea><div id="asCodeNote" style="font-size:12px;margin-top:4px"></div>
   <label style="margin-top:10px">${L('Search employee','कर्मचारी खोजें')}</label><input class="inp" id="asQ" placeholder="${L('Name, code or designation','नाम, कोड या पद')}">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span id="asCnt" class="pill p-teal"></span><span style="font-size:12px"><a href="#" id="asTick">${L('Tick all shown','दिखे हुए सब चुनें')}</a> · <a href="#" id="asUntick">${L('Untick all shown','दिखे हुए सब हटाएँ')}</a> · <a href="#" id="asClear">${L('Clear all','सब हटाएँ')}</a></span></div>
   <div id="asList" class="card tw" style="padding:6px 10px;max-height:180px;overflow:auto"></div>
   <label>${t('as_shift')}</label><select class="inp" name="shift">${SHIFTS.filter(s=>!s.off).map(s=>`<option value="${s.id}">${esc(s.name)} ${hm(s.start)}-${hm(s.end)}</option>`).join('')}</select>
-  <div class="fgrid"><div><label>${t('from')}</label><input class="inp" type="date" name="from" value="${TODAY_S}" required></div><div><label>${t('to')}</label><input class="inp" type="date" name="to"></div></div>
+  <div class="fgrid"><div><label>${t('from')}</label><input class="inp" type="date" name="from" value="${pre&&pre.from||TODAY_S}" required></div><div><label>${t('to')}</label><input class="inp" type="date" name="to"></div></div>
   <label style="margin-top:10px">${L('If a person already has a shift in these dates','जिसे इन तारीख़ों में पहले से शिफ़्ट है')}</label>
-  <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:4px 0"><input type="radio" name="mode" value="skip" checked> <span><b>${L('Skip them','उन्हें छोड़ें')}</b> <small style="color:var(--muted)">${L('nothing is changed','कुछ नहीं बदलता')}</small></span></label>
-  <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:4px 0"><input type="radio" name="mode" value="replace"> <span><b>${L('Replace from the From date','From तारीख़ से बदलें')}</b><small style="display:block;color:var(--muted)">${L('The old shift ends the day before the From date and the new shift starts on it. Earlier dates stay as they were.','पुरानी शिफ़्ट From से एक दिन पहले ख़त्म होती है और नई From से शुरू। उससे पहले की तारीख़ें जैसी थीं वैसी रहती हैं।')}</small></span></label>
+  <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:4px 0"><input type="radio" name="mode" value="skip" ${pre?'':'checked'}> <span><b>${L('Skip them','उन्हें छोड़ें')}</b> <small style="color:var(--muted)">${L('nothing is changed','कुछ नहीं बदलता')}</small></span></label>
+  <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:4px 0"><input type="radio" name="mode" value="replace" ${pre?'checked':''}> <span><b>${L('Replace from the From date','From तारीख़ से बदलें')}</b><small style="display:block;color:var(--muted)">${L('The old shift ends the day before the From date and the new shift starts on it. Earlier dates stay as they were.','पुरानी शिफ़्ट From से एक दिन पहले ख़त्म होती है और नई From से शुरू। उससे पहले की तारीख़ें जैसी थीं वैसी रहती हैं।')}</small></span></label>
   <div id="asPrev"></div>
   <div class="fgrid"><div><label>${t('wo')}</label><select class="inp" name="wo"><option value="-1">${t('wo_none')}</option>${[0,1,2,3,4,5,6].map(i=>`<option value="${i}" ${i===0?'selected':''}>${WDN(i)}</option>`).join('')}</select></div><div><label>${t('wo_type')}</label><select class="inp" name="wot"><option value="F">${t('wo_full')}</option><option value="FH">${t('wo_fh')}</option><option value="SH">${t('wo_sh')}</option></select></div></div>
   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="repeat" checked> ${t('repeat_m')}</label>
@@ -12604,7 +12616,7 @@ function bulkAssignModal(){const picked=new Set();
  const cnt=()=>{$$('#asCnt').textContent=`${picked.size} ${L('selected of','चुने,')} ${DATA.emps.filter(e=>e.active).length}`;$$('#asGo').textContent=picked.size?`${L('Assign to','असाइन करें:')} ${picked.size}`:L('Assign','असाइन करें');prev()};
  const list=()=>{const rows=shown();
   $$('#asList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${picked.has(e.id)?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${esc(nm('desigs',e.desig))}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
- bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;$$('#asQ').oninput=list;bg.querySelectorAll('[name=from],[name=to],[name=mode]').forEach(x=>x.onchange=prev);
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=()=>{const cs=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), miss=[];cs.forEach(c=>{const e=DATA.emps.find(x=>x.active&&String(x.code).toUpperCase()===c);if(e)picked.add(e.id);else miss.push(c)});$$('#asCodeNote').innerHTML=cs.length?`<span style="color:#0f766e">${cs.length-miss.length} ${L('found and ticked','मिले और टिक हुए')}</span>${miss.length?` · <span style="color:var(--bad)">${miss.length} ${L('not found','नहीं मिले')}: ${esc(miss.join(', '))}</span>`:''}`:'';list()};$$('#asQ').oninput=list;bg.querySelectorAll('[name=from],[name=to],[name=mode]').forEach(x=>x.onchange=prev);
  $$('#asTick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.add(x.id));list()};
  $$('#asUntick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.delete(x.id));list()};
  $$('#asClear').onclick=e=>{e.preventDefault();picked.clear();list()};
@@ -12634,7 +12646,7 @@ function bulkMgrModal(){const picked=new Set();
  const emps=DATA.emps.filter(e=>e.active), pick=n=>`<select class="inp" name="${n}"><option value="">—</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk change of manager','मैनेजर एक साथ बदलें')}</h3>
   <div class="fgrid"><div><label>${t('fn1')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('div1')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div><div><label>${L('Current reporting manager','अभी का रिपोर्टिंग मैनेजर')}</label><select class="inp" data-bf="mgr"><option value="">${L('All','सभी')}</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></div></div>
-  <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005"></textarea>
+  <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005"></textarea><div id="mgCodeNote" style="font-size:12px;margin-top:4px"></div>
   <label style="margin-top:10px">${L('Search employee','कर्मचारी खोजें')}</label><input class="inp" id="mgQ" placeholder="${L('Name, code or designation','नाम, कोड या पद')}">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span id="mgCnt" class="pill p-teal"></span><span style="font-size:12px"><a href="#" id="mgTick">${L('Tick all shown','दिखे हुए सब चुनें')}</a> · <a href="#" id="mgUntick">${L('Untick all shown','दिखे हुए सब हटाएँ')}</a> · <a href="#" id="mgClear">${L('Clear all','सब हटाएँ')}</a></span></div>
   <div id="mgList" class="card tw" style="padding:6px 10px;max-height:170px;overflow:auto"></div>
@@ -12665,7 +12677,7 @@ function bulkMgrModal(){const picked=new Set();
  const cnt=()=>{$$('#mgCnt').textContent=`${picked.size} ${L('selected of','चुने,')} ${emps.length}`};
  const list=()=>{const rows=shown();
   $$('#mgList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${picked.has(e.id)?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${L('Reports to','रिपोर्ट')}: ${e.mgr?esc(nm_(+e.mgr)):'—'}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
- bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;$$('#mgQ').oninput=list;
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=()=>{const cs=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), miss=[];cs.forEach(c=>{const e=emps.find(x=>String(x.code).toUpperCase()===c);if(e)picked.add(e.id);else miss.push(c)});$$('#mgCodeNote').innerHTML=cs.length?`<span style="color:#0f766e">${cs.length-miss.length} ${L('found and ticked','मिले और टिक हुए')}</span>${miss.length?` · <span style="color:var(--bad)">${miss.length} ${L('not found','नहीं मिले')}: ${esc(miss.join(', '))}</span>`:''}`:'';list()};$$('#mgQ').oninput=list;
  $$('#mgTick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.add(x.id));list()};
  $$('#mgUntick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.delete(x.id));list()};
  $$('#mgClear').onclick=e=>{e.preventDefault();picked.clear();list()};
@@ -13244,7 +13256,7 @@ function pmDesk(){
   </div></div>`}
 document.addEventListener('click',ev=>{const a=ev.target.closest&&ev.target.closest('[data-dkemp],[data-dkgo],[data-dkclr]');if(!a)return;if(a.dataset.dkclr){ev.preventDefault();state.dkb=state.dkv=state.dkd=state.dkg='';render();return}
  if(a.dataset.dkemp){state.dkEmp=+a.dataset.dkemp;render()}else{ev.preventDefault();const [p,tb]=a.dataset.dkgo.split(':');goTo(p,tb)}});
-document.addEventListener('input',ev=>{if(ev.target.id!=='dkq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#dklist [data-dkn]').forEach(x=>x.style.display=x.dataset.dkn.includes(q)?'':'none')});
+document.addEventListener('input',ev=>{if(ev.target.id==='asq'){const q=ev.target.value.toLowerCase().trim();document.querySelectorAll('tr[data-asn]').forEach(x=>x.style.display=!q||x.dataset.asn.includes(q)?'':'none');return}if(ev.target.id!=='dkq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#dklist [data-dkn]').forEach(x=>x.style.display=x.dataset.dkn.includes(q)?'':'none')});
 document.addEventListener('change',ev=>{const k={dkb:'dkb',dkv:'dkv',dkd:'dkd',dkg:'dkg'}[ev.target.id];if(k){state[k]=ev.target.value;render()}});
 /* ---------- shell events ---------- */
 function resetViews(){Object.assign(state,{view:null,payview:null,atab:'mine',ltab:'mine',paytab:null})}
