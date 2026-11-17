@@ -12614,20 +12614,21 @@ function mgrApply(p,inst){const rep=[], moved=[];
  if(moved.length)notify([+p.mgr].filter(Boolean),`${moved.length} ${L('pending item(s) of the earlier manager are now with you','पहले मैनेजर के पास लंबित काम अब आपके पास हैं')}`,{page:'inbox'},'mgrmv'+inst.id);
  audit('Manager change','Applied',inst.no,`${p.emps.length} employee(s), ${moved.length} pending item(s) moved`);inst.report=rep;inst.moved=moved.length}
 WF_ACTIONS.mgrchg={approved:inst=>mgrApply(inst.payload,inst),rejected:()=>{}};
-function bulkMgrModal(){
+function bulkMgrModal(){const picked=new Set();
  const opt=(k,key)=>`<select class="inp" data-bf="${key}"><option value="">${L('All','सभी')}</option>${DATA[k].filter(x=>!x.off).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`;
  const emps=DATA.emps.filter(e=>e.active), pick=n=>`<select class="inp" name="${n}"><option value="">—</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>`;
  const bg=openModal(`<h3>${L('Bulk change of manager','मैनेजर एक साथ बदलें')}</h3>
   <div class="fgrid"><div><label>${t('fn1')}</label>${opt('functions','func')}</div><div><label>${t('dept')}</label>${opt('depts','dept')}</div><div><label>${t('branch')}</label>${opt('branches','branch')}</div><div><label>${t('div1')}</label>${opt('divisions','division')}</div><div><label>${t('desig')}</label>${opt('desigs','desig')}</div><div><label>${L('Current reporting manager','अभी का रिपोर्टिंग मैनेजर')}</label><select class="inp" data-bf="mgr"><option value="">${L('All','सभी')}</option>${emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></div></div>
   <label>${L('Or paste employee codes (comma or new line)','या कर्मचारी कोड लिखें (कॉमा या नई लाइन)')}</label><textarea class="inp" name="codes" rows="2" placeholder="E004, E005"></textarea>
-  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mgAll" checked> <b>${L('Select all','सभी चुनें')}</b> <span id="mgCnt" style="color:var(--muted)"></span></label>
+  <label style="margin-top:10px">${L('Search employee','कर्मचारी खोजें')}</label><input class="inp" id="mgQ" placeholder="${L('Name, code or designation','नाम, कोड या पद')}">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span id="mgCnt" class="pill p-teal"></span><span style="font-size:12px"><a href="#" id="mgTick">${L('Tick all shown','दिखे हुए सब चुनें')}</a> · <a href="#" id="mgUntick">${L('Untick all shown','दिखे हुए सब हटाएँ')}</a> · <a href="#" id="mgClear">${L('Clear all','सब हटाएँ')}</a></span></div>
   <div id="mgList" class="card tw" style="padding:6px 10px;max-height:170px;overflow:auto"></div>
   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="setMgr" checked> ${L('Change the reporting manager','रिपोर्टिंग मैनेजर बदलें')}</label>${pick('mgr')}
   <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" name="setFm"> ${L('Change the functional manager (leave empty to remove)','फ़ंक्शनल मैनेजर बदलें (खाली छोड़ें तो हट जाएगा)')}</label>${pick('fm')}
   <label>${L('Reason','कारण')}</label><input class="inp" name="why">
   <p class="rule" style="font-size:12px;margin:8px 0">${L('This goes through the approval workflow WF-030. When it is approved, what the earlier manager still holds for these employees moves to the new manager.','यह अप्रूवल वर्कफ़्लो WF-030 से जाएगा। मंज़ूर होने पर पहले मैनेजर के पास इन कर्मचारियों का जो काम लंबित है वह नए मैनेजर को चला जाएगा।')}</p>
   <div id="me" style="color:var(--bad);font-size:12px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Send for approval','अप्रूवल के लिए भेजें')}</button></div>`,
- (f,close,bgm)=>{const v=Object.fromEntries(new FormData(f)), ids=[...bgm.querySelectorAll('#mgList input:checked')].map(x=>+x.value), er=m=>bgm.querySelector('#me').textContent=m;
+ (f,close,bgm)=>{const v=Object.fromEntries(new FormData(f)), ids=[...picked], er=m=>bgm.querySelector('#me').textContent=m;
   const setMgr=!!v.setMgr, setFm=!!v.setFm;if(!ids.length)return er(L('Select at least one employee','कम से कम एक कर्मचारी चुनें'));
   if(!setMgr&&!setFm)return er(L('Choose what to change','क्या बदलना है चुनें'));if(setMgr&&!v.mgr)return er(L('Choose the new reporting manager','नया रिपोर्टिंग मैनेजर चुनें'));
   if(!(v.why||'').trim())return er(L('Reason is required','कारण ज़रूरी है'));
@@ -12643,12 +12644,17 @@ function bulkMgrModal(){
   close();toast(sent?L('Sent for approval','अप्रूवल के लिए भेजा'):L('The approval workflow WF-030 is not active','अप्रूवल वर्कफ़्लो WF-030 चालू नहीं'));
   if(skip.length)listModal(`${L('Not included','शामिल नहीं')}: ${skip.length}`,skip.map(esc));render()});
  const $$=s=>bg.querySelector(s), codesEl=$$('[name=codes]');
- const list=()=>{const f={};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
-  const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
-  const rows=emps.filter(e=>codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||String(e[k])===f[k]));
-  $$('#mgList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${$$('#mgAll').checked?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${L('Reports to','रिपोर्ट')}: ${e.mgr?esc(nm_(+e.mgr)):'—'}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
- const cnt=()=>{const a=[...bg.querySelectorAll('#mgList input')];$$('#mgCnt').textContent=`${a.filter(x=>x.checked).length} / ${a.length}`};
- bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;$$('#mgAll').onchange=()=>{bg.querySelectorAll('#mgList input').forEach(x=>x.checked=$$('#mgAll').checked);cnt()};$$('#mgList').onchange=cnt;list()}
+ const shown=()=>{const f={};bg.querySelectorAll('[data-bf]').forEach(s=>f[s.dataset.bf]=s.value);
+  const codes=codesEl.value.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean), q=($$('#mgQ').value||'').trim().toLowerCase();
+  return emps.filter(e=>(codes.length?codes.includes(String(e.code).toUpperCase()):Object.keys(f).every(k=>!f[k]||String(e[k])===f[k]))&&(!q||(e.name+' '+e.code+' '+(nm('desigs',e.desig)||'')).toLowerCase().includes(q)))};
+ const cnt=()=>{$$('#mgCnt').textContent=`${picked.size} ${L('selected of','चुने,')} ${emps.length}`};
+ const list=()=>{const rows=shown();
+  $$('#mgList').innerHTML=rows.map(e=>`<label style="display:flex;gap:8px;margin:2px 0;font-weight:400"><input type="checkbox" value="${e.id}" ${picked.has(e.id)?'checked':''}> ${esc(e.name)} <small style="color:var(--muted)">${e.code} · ${L('Reports to','रिपोर्ट')}: ${e.mgr?esc(nm_(+e.mgr)):'—'}</small></label>`).join('')||`<span style="color:var(--muted)">—</span>`;cnt()};
+ bg.querySelectorAll('[data-bf]').forEach(s=>s.onchange=list);codesEl.oninput=list;$$('#mgQ').oninput=list;
+ $$('#mgTick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.add(x.id));list()};
+ $$('#mgUntick').onclick=e=>{e.preventDefault();shown().forEach(x=>picked.delete(x.id));list()};
+ $$('#mgClear').onclick=e=>{e.preventDefault();picked.clear();list()};
+ $$('#mgList').onchange=e=>{const c=e.target;if(c.type==='checkbox'){c.checked?picked.add(+c.value):picked.delete(+c.value);cnt()}};list()}
 {const _ep=employeesPage;employeesPage=function(){const h=_ep();return can('employees','E')?h.replace('<button class="btn btn-p" data-eadd>',`<button class="btn btn-o" data-mgbulk>${L('Bulk change manager','मैनेजर एक साथ बदलें')}</button><button class="btn btn-p" data-eadd>`):h};
  const _bm=bindExtra;bindExtra=function(){_bm();$('#main').querySelectorAll('[data-mgbulk]').forEach(b=>b.onclick=bulkMgrModal)}}
 
