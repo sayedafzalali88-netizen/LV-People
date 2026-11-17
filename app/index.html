@@ -1570,7 +1570,7 @@ function shiftModal(id){
 }
 function assignTab(){
   const tm=asgMgr()?teamIds(me()):null, rows=[...ASSIGN].filter(a=>!tm||tm.has(a.emp)).sort((a,b)=>a.from<b.from?1:a.from>b.from?-1:a.emp-b.emp);
-  return `<div class="tools"><input class="inp grow" id="asq" placeholder="${L('Search employee by name or code','नाम या कोड से कर्मचारी खोजें')}"></div><div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('as_shift')}</th><th>${t('from')}</th><th>${t('to')}</th><th>${t('wo')}</th><th>${t('repeat_m')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
+  return `<div class="tools"><input class="inp grow" id="shq" placeholder="${L('Search employee by name or code','नाम या कोड से कर्मचारी खोजें')}"></div><div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('as_shift')}</th><th>${t('from')}</th><th>${t('to')}</th><th>${t('wo')}</th><th>${t('repeat_m')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${
    rows.map(a=>{const sh=SHIFTS.find(s=>s.id===a.shift)||{}, em=empById(a.emp), asn=esc((em.name+' '+em.code).toLowerCase());return `<tr data-asn="${asn}"><td><b>${esc(em.name)}</b></td><td>${esc(sh.name||'-')} <small style="color:var(--muted)">${hm(sh.start||0)}</small></td><td>${fmtS(a.from)}</td><td>${fmtS(a.to)}</td>
    <td>${a.wo>=0?`${WDN(a.wo)} · ${t(a.wot==='F'?'wo_full':a.wot==='FH'?'wo_fh':'wo_sh')}`:t('wo_none')}</td>
    <td>${a.repeat?'✓':'—'} ${a.auto?`<span class="pill p-teal">${t('auto_t')}</span>`:''}</td><td><span class="pill p-ok">${t('approved')}</span></td>
@@ -13258,7 +13258,7 @@ function pmDesk(){
   </div></div>`}
 document.addEventListener('click',ev=>{const a=ev.target.closest&&ev.target.closest('[data-dkemp],[data-dkgo],[data-dkclr]');if(!a)return;if(a.dataset.dkclr){ev.preventDefault();state.dkb=state.dkv=state.dkd=state.dkg='';render();return}
  if(a.dataset.dkemp){state.dkEmp=+a.dataset.dkemp;render()}else{ev.preventDefault();const [p,tb]=a.dataset.dkgo.split(':');goTo(p,tb)}});
-document.addEventListener('input',ev=>{if(ev.target.id==='asq'){const q=ev.target.value.toLowerCase().trim();document.querySelectorAll('tr[data-asn]').forEach(x=>x.style.display=!q||x.dataset.asn.includes(q)?'':'none');return}if(ev.target.id!=='dkq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#dklist [data-dkn]').forEach(x=>x.style.display=x.dataset.dkn.includes(q)?'':'none')});
+document.addEventListener('input',ev=>{if(ev.target.id==='shq'){const q=ev.target.value.toLowerCase().trim();document.querySelectorAll('tr[data-asn]').forEach(x=>x.style.display=!q||x.dataset.asn.includes(q)?'':'none');return}if(ev.target.id!=='dkq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#dklist [data-dkn]').forEach(x=>x.style.display=x.dataset.dkn.includes(q)?'':'none')});
 document.addEventListener('change',ev=>{const k={dkb:'dkb',dkv:'dkv',dkd:'dkd',dkg:'dkg'}[ev.target.id];if(k){state[k]=ev.target.value;render()}});
 /* ---------- shell events ---------- */
 function resetViews(){Object.assign(state,{view:null,payview:null,atab:'mine',ltab:'mine',paytab:null})}
