@@ -8163,7 +8163,7 @@ ${esc(ex)}</pre>
   <div class="acts" style="margin-top:10px"><button class="btn btn-p" data-baGo>${L('Send','भेजें')}</button></div>
   ${o?`<pre style="font-size:12px;white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:8px;margin-top:10px">${esc(o.req)}\n\n<b style="color:${o.code===200?'var(--ok)':'var(--bad)'}">${o.code}</b> ${esc(JSON.stringify(o.json))}</pre>`:''}</div></div>`}
 function blogTab(){bioDef();const E=canManage(), r=BIMP.res, l=BIOP.filter(p=>state.blf==='all'||p.st==='No match').slice().sort((a,b)=>a.ts<b.ts?1:-1).slice(0,100), fs=BIOSRC.filter(s=>s.st==='Active');
- return `<div class="card" style="margin-bottom:16px"><h3>${L('Import a punch log','पंच लॉग इम्पोर्ट करें')}</h3><p class="rule" style="font-size:13px">${L('Columns: Emp Code, Date Time, Device, Direction. One row for every punch (all punches of the day, lunch out and in too). Date Time as 27/10/2026 09:52:10. Device and Direction can be empty. CSV or Excel (.xlsx / .xls). Download the sample, fill it in the same columns, and upload it.','कॉलम: Emp Code, Date Time, Device, Direction। हर पंच की एक पंक्ति (दिन के सारे पंच, लंच पर जाना और आना भी)। Date Time ऐसे: 27/10/2026 09:52:10। Device और Direction खाली हो सकते हैं। CSV या Excel (.xlsx / .xls)। सैंपल डाउनलोड करें, उन्हीं कॉलम में भरें और अपलोड करें।')}</p>
+ return esslCard()+`<div class="card" style="margin-bottom:16px"><h3>${L('Import a punch log','पंच लॉग इम्पोर्ट करें')}</h3><p class="rule" style="font-size:13px">${L('Columns: Emp Code, Date Time, Device, Direction. One row for every punch (all punches of the day, lunch out and in too). Date Time as 27/10/2026 09:52:10. Device and Direction can be empty. CSV or Excel (.xlsx / .xls). Download the sample, fill it in the same columns, and upload it.','कॉलम: Emp Code, Date Time, Device, Direction। हर पंच की एक पंक्ति (दिन के सारे पंच, लंच पर जाना और आना भी)। Date Time ऐसे: 27/10/2026 09:52:10। Device और Direction खाली हो सकते हैं। CSV या Excel (.xlsx / .xls)। सैंपल डाउनलोड करें, उन्हीं कॉलम में भरें और अपलोड करें।')}</p>
   <p class="rule" style="font-size:12px">${L('First punch = in, last punch = out, hours = first to last (lunch included). Punches in between are lunch or short breaks (lunch when the break starts between ','पहला पंच = आना, आख़िरी = जाना, घंटे = पहले से आख़िरी तक (लंच समेत)। बीच के पंच लंच या छोटा ब्रेक हैं (लंच तब जब ब्रेक ')+hm(BIOSET.lunchFrom)+L(' and ',' से ')+hm(BIOSET.lunchTo)+L('). Night shift: a punch up to ',' के बीच शुरू हो)। रात की शिफ़्ट: शिफ़्ट ख़त्म होने के ')+BIOSET.nightAfter+L(' hours after the end of a night shift belongs to that night.',' घंटे बाद तक का पंच उसी रात का गिना जाता है।')}</p>
   <div class="tools" style="margin-top:10px"><select class="inp" id="bimSrc" style="max-width:260px">${fs.map(s=>`<option value="${s.id}" ${BIMP.src===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><button class="btn btn-o btn-s" data-bimtpl>${L('Sample CSV','सैंपल CSV')}</button><button class="btn btn-o btn-s" data-bimtplx>${L('Sample Excel','सैंपल Excel')}</button><label class="btn btn-o btn-s" style="margin:0;cursor:pointer">${t('im_pick')}<input type="file" id="bimFile" accept=".csv,.txt,.xlsx,.xls" style="display:none"></label><span style="color:var(--muted);font-size:12px">${esc(BIMP.file)}</span></div>
   <textarea class="inp" id="bimText" rows="4" placeholder="${t('im_paste')}" style="font-family:monospace;font-size:12px">${esc(BIMP.text)}</textarea>
@@ -8227,18 +8227,18 @@ bindExtra=function(){_bindExtra46();const m=$('#main'), on=(s,fn)=>m.querySelect
   f.text().then(x=>{BIMP.text=x;BIMP.file=f.name;BIMP.res=null;render()})};
  on('[data-bimtpl]',b=>b.onclick=()=>csvDl('punch-log-sample.csv',punchSample()));
  on('[data-bimtplx]',b=>b.onclick=()=>xlsxLib().then(()=>{const ws=XLSX.utils.aoa_to_sheet(punchSample());ws['!cols']=[{wch:10},{wch:20},{wch:12},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Punches');XLSX.writeFile(wb,'punch-log-sample.xlsx')}).catch(()=>toast(L('Excel could not load. Use the sample CSV.','Excel लोड नहीं हुआ। सैंपल CSV लें।'))));
- on('[data-bimchk]',b=>b.onclick=()=>{BIMP.src=+(bs&&bs.value)||BIMP.src;BIMP.res=parsePunchLog(BIMP.text);render()});
+ on('[data-bimchk]',b=>b.onclick=()=>{BIMP.src=+(bs&&bs.value)||BIMP.src;BIMP.esl=false;BIMP.res=parsePunchLog(BIMP.text);render()});
  on('[data-bimok]',b=>b.onclick=()=>{const r=BIMP.res;if(!r||!r.ok||!r.ok.length)return;
   const show=(ok,title,body)=>openModal('<h3>'+L('Import report','इम्पोर्ट रिपोर्ट')+'</h3><div style="border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:600;background:'+(ok?'#e6f6ef;color:#0f766e':'#fdeaea;color:#c0392b')+'">'+(ok?'\u2714 ':'\u2716 ')+title+'</div>'+body+'<div class="acts"><button type="button" class="btn btn-p" data-close>'+L('Close','बंद करें')+'</button></div>',(f,close)=>close());
   toast(L('Importing, please wait…','इम्पोर्ट हो रहा है, रुकें…'));
   setTimeout(()=>{try{
-   let s=BIOSRC.find(x=>x.id===(+(bs&&bs.value)||BIMP.src))||BIOSRC.find(x=>x.st==='Active'&&x.con==='file')||BIOSRC.find(x=>x.st==='Active');
-   if(!s){s={id:++seq,name:L('File import','फ़ाइल इम्पोर्ट'),con:'file',branch:'',every:0,key:bioKey(),st:'Active',last:''};BIOSRC.push(s);audit('Biometric source','Add',s.name,'file (automatic)')}
+   let s=BIMP.esl?BIOSRC.find(x=>x.name==='eSSL server'&&x.st==='Active'):(BIOSRC.find(x=>x.id===(+(bs&&bs.value)||BIMP.src))||BIOSRC.find(x=>x.st==='Active'&&x.con==='file')||BIOSRC.find(x=>x.st==='Active'));
+   if(!s){s={id:++seq,name:BIMP.esl?'eSSL server':L('File import','फ़ाइल इम्पोर्ट'),con:BIMP.esl?'essl_lite':'file',branch:'',every:0,key:bioKey(),st:'Active',last:''};BIOSRC.push(s);audit('Biometric source','Add',s.name,(BIMP.esl?'eSSL server':'file')+' (automatic)')}
    const a=bioIngest(s,r.ok), emps=new Set(), days=new Set(), dts=[];
    r.ok.forEach(x=>{const e=bioEmp(x.code);if(e){emps.add(e.id);days.add(e.id+'|'+x.ts.slice(0,10))}dts.push(x.ts.slice(0,10))});dts.sort();
    BIOIMP.unshift({at:new Date().toLocaleString(loc(),{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),file:BIMP.file||'pasted rows',src:s.name,by:USERS[state.role].name,ok:a.added+a.nomatch,total:r.ok.length+r.bad.length});
    audit('Biometric import','Applied',BIMP.file||'pasted rows',`${a.added} matched, ${a.nomatch} unmatched, ${a.dup} repeat, ${r.bad.length} errors`);
-   BIMP.text='';BIMP.res=null;BIMP.file='';render();
+   BIMP.text='';BIMP.res=null;BIMP.file='';BIMP.esl=false;render();
    const box=(n,l)=>'<div style="background:var(--surface-1,#f4f7f6);border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:700">'+n+'</div><div style="font-size:11px;color:var(--muted)">'+l+'</div></div>';
    show(a.added>0||a.nomatch>0,a.added>0?`${L('Import done','इम्पोर्ट पूरा')}: ${a.added} ${L('punches stored','पंच जमा हुए')}`:L('Nothing new was stored','कुछ नया जमा नहीं हुआ'),
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+box(a.added,L('Punches stored','जमा पंच'))+box(emps.size,L('Employees','कर्मचारी'))+box(days.size,L('Days with attendance','हाज़िरी वाले दिन'))+box(a.nomatch+a.dup+r.bad.length,L('Unmatched, repeats or errors','बिना मिलान, दोहराए या ग़लत'))+'</div>'+
@@ -13260,6 +13260,29 @@ document.addEventListener('click',ev=>{const a=ev.target.closest&&ev.target.clos
  if(a.dataset.dkemp){state.dkEmp=+a.dataset.dkemp;render()}else{ev.preventDefault();const [p,tb]=a.dataset.dkgo.split(':');goTo(p,tb)}});
 document.addEventListener('input',ev=>{if(ev.target.id==='shq'){const q=ev.target.value.toLowerCase().trim();document.querySelectorAll('tr[data-asn]').forEach(x=>x.style.display=!q||x.dataset.asn.includes(q)?'':'none');return}if(ev.target.id!=='dkq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#dklist [data-dkn]').forEach(x=>x.style.display=x.dataset.dkn.includes(q)?'':'none')});
 document.addEventListener('change',ev=>{const k={dkb:'dkb',dkv:'dkv',dkd:'dkd',dkg:'dkg'}[ev.target.id];if(k){state[k]=ev.target.value;render()}});
+/* ---------- Fetch from the eSSL server: punches come from the company's eTimeTrackLite (server function "essl-punches"), then the usual Check and Import ---------- */
+Object.assign(state,{esF:'',esT:'',esMsg:'',esBusy:false});
+function esslCard(){
+ if(typeof LIVE==='undefined'||!LIVE.sb||!LIVE.profile||!canManage())return '';
+ if(!state.esF)state.esF=TODAY_S.slice(0,8)+'01';if(!state.esT)state.esT=addD(TODAY_S,-1);
+ return `<div class="card" style="margin-bottom:16px"><h3>${L('Fetch from eSSL server','eSSL सर्वर से लाएँ')}</h3><p class="rule" style="font-size:13px">${L('Punches come straight from your eTimeTrackLite server, no file needed. Press Fetch, look at the numbers, then press Import. Punches already stored are not added again.','पंच सीधे आपके eTimeTrackLite सर्वर से आते हैं, फ़ाइल नहीं चाहिए। Fetch दबाएँ, गिनती देखें, फिर Import दबाएँ। जो पंच पहले से जमा हैं वे दोबारा नहीं जुड़ते।')}</p>
+  <div class="tools" style="margin-top:8px"><label style="margin:0">${t('from')}</label><input class="inp" type="date" id="esF" value="${state.esF}" max="${TODAY_S}"><label style="margin:0">${t('to')}</label><input class="inp" type="date" id="esT" value="${state.esT}" max="${TODAY_S}"><button class="btn btn-p" data-esfetch ${state.esBusy?'disabled':''}>${state.esBusy?L('Fetching…','ला रहे हैं…'):L('Fetch from eSSL','eSSL से लाएँ')}</button></div>
+  ${state.esMsg?`<div style="font-size:13px;margin-top:8px;white-space:pre-line">${esc(state.esMsg)}</div>`:''}</div>`}
+{const _bes=bindExtra;bindExtra=function(){_bes.apply(this,arguments);const m=$('#main');if(!m)return;
+ const f=m.querySelector('#esF'), t2=m.querySelector('#esT');if(f)f.onchange=()=>{state.esF=f.value};if(t2)t2.onchange=()=>{state.esT=t2.value};
+ m.querySelectorAll('[data-esfetch]').forEach(b=>b.onclick=async()=>{
+  const from=(f&&f.value)||state.esF, to=(t2&&t2.value)||state.esT;state.esF=from;state.esT=to;
+  if(!from||!to||to<from){state.esMsg=L('Choose the From and To dates. To must not be before From.','From और To तारीख़ चुनें। To, From से पहले नहीं हो सकती।');return render()}
+  state.esBusy=true;state.esMsg='';render();
+  try{
+   let r;try{r=await LIVE.sb.functions.invoke('essl-punches',{body:{from,to}})}catch(e){throw new Error(L('No internet. Please try again.','इंटरनेट नहीं है। फिर कोशिश करें।'))}
+   if(r.error){let msg=r.error.message||'';try{const j=await r.error.context.json();if(j&&j.message)msg=j.message}catch(e){}throw new Error(msg||L('Something went wrong. Please try again.','कुछ गड़बड़ हुई। फिर कोशिश करें।'))}
+   const d=r.data||{}, rows=(d.rows||[]).map(x=>({code:String(x.code),ts:String(x.ts),dev:x.dev||'',dir:''})).filter(x=>x.ts.slice(0,10)<=TODAY_S);
+   const known=rows.filter(x=>bioEmp(x.code)).length;
+   BIMP.esl=true;BIMP.res={ok:rows,bad:[],known};BIMP.file=`eSSL server ${from} to ${to}`;BIMP.text='';
+   state.esMsg=Object.keys(d.per_device||{}).map(k=>`${k}: ${d.per_device[k]} ${L('punches','पंच')}`).join('\n')+((d.errors||[]).length?'\n'+L('Problems','दिक़्क़तें')+':\n'+d.errors.join('\n'):'');
+  }catch(e){state.esMsg=(e&&e.message)||String(e);BIMP.res=null}
+  state.esBusy=false;render()})}}
 /* ---------- shell events ---------- */
 function resetViews(){Object.assign(state,{view:null,payview:null,atab:'mine',ltab:'mine',paytab:null})}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelector('.modal-bg')?.remove()});
