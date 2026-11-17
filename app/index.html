@@ -1424,7 +1424,7 @@ Object.assign(T.en,{
  im_pick:"Choose CSV file",im_src:"Report import",im_applied:"Attendance imported",
  ie_hdr:"Columns do not match the template",ie_emp:"Unknown employee number",ie_date:"Date must be dd/mm/yyyy",ie_time:"Time must be hh:mm:ss",
  ie_status:"Status must be Present, Absent, Leave, Weekly Off, Half Day or Holiday",ie_dup:"Duplicate row for this employee and date",ie_doj:"Date is before joining",
- ie_need:"Present needs all four times, Half Day needs Store In",ie_future:"Date is in the future",ie_empty:"Nothing to check",
+ ie_need:"Present and Half Day need Store In (lunch and Store Out are optional; a dash means empty)",ie_future:"Date is in the future",ie_empty:"Nothing to check",
  one_table:"All attendance (GPS selfie, biometric, report import, regularization) is stored in one table.",none_yet:"No import yet"
 });
 Object.assign(T.hi,{
@@ -1444,7 +1444,7 @@ Object.assign(T.hi,{
  im_pick:"CSV फ़ाइल चुनें",im_src:"रिपोर्ट इम्पोर्ट",im_applied:"हाज़िरी इम्पोर्ट हो गई",
  ie_hdr:"कॉलम टेम्पलेट से नहीं मिलते",ie_emp:"कर्मचारी नंबर नहीं मिला",ie_date:"तारीख़ dd/mm/yyyy में होनी चाहिए",ie_time:"समय hh:mm:ss में होना चाहिए",
  ie_status:"Status: Present, Absent, Leave, Weekly Off, Half Day या Holiday होना चाहिए",ie_dup:"इस कर्मचारी और तारीख़ की पंक्ति दोहराई गई",ie_doj:"तारीख़ जॉइनिंग से पहले की है",
- ie_need:"Present में चारों समय चाहिए, Half Day में Store In चाहिए",ie_future:"तारीख़ आगे की है",ie_empty:"जाँचने के लिए कुछ नहीं",
+ ie_need:"Present और Half Day में Store In चाहिए (लंच और Store Out वैकल्पिक हैं; डैश का मतलब खाली)",ie_future:"तारीख़ आगे की है",ie_empty:"जाँचने के लिए कुछ नहीं",
  one_table:"सारी हाज़िरी (GPS सेल्फ़ी, बायोमेट्रिक, रिपोर्ट इम्पोर्ट, सुधार) एक ही टेबल में रहती है।",none_yet:"अभी कोई इम्पोर्ट नहीं"
 });
 
@@ -1678,8 +1678,8 @@ function parseImport(text){
     const st=ST[(c[7]||'').toLowerCase()]; if(!st)return fail('ie_status');
     if(iso<e.doj)return fail('ie_doj');
     if(iso>TODAY_S)return fail('ie_future');
-    const times=[c[3],c[4],c[5],c[6]].map(x=>x?tm(x):''); if(times.some(x=>x===null))return fail('ie_time');
-    if(st==='Present'&&times.some(x=>x===''))return fail('ie_need');
+    const times=[c[3],c[4],c[5],c[6]].map(x=>x&&x!=='-'?tm(x):''); if(times.some(x=>x===null))return fail('ie_time');
+    if(st==='Present'&&times[0]==='')return fail('ie_need');
     if(st==='Half Day'&&times[0]==='')return fail('ie_need');
     const key=e.id+'|'+iso; if(seen.has(key))return fail('ie_dup'); seen.add(key);
     ok.push({key,emp:e.id,iso,status:st,in:times[0]===''?'':fmtT(times[0]),lo:times[1]===''?'':fmtT(times[1]),li:times[2]===''?'':fmtT(times[2]),out:times[3]===''?'':fmtT(times[3]),upd:!!(ATT[key]&&ATT[key].status)});

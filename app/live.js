@@ -89,14 +89,16 @@ async function loadAttendance(){
 }
 async function syncAttendance(){
   const me=LIVE.profile&&LIVE.rev.emps[LIVE.profile.employee_id];
+  const bulk=[];
   for(const k of Object.keys(ATT)){const v=ATT[k], s=attSig(v);if(LIVE.attSnap[k]===s)continue;const [n,date]=k.split('|'), uuid=LIVE.map.emps[+n];if(!uuid){LIVE.attSnap[k]=s;continue}
     const old=LIVE.attSnap[k]?JSON.parse(LIVE.attSnap[k]):{};
     if(LIVE.asOf&&+n===me&&date===TODAY_S){LIVE.attSnap[k]=s;continue}
     if(+n===me&&date===TODAY_S&&((v.in&&!old.in)||(v.out&&!old.out))){const r=await sb.rpc('punch');if(r.error)throw r.error;
       const a=(await sb.from('attendance').select('in_time,out_time').eq('employee_id',uuid).eq('work_date',date).maybeSingle()).data;if(a){v.in=t12(a.in_time);v.out=t12(a.out_time);v.bio=true}}
-    else if(isHRrole()&&(v.in||v.out||v.status)){const row={client_id:LIVE.profile.client_id,employee_id:uuid,work_date:date,in_time:toTs(date,v.in),out_time:outTs(date,v),source:v.src||'Imported',note:v.status||null};
-      const r=await sb.from('attendance').upsert(row,{onConflict:'employee_id,work_date'});if(r.error)throw r.error}
+    else if(isHRrole()&&(v.in||v.out||v.status)){bulk.push({k,s,row:{client_id:LIVE.profile.client_id,employee_id:uuid,work_date:date,in_time:toTs(date,v.in),out_time:outTs(date,v),source:v.src||'Imported',note:v.status||null}});continue}
     LIVE.attSnap[k]=attSig(v)}
+  /* many rows at once (an import of a month) go in batches of 500, not one by one */
+  for(let i=0;i<bulk.length;i+=500){const ch=bulk.slice(i,i+500), r=await sb.from('attendance').upsert(ch.map(x=>x.row),{onConflict:'employee_id,work_date'});if(r.error)throw r.error;ch.forEach(x=>{LIVE.attSnap[x.k]=x.s})}
 }
 
 /* ---------- the other prototype stores (leave, attendance requests, time office, payroll) ---------- */
