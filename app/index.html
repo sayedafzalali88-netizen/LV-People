@@ -14385,6 +14385,85 @@ function rewardsPage(){const hr=canManage(), tabs=[['cycle',L('This quarter','�
   c.votes[me()]=emp;toast(t('saved'));render()});
  on('[data-rwgnew]',b=>b.onclick=()=>rwGroupModal(null));on('[data-rwgedit]',b=>b.onclick=()=>rwGroupModal(+b.dataset.rwgedit));
  on('[data-rwcnew]',b=>b.onclick=()=>rwCatModal(null));on('[data-rwcedit]',b=>b.onclick=()=>rwCatModal(+b.dataset.rwcedit))}}
+/* ================= Counselling: a follow-up task for the manager who counselled, and "My counselling" for the employee ================= */
+/* the follow-up dates of a completed counselling; an older case that has only the one date of the form is read as one open follow-up */
+const ctFupsOf=c=>c&&c.done?(Array.isArray(c.fups)?c.fups:(c.done.fu?[{due:c.done.fu,done:null}]:[])):[];
+const ctFupOpen=c=>ctFupsOf(c).find(f=>!f.done)||null;
+KINDL.cnsfu=['Counselling','काउंसलिंग'];IBK.Perf+=' cnsfu';IBKM.cnsfu='Perf';
+/* from the follow-up date the manager who did the counselling finds it in the Inbox */
+INBOX_SRC.push((id,out)=>{Object.values(CT).forEach(c=>{if(c.status!=='Completed'||!c.done||+c.done.by!==id)return;const f=ctFupOpen(c);if(!f||f.due>TODAY_S)return;
+  ibAdd(out,{kind:'cnsfu',title:`${L('Follow up after counselling','काउंसलिंग के बाद फ़ॉलो-अप')}: ${nm_(c.emp)}`,subject:c.emp,page:'pms',tab:'counsel',due:f.due,ref:c.emp+'|'+c.p})})});
+{const _ibc=ibClass;ibClass=function(r){if(r.kind==='cnsfu')return{g:'do',v:['Follow up','फ़ॉलो-अप करें'],b:['Open and record','खोलकर दर्ज करें']};return _ibc(r)}}
+const ctResL=r=>({better:L('Improved','सुधार हुआ'),same:L('No change','कोई बदलाव नहीं'),worse:L('Not improved','सुधार नहीं हुआ')})[r]||'';
+function ctFuModal(key){
+  const c=CT[key];if(!c||!c.done)return;const fs=ctFupsOf(c);if(!fs.some(x=>!x.done))return;
+  openModal(`<h3>${L('Follow-up','फ़ॉलो-अप')} · ${nmE(c.emp)}</h3><p style="color:var(--muted);font-size:13px">${L('Counselling of','काउंसलिंग की तारीख़')} ${fmtY(c.done.date)} · ${L('Plan agreed','तय योजना')}: ${esc(c.done.plan)}</p>
+   <label>${L('Date of follow-up','फ़ॉलो-अप की तारीख़')}</label><input class="inp" type="date" name="d" value="${TODAY_S}">
+   <label>${L('Result','नतीजा')}</label><select class="inp" name="r"><option value="better">${ctResL('better')}</option><option value="same">${ctResL('same')}</option><option value="worse">${ctResL('worse')}</option></select>
+   <label>${L('What you found and what was agreed','क्या पाया और क्या तय हुआ')}</label><textarea class="inp" name="n" rows="3"></textarea>
+   <label>${L('Next follow-up date (leave empty if none)','अगली फ़ॉलो-अप तारीख़ (न हो तो खाली छोड़ें)')}</label><input class="inp" type="date" name="nx">
+   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+  (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), err=m=>bg.querySelector('#me').textContent=m;
+    if(!v.d||!v.n.trim())return err(L('Write the date and what you found.','तारीख़ और जो पाया वह लिखें।'));
+    if(v.nx&&v.nx<=v.d)return err(L('The next date must be after this follow-up.','अगली तारीख़ इस फ़ॉलो-अप के बाद की हो।'));
+    const list=fs.map(x=>({...x})), cur=list.find(x=>!x.done);cur.done={date:v.d,res:v.r,note:v.n.trim(),by:me()};if(v.nx)list.push({due:v.nx,done:null});c.fups=list;
+    audit('Counselling','Follow-up done',empById(c.emp).name,c.p);close();toast(t('saved'));render()});
+}
+/* the manager's Counselling tab: the follow-ups under the cases */
+function ctFuCard(){
+  const rows=[];Object.entries(CT).forEach(([k,c])=>{if(c.status!=='Completed'||!c.done||!(canManage()||+c.done.by===me()))return;ctFupsOf(c).forEach(f=>rows.push({k,c,f}))});
+  if(!rows.length)return '';rows.sort((a,b)=>a.f.due<b.f.due?-1:a.f.due>b.f.due?1:0);
+  return `<div class="card tw" style="margin-top:14px"><h3 style="padding:14px 16px 0">${L('Follow-ups','फ़ॉलो-अप')}</h3><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${L('Follow-up date','फ़ॉलो-अप की तारीख़')}</th><th>${t('status')}</th><th>${L('Result','नतीजा')}</th><th></th></tr></thead><tbody>${rows.map(r=>{const open=!r.f.done, late=open&&r.f.due<TODAY_S, tdy=open&&r.f.due===TODAY_S;
+   return `<tr><td><b>${nmE(r.c.emp)}</b></td><td>${fmtY(r.f.due)}</td><td><span class="pill ${!open?'p-ok':late?'p-bad':tdy?'p-warn':'p-teal'}">${!open?L('Done','पूरा'):late?L('Overdue','समय निकल गया'):tdy?L('Due today','आज'):L('Planned','तय')}</span></td><td>${r.f.done?`${ctResL(r.f.done.res)} · ${esc(r.f.done.note)}`:'—'}</td>
+   <td style="text-align:right">${open&&(canManage()||+r.c.done.by===me())?`<button class="btn btn-p btn-s" data-ctfu="${r.k}">${L('Record follow-up','फ़ॉलो-अप दर्ज करें')}</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`}
+{const _pmC=pmCounsel;pmCounsel=function(){return _pmC.apply(this,arguments)+ctFuCard()}}
+{const _bc=bindExtra;bindExtra=function(){_bc();$('#main').querySelectorAll('[data-ctfu]').forEach(b=>b.onclick=()=>ctFuModal(b.dataset.ctfu))}}
+/* the employee: My Profile shows the counselling that was done with the employee, after the manager has done it */
+function ctMine(eid){
+  const rows=Object.values(CT).filter(c=>c.emp===eid&&c.status==='Completed'&&c.done).sort((a,b)=>a.done.date<b.done.date?1:-1);if(!rows.length)return '';
+  return `<div class="card" style="margin-top:16px"><h3>${L('My counselling','मेरी काउंसलिंग')}</h3><p style="font-size:13px;color:var(--muted);margin-bottom:6px">${L('A talk with your manager so that you get help. The counselling letter is in the Inbox and under PMS > Letters.','मदद मिलने के लिए आपके मैनेजर के साथ बातचीत। काउंसलिंग का पत्र इनबॉक्स और PMS > Letters में है।')}</p>${rows.map(c=>{const fs=ctFupsOf(c);
+   return `<div style="border-top:1px solid var(--line);padding:12px 0"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${L('Counselling','काउंसलिंग')} · ${c.p}</b><span>${fs.map(f=>`<span class="pill ${f.done?'p-ok':f.due<TODAY_S?'p-bad':'p-warn'}">${L('Follow-up','फ़ॉलो-अप')} ${fmtS(f.due)}${f.done?' · '+L('done','पूरा'):''}</span>`).join(' ')}</span></div>
+   <small style="color:var(--muted)">${fmtY(c.done.date)} · ${L('by','किसने')} ${nmE(c.done.by)}</small><div style="margin-top:6px">${(c.reasons||[]).map(r=>`<span class="pill p-warn" style="margin-right:4px">${t('ct_'+r)}</span>`).join('')}</div>
+   <p style="white-space:pre-wrap;margin-top:8px"><b>${t('ct_disc')}</b>\n${esc(c.done.disc)}\n\n<b>${t('ct_plan')}</b>\n${esc(c.done.plan)}</p>
+   ${fs.filter(f=>f.done).map(f=>`<p style="font-size:13px;margin-top:6px"><b>${L('Follow-up of','फ़ॉलो-अप')} ${fmtY(f.done.date)}:</b> ${ctResL(f.done.res)} · ${esc(f.done.note)}</p>`).join('')}</div>`}).join('')}</div>`}
+{const _ppct=profilePage;profilePage=function(id,fromList){const h=_ppct(id,fromList), eid=id||MYEMP[state.role];
+  if(fromList||eid!==MYEMP[state.role]||(state.view&&state.view.type==='edit'))return h;return h+ctMine(eid)}}
+/* ================= Employee picker: every long list of employees becomes a box with search (name, code or designation) ================= */
+{const css=document.createElement('style');css.textContent=`.sp{position:relative;display:block}.sp input{width:100%}.sp-dd{position:fixed;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:99999;overflow:auto;display:none}.sp-it{padding:7px 10px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:8px;color:var(--text)}.sp-it.h,.sp-it:hover{background:var(--teal-l)}.sp-it small{color:var(--muted);font-size:11px;white-space:nowrap}.sp-no{padding:8px 10px;font-size:13px;color:var(--muted)}`;document.head.appendChild(css);
+ const desigOf=e=>{try{return nm('desigs',e.desig)||''}catch(x){return ''}};
+ const isEmpSel=s=>{if(s.multiple||s.dataset.sp)return false;const o=[...s.options].filter(x=>x.value!=='');if(o.length<12)return false;let n=0;o.forEach(x=>{const e=empById(+x.value);if(e&&e.name&&x.text.trim().startsWith(e.name))n++});return n>=o.length*.7};
+ const upgrade=s=>{
+  const w=document.createElement('div');w.className='sp';['flex','width','minWidth','maxWidth','margin'].forEach(k=>{if(s.style[k])w.style[k]=s.style[k]});if(!w.style.minWidth)w.style.minWidth='140px';
+  const inp=document.createElement('input');inp.className='inp';inp.autocomplete='off';inp.placeholder=L('Search name or code','नाम या कोड खोजें');
+  const dd=document.createElement('div');dd.className='sp-dd';w.append(inp,dd);s.dataset.sp='1';s.style.display='none';s.after(w);
+  const label=()=>{const o=s.options[s.selectedIndex];if(!o||o.value==='')return '';const e=empById(+o.value);return o.text.trim()+(e&&e.code?` (${e.code})`:'')};
+  const sync=()=>{inp.value=label();inp.disabled=s.disabled};sync();
+  let hi=0,items=[],isOpen=false;
+  const close=()=>{isOpen=false;dd.style.display='none'};
+  const pick=o=>{s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));sync();close()};
+  const draw=q=>{const v=q.trim().toLowerCase();
+   items=[...s.options].filter(o=>!o.disabled).map(o=>{const e=o.value===''?null:empById(+o.value);return{o,e,code:e&&e.code?String(e.code):'',dg:e?desigOf(e):''}})
+    .filter(x=>!v||x.o.text.toLowerCase().includes(v)||x.code.toLowerCase().includes(v)||x.dg.toLowerCase().includes(v));
+   const shown=items.slice(0,60);hi=Math.min(hi,Math.max(0,shown.length-1));
+   dd.innerHTML=shown.map((x,i)=>`<div class="sp-it${i===hi?' h':''}" data-i="${i}"><span>${esc(x.o.value===''?x.o.text:x.o.text.trim())}</span><small>${esc([x.code,x.dg].filter(Boolean).join(' · '))}</small></div>`).join('')+(items.length>60?`<div class="sp-no">${L('Type more to narrow the list','सूची छोटी करने के लिए और लिखें')}</div>`:'')||`<div class="sp-no">${L('No one found','कोई नहीं मिला')}</div>`;
+   const r=inp.getBoundingClientRect(), below=window.innerHeight-r.bottom-12, up=below<160&&r.top>below;
+   dd.style.left=r.left+'px';dd.style.width=Math.max(r.width,260)+'px';dd.style.maxHeight=Math.max(120,Math.min(260,up?r.top-12:below))+'px';
+   if(up){dd.style.top='';dd.style.bottom=(window.innerHeight-r.top+2)+'px'}else{dd.style.bottom='';dd.style.top=(r.bottom+2)+'px'}
+   dd.style.display='block';isOpen=true;window._spShown=shown};
+  inp.addEventListener('focus',()=>{sync();hi=0;inp.select();draw('')});
+  inp.addEventListener('input',()=>{hi=0;draw(inp.value)});
+  inp.addEventListener('blur',()=>setTimeout(()=>{close();sync()},180));
+  inp.addEventListener('keydown',ev=>{if(!isOpen&&(ev.key==='ArrowDown'||ev.key==='Enter')){draw(inp.value===label()?'':inp.value);ev.preventDefault();return}
+   const sh=window._spShown||[];
+   if(ev.key==='ArrowDown'){hi=Math.min(hi+1,sh.length-1);draw(inp.value===label()?'':inp.value);ev.preventDefault()}
+   else if(ev.key==='ArrowUp'){hi=Math.max(hi-1,0);draw(inp.value===label()?'':inp.value);ev.preventDefault()}
+   else if(ev.key==='Enter'){if(sh[hi])pick(sh[hi].o);ev.preventDefault()}
+   else if(ev.key==='Escape'){close();sync();ev.stopPropagation()}});
+  dd.addEventListener('mousedown',ev=>{ev.preventDefault();const it=ev.target.closest('.sp-it');if(!it)return;const x=(window._spShown||[])[+it.dataset.i];if(x)pick(x.o)});
+  window.addEventListener('scroll',ev=>{if(isOpen&&!dd.contains(ev.target))close()},true);window.addEventListener('resize',close);
+ };
+ let busy=false;const run=()=>{busy=false;document.querySelectorAll('select:not([data-sp])').forEach(s=>{try{if(isEmpSel(s))upgrade(s);else if(s.options.length>=12)s.dataset.sp='no'}catch(e){}})};
+ new MutationObserver(()=>{if(!busy){busy=true;setTimeout(run,30)}}).observe(document.body,{childList:true,subtree:true});run()}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
