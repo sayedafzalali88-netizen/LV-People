@@ -1306,13 +1306,13 @@ function empForm(id,back,draft,errs){
   <div class="page-h"><div><h1>${id?t('edit_emp'):t('new_emp')}</h1><p>${t('code')}: <b>${code}</b></p></div></div>
   <form class="card" id="empForm" novalidate data-id="${id||''}" data-back="${back}">
    <div class="sec-t">${t('sec_basic')}</div><div class="fgrid">
-    ${inp('name','name')}${inp('mobile','mobile','tel','maxlength="10"')}${inp('email','email','email')}${inp('dob','dob','date')}
+    ${inp('name','name')}${inp('mobile','mobile','tel','maxlength="10"')}${inp('email','email','email')}${inp('dob','dob','date')}${inp('father','fathername')}
     <div><label>${t('gender')}</label><select class="inp" name="gender"><option value="M" ${e.gender==='M'?'selected':''}>${t('male')}</option><option value="F" ${e.gender==='F'?'selected':''}>${t('female')}</option><option value="O" ${e.gender==='O'?'selected':''}>${t('other')}</option></select></div>
      <div><label>${t('edulevel')}</label><select class="inp" name="edu">${eduOpts(e.edu||'')}</select></div><div><label>${t('edudetail')}</label><input class="inp" name="edu2" value="${esc(e.edu2||'')}" placeholder="B.Com, ITI Electrician"></div></div>
    <div class="sec-t">${t('sec_job')}</div><div class="fgrid">
     ${inp('doj','doj','date')}${cas('func','fn1')}${cas('dept','dept')}${cas('branch','branch')}${cas('division','div1')}${cas('subdiv','sub1')}${cas('desig','desig')}
     <div><label>${t('career_level')}</label><select class="inp" name="level"><option value="">${id?'—':L('Set later (salary structure)','बाद में तय होगा (सैलरी स्ट्रक्चर)')}</option>${DATA.levels.map(x=>`<option value="${x.id}" ${e.level==x.id?'selected':''}>${x.name}</option>`).join('')}</select></div>
-    ${emp('mgr','manager')}${emp('fm','fm')}${inp('ctc','ctc','number','min="0" step="1000"')}${ctcHint(e)}</div>
+    ${emp('mgr','manager')}${emp('fm','fm')}<div><label>${t('etype')}</label><select class="inp" name="etype"><option value="">—</option>${PRD_ETYPES.map(x=>`<option ${e.etype===x?'selected':''}>${x}</option>`).join('')}</select></div>${inp('ctc','ctc','number','min="0" step="1000"')}${ctcHint(e)}</div>
    ${id?`<div class="sec-t">${t('emp_status')}</div><div class="fgrid">
     <div><label>${t('emp_status')}</label><select class="inp" name="status">${['Working','Relieved','Abscond','Terminated'].map(s=>`<option value="${s}" ${e.status===s?'selected':''}>${t('st_'+s)}</option>`).join('')}</select></div>
     <div><label>${t('lwd')}</label><input class="inp ${errs.lwd?'bad':''}" type="date" name="lwd" value="${esc(e.lwd||'')}">${er('lwd')}</div>
@@ -1320,7 +1320,7 @@ function empForm(id,back,draft,errs){
    ${empAddrHTML(e)}<div class="sec-t">${t('sec_stat')}</div><div class="fgrid">
     ${inp('pan','pan','text','maxlength="10" style="text-transform:uppercase"')}${inp('aadhaar','aadhaar','text','maxlength="12" inputmode="numeric"')}${inp('uan','uan')}${inp('esi','esi')}</div>
    <div class="sec-t">${t('sec_bank')}</div><div class="fgrid">
-    ${inp('bank','bank_name')}${inp('ifsc','ifsc','text','maxlength="11" style="text-transform:uppercase"')}${inp('acc','acc')}</div>
+    ${inp('bank','bank_name')}${inp('bbranch','bbranch')}${inp('ifsc','ifsc','text','maxlength="11" style="text-transform:uppercase"')}${inp('acc','acc')}<div><label>${t('paymode')}</label><select class="inp" name="paymode"><option value="">—</option>${PRD_PAYMODES.map(x=>`<option ${e.paymode===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
    ${id?kycDocsHTML(id):''}
    <div class="acts"><button type="button" class="btn btn-o" data-back="${back}">${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>
   </form>`;
@@ -14667,6 +14667,177 @@ AUTO2['KPI-070']=(e,k,p)=>{const ex=DATA.emps.filter(x=>x.lwd&&x.lwd<=TODAY_S&&i
  ex.forEach(x=>{const xi=XIT.find(z=>z.emp===x.id&&z.status!=='Cancelled');if(xi&&xi.parts.hr&&xi.parts.hr.st==='Closed'){closed++;return}if(xi&&(xi.parts.hr?xi.parts.hr.st==='Done':xi.status==='Done'))done++});
  const den=ex.length-closed;if(!den)return kN(L('No exit interview was due in the month','इस महीने कोई एक्ज़िट इंटरव्यू देय नहीं था'));return kS(k,k.max*done/den,`${L('Exit interviews done','एक्ज़िट इंटरव्यू हुए')} ${done} / ${den} = ${Math.round(done/den*100)}%${closed?` · ${closed} ${L('closed with a remark','रिमार्क के साथ बंद')}`:''}`)};
 AUTO_IMPL.add('KPI-070');KPIMOD['KPI-070']='requests';
+/* ================= Payroll register (detailed): employee, salary structure, attendance, earnings and deductions head by head, net, bank ================= */
+Object.assign(T.en,{fathername:'Father name',etype:'Employment type',bbranch:'Bank branch name',paymode:'Salary pay mode'});
+Object.assign(T.hi,{fathername:'पिता का नाम',etype:'नियुक्ति का प्रकार',bbranch:'बैंक की शाखा का नाम',paymode:'सैलरी देने का तरीका'});
+const PRD_ETYPES=['Permanent','Probation','Contract','Trainee','Part-time'], PRD_PAYMODES=['Bank transfer','Cash','Cheque'];
+const PRD_PSEUDO={__basic:['Basic','बेसिक'],__hra:['HRA','HRA'],__sp:['Special allowance','स्पेशल अलाउंस'],__pgp:['PGP','PGP'],__pli:['PLI','PLI'],__oth:['Other variable','अन्य वेरिएबल']};
+function prdHeadName(id){const c=SCOMP.find(x=>x.id===id);if(c)return c.name;const p=PRD_PSEUDO[id];return p?L(p[0],p[1]):String(id)}
+function prdData(f){
+  const mk=f.mk||curMk();if(!PMON[mk])return null;
+  const P=ATTP[mk], emps=rptEmps(f).filter(e=>inRun(e,mk));
+  const rows=emps.map(e=>{const c=calc(e,mk), a=(P&&P.rows[e.id])||(mk===curMk()?attRow(e,mk):null), ls=lvlSplit(e,mk), s=structure(e,mk), rate={}, earn={}, adds={}, ded={};
+    if(c.lines){c.lines.forEach(x=>{rate[x.id]=(rate[x.id]||0)+(+x.full||0);earn[x.id]=(earn[x.id]||0)+(+x.amt||0)})}else{rate.__basic=s.basic||0;rate.__hra=s.hra||0;rate.__sp=s.special||0;earn.__basic=c.basic;earn.__hra=c.hra;earn.__sp=c.special}
+    if(ls&&ls.vc)Object.keys(ls.vc).forEach(id=>{rate[id]=(rate[id]||0)+ls.vc[id]});
+    if(c.vcomps)Object.keys(c.vcomps).forEach(id=>{earn[id]=(earn[id]||0)+c.vcomps[id]});else{earn.__pgp=c.pgp||0;earn.__pli=c.pli||0;earn.__oth=c.oth||0}
+    (c.adjL||[]).forEach(x=>{const o=x.type==='A'?adds:ded;o[x.head]=(o[x.head]||0)+(+x.amount||0)});
+    const arrD=ADJ.filter(x=>x.emp===e.id&&x.mk===mk&&x.status==='Approved'&&x.ref&&x.ref.startsWith('ATTC')&&x.type==='A'&&x.att).reduce((q,x)=>q+Math.abs((x.att.to||0)-(x.att.from||0)),0);
+    return{e,c,a,rate,earn,adds,ded,arrD}});
+  const used=(o,id)=>rows.some(r=>(+r[o][id]||0)!==0);
+  const order=id=>{const i=SCOMP.findIndex(x=>x.id===id);return i<0?1000+Object.keys(PRD_PSEUDO).indexOf(id):i};
+  const ids=o=>[...new Set(rows.flatMap(r=>Object.keys(r[o])))].filter(id=>used(o,id)).sort((x,y)=>order(x)-order(y));
+  const rateIds=ids('rate'), earnIds=ids('earn');
+  const addH=[...new Set(rows.flatMap(r=>Object.keys(r.adds)))].filter(h=>used('adds',h)), dedH=[...new Set(rows.flatMap(r=>Object.keys(r.ded)))].filter(h=>used('ded',h));
+  const anyRet=rows.some(r=>r.c.ret), anyInc=rows.some(r=>r.c.inc), anyOt=rows.some(r=>r.c.otA), anyLwf=rows.some(r=>r.c.lwf), anyTds=rows.some(r=>r.c.tds), anyAdv=rows.some(r=>r.c.adv);
+  const end=mk+'-'+pad(monthDays(mk)), mon=mkP(mk);
+  const resAt=e=>{const r=XRES.filter(x=>x.emp===e.id&&!['Rejected','Withdrawn'].includes(x.status)).sort((p,q)=>q.id-p.id)[0];return r?r.at:''};
+  const bank=e=>{const b=BANK[e.id];return{acc:(b&&b.acc)||e.acc||'',bank:(b&&b.bank)||e.bank||'',ifsc:(b&&b.ifsc)||e.ifsc||'',holder:(b&&b.holder)||e.name,branch:e.bbranch||'',mode:e.paymode||''}};
+  const payOf=e=>PAY.find(p=>p.key===`payroll:${mk}:${e.id}`);
+  const procAt=(()=>{try{const x=AUDIT.filter(a=>a.mod==='Payroll'&&a.act==='Run'&&String(a.ref)===String(t(PMON[mk].k))).sort((p,q)=>q.id-p.id)[0];return x&&x.ts?String(x.ts).slice(0,10):''}catch(z){return ''}})();
+  const cols=[], grp=[], money=[], fn=[];
+  const G=(name,start)=>grp.push([name,start,cols.length-1]);
+  const add=(label,get,isMoney)=>{cols.push(label);fn.push(get);money.push(!!isMoney)};
+  let g0=cols.length;
+  add(L('Serial No.','क्र.'),(r,i)=>i+1);add(L('Employee code','कर्मचारी कोड'),r=>r.e.code);add(L('Full name','पूरा नाम'),r=>r.e.name);add(L('Employment status','स्थिति'),r=>r.e.status||'Working');add(L('Date of joining','जॉइनिंग'),r=>r.e.doj||'');add(L('Date of resignation','इस्तीफ़े की तारीख़'),r=>resAt(r.e));add(L('Last working day','आख़िरी कार्य दिवस'),r=>r.e.lwd||'');
+  add(L('Level','लेवल'),r=>'L'+(r.e.level||1));add(L('Function','फ़ंक्शन'),r=>nm('functions',r.e.func));add(L('Department','विभाग'),r=>nm('depts',r.e.dept));add(L('Branch','शाखा'),r=>nm('branches',r.e.branch));add(L('Division','डिवीज़न'),r=>nm('divisions',r.e.division));add(L('Sub division','सब-डिवीज़न'),r=>nm('subdivs',r.e.subdiv));add(L('Designation','पद'),r=>nm('desigs',r.e.desig));
+  add(L('Work email','ईमेल'),r=>r.e.email||'');add(L('Mobile number','मोबाइल'),r=>r.e.mobile||'');add(L('State','राज्य'),r=>((DATA.branches.find(b=>b.id==r.e.branch)||{}).state)||'');add(L('Employment type','नियुक्ति का प्रकार'),r=>r.e.etype||'');add(L('Gender','लिंग'),r=>({M:'Male',F:'Female',O:'Other'})[r.e.gender]||'');add(L('Date of birth','जन्म तिथि'),r=>r.e.dob||'');
+  add('PAN',r=>r.e.pan||'');add(L('Father name','पिता का नाम'),r=>r.e.father||'');add('UAN',r=>r.e.uan||'');add(L('Aadhaar No','आधार नंबर'),r=>r.e.aadhaar||'');add(L('ESI number','ESI नंबर'),r=>r.e.esi||'');
+  G(L('Employee details','कर्मचारी का विवरण'),g0);g0=cols.length;
+  add(L('Salary date','सैलरी की तारीख़'),()=>end);add(L('Salary month','सैलरी का महीना'),()=>mon);
+  G(L('Salary period','सैलरी की अवधि'),g0);g0=cols.length;
+  rateIds.forEach(id=>add(prdHeadName(id)+'(R)',r=>r.rate[id]||0,true));add(L('Monthly rate','मासिक दर'),r=>Object.values(r.rate).reduce((q,v)=>q+v,0),true);
+  G(L('Current salary structure (monthly rate)','मौजूदा सैलरी स्ट्रक्चर (मासिक दर)'),g0);g0=cols.length;
+  add(L('Calendar days','कैलेंडर के दिन'),r=>r.c.days);add(L('Paid days','वेतन के दिन'),r=>r.c.paidDays);add(L('Arrear days','एरियर के दिन'),r=>r.arrD);add(L('OT hours','OT घंटे'),r=>r.c.otL&&r.c.otL.length?(OTL.filter(x=>x.emp===r.e.id&&(x.postMk||x.pmk||x.mk)===mk&&x.status==='Approved'&&x.kind==='OT').reduce((q,x)=>q+(+x.hours||0),0)):0);
+  add(L('Week off','साप्ताहिक अवकाश'),r=>r.a?r.a.wo:'');add(L('Present days','उपस्थित दिन'),r=>r.a?r.a.present:'');add(L('Holidays','छुट्टियाँ'),r=>r.a?r.a.hol:'');add(L('Paid leaves','पेड लीव'),r=>r.a?r.a.lv:'');add(L('Unpaid leaves','अनपेड लीव'),r=>r.a?(r.a.lwp||0):'');add(L('LOP days','LOP दिन'),r=>r.c.lop);
+  add(L('Late and early deduction (days made half day)','देर और जल्दी (आधा दिन बने दिन)'),r=>r.a?(r.a.hd||0):'');
+  G(L('Attendance','हाज़िरी'),g0);g0=cols.length;
+  earnIds.forEach(id=>add(prdHeadName(id),r=>r.earn[id]||0,true));if(anyRet)add(L('Retention','रिटेंशन'),r=>r.c.ret||0,true);addH.forEach(h=>add(h,r=>r.adds[h]||0,true));if(anyInc)add(L('Sales incentive','सेल्स इंसेंटिव'),r=>r.c.inc||0,true);if(anyOt)add(L('Overtime and extra pay','ओवरटाइम और एक्स्ट्रा पे'),r=>r.c.otA||0,true);add(L('Gross earning','कुल कमाई'),r=>r.c.gross,true);
+  G(L('Earnings, head by head','कमाई, हेड के हिसाब से'),g0);g0=cols.length;
+  add('PF',r=>r.c.pf||0,true);add('ESI',r=>r.c.esi||0,true);add('PT',r=>r.c.pt||0,true);if(anyLwf)add('LWF',r=>r.c.lwf||0,true);if(anyTds)add('TDS',r=>r.c.tds||0,true);if(anyAdv)add(L('Advance recovery','एडवांस वसूली'),r=>r.c.adv||0,true);dedH.forEach(h=>add(h,r=>r.ded[h]||0,true));add(L('Gross deduction','कुल कटौती'),r=>r.c.ded,true);
+  G(L('Deductions, head by head','कटौती, हेड के हिसाब से'),g0);g0=cols.length;
+  add(L('Net salary','नेट सैलरी'),r=>r.c.net,true);
+  G(L('Net','नेट'),g0);g0=cols.length;
+  add(L('Salary account number','सैलरी खाता नंबर'),r=>bank(r.e).acc);add(L('Salary bank name','बैंक का नाम'),r=>bank(r.e).bank);add(L('Salary branch name','बैंक की शाखा'),r=>bank(r.e).branch);add(L('Salary IFSC code','IFSC'),r=>bank(r.e).ifsc);add(L('Salary pay mode','सैलरी देने का तरीका'),r=>bank(r.e).mode);
+  G(L('Bank details','बैंक का विवरण'),g0);g0=cols.length;
+  add(L('Salary processing date','सैलरी प्रोसेस की तारीख़'),()=>PAYRUN[mk]==='draft'?'':procAt);add(L('Salary release date','सैलरी रिलीज़ की तारीख़'),r=>{const h=SHOLD.filter(x=>x.emp===r.e.id&&x.mk===mk&&x.rel).pop();if(h)return h.rel.on;const p=payOf(r.e);return p&&p.date?p.date:''});add(L('Salary hold','सैलरी रुकी'),r=>{try{return payHeld(r.e,mk)?L('Held','रुकी'):''}catch(z){return ''}});add(L('Salary hold date','सैलरी रोकने की तारीख़'),r=>{const h=SHOLD.filter(x=>x.emp===r.e.id&&x.mk===mk).pop();return h?h.heldOn:''});
+  add(L('Reporting manager','रिपोर्टिंग मैनेजर'),r=>r.e.mgr?nm_(+r.e.mgr):'');add(L('Functional manager','फ़ंक्शनल मैनेजर'),r=>r.e.fm?nm_(+r.e.fm):'');
+  G(L('Payment and managers','भुगतान और मैनेजर'),g0);
+  const out=rows.map((r,i)=>fn.map(g=>g(r,i)));
+  const foot=cols.map((c,i)=>i===0?L('Total','कुल'):money[i]?out.reduce((q,x)=>q+(+x[i]||0),0):'');
+  return{mk,cols,grp,rows:out,foot,rowsRaw:rows,bank,money,draft:PAYRUN[mk]==='draft'}}
+function prdXlsx(f){
+  const d=prdData(f);if(!d)return;const head=d.cols, aoa=[[],head,...d.rows,d.foot];
+  d.grp.forEach(([n,s])=>{aoa[0][s]=n});for(let i=0;i<head.length;i++)if(aoa[0][i]===undefined)aoa[0][i]='';
+  const merges=d.grp.filter(([n,s,e])=>e>s).map(([n,s,e])=>({s:{r:0,c:s},e:{r:0,c:e}}));
+  const widths=head.map((c,i)=>i<3?14:d.money[i]?14:Math.min(26,Math.max(11,String(c).length+3)));
+  const bt=[[L('Serial No.','क्र.'),L('Employee code','कर्मचारी कोड'),L('Name','नाम'),L('Account holder','खाताधारक'),L('Bank','बैंक'),L('Branch','शाखा'),L('Account number','खाता नंबर'),'IFSC',L('Pay mode','तरीका'),L('Net salary','नेट सैलरी'),L('Remark','टिप्पणी')]];
+  let n=0,tot=0;d.rowsRaw.forEach(r=>{if(!(r.c.net>0))return;const b=d.bank(r.e), miss=!b.acc||!b.ifsc||!b.bank;n++;tot+=r.c.net;bt.push([n,r.e.code,r.e.name,b.holder,b.bank,b.branch,b.acc,b.ifsc,b.mode,r.c.net,miss&&(b.mode||'Bank transfer')==='Bank transfer'?L('Bank details missing','बैंक विवरण नहीं'):''])});
+  bt.push(['',L('Total','कुल'),'','','','','','','',tot,'']);
+  const go=()=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=widths.map(w=>({wch:w}));ws['!merges']=merges;const w2=XLSX.utils.aoa_to_sheet(bt);w2['!cols']=[8,14,24,24,22,22,22,14,14,14,24].map(w=>({wch:w}));
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Payroll register');XLSX.utils.book_append_sheet(wb,w2,'Bank transfer');XLSX.writeFile(wb,`Payroll-register-${d.mk}.xlsx`,{bookType:'xlsx'});audit('Report','Payroll register (detailed) Excel',d.mk,`${d.rows.length} employees`)};
+  if(window.XLSX)return go();if(!_chlnLib)_chlnLib=ltLoad('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  _chlnLib.then(go).catch(()=>{_chlnLib=null;toast(L('The Excel library did not load (internet needed). Use the CSV file.','Excel लाइब्रेरी नहीं खुली (इंटरनेट चाहिए)। CSV फ़ाइल लें।'))})}
+rp('pr_regd','payroll','Payroll register (detailed)','पेरोल रजिस्टर (विस्तृत)','month','A',(f)=>{const d=prdData(f);if(!d)return{cols:[],rows:[],note:regNo(f.mk||curMk())};
+  return{cols:d.cols,rows:d.rows,foot:d.foot,note:(d.draft?L('Payroll of this month is not run yet: this is a preview. ','इस महीने का पेरोल अभी नहीं चला: यह पूर्वावलोकन है। '):'')+L('Groups: Employee details · Salary structure · Attendance · Earnings · Deductions · Net · Bank · Payment. The Excel file has the group row on top and a second sheet “Bank transfer”.','समूह: कर्मचारी का विवरण · सैलरी स्ट्रक्चर · हाज़िरी · कमाई · कटौती · नेट · बैंक · भुगतान। Excel फ़ाइल में ऊपर समूह की पंक्ति और दूसरी शीट “Bank transfer” है।'),dl:[{label:'Excel (.xlsx)',run:()=>prdXlsx(rptFilt('pr_regd'))}]}});
+/* ================= Salary hold register: a record of every salary that is held, the request to release it, the release with its date, and the task of the Accounts person ================= */
+const SHOLD=[];
+Object.assign(SLA,{shDays:30});
+SLAR.push({id:'SLA-055',kpi:'—',name:['Salary on hold: reminder to HR','रुकी सैलरी: HR को याद'],dir:'max',note:'HR gets an Inbox item for a salary that has been on hold for more than these days and has no request to release it yet.',
+ params:[P('shDays','Remind HR when a salary is on hold for more than (days)','जब सैलरी इतने दिन से ज़्यादा रुकी हो तब HR को याद दिलाएँ (दिन)','days',{max:365})],versions:[{ver:1,effective:'2026-04-01',by:'System',note:'Initial value',values:{shDays:30}}]});
+const SH_REASONS=[['docs','Documents pending','दस्तावेज़ बाकी'],['clear','Clearance or final settlement pending','क्लियरेंस या फ़ाइनल सेटलमेंट बाकी'],['disc','Disciplinary matter','अनुशासन का मामला'],['abs','Absconding','फ़रार'],['bank','Bank details wrong or payment failed','बैंक विवरण गलत या भुगतान विफल'],['letter','Letter not acknowledged','पत्र की पावती नहीं'],['att','Attendance not settled','हाज़िरी तय नहीं'],['other','Other','अन्य']];
+const shReasonL=k=>{const r=SH_REASONS.find(x=>x[0]===k);return r?L(r[1],r[2]):k};
+const shActive=r=>r.status!=='Released';
+const shRec=(emp,mk)=>SHOLD.find(r=>r.emp===emp&&r.mk===mk&&shActive(r))||null;
+const shNm=id=>{const e=empById(id);return e?e.name:'—'};
+let _shT=0;
+const shNo=()=>'SHD-'+pad4(SHOLD.length+1);
+const shLog=(r,act,note,by)=>(r.hist=r.hist||[]).push({at:TODAY_S,by:by||(USERS[state.role]?USERS[state.role].name:'System'),act,note:note||''});
+const shDays=r=>Math.max(0,Math.round((Date.parse(r.rel&&r.rel.on?r.rel.on:TODAY_S)-Date.parse(r.heldOn))/864e5));
+/* the Accounts person of the company releases; when nobody holds the role the Admin does */
+const shAcct=emp=>{const h=roleHolders(XACC,empById(emp)||{});return h.length?h:[MYEMP.admin]};
+const shCanRelease=r=>shAcct(r.emp).includes(me());
+const shCanHold=()=>can('payroll','E')&&canManage();
+const shSeeAll=()=>canManage()||SHOLD.some(r=>shCanRelease(r))||xIsAcct(me());
+{const _ph=payHeld;payHeld=function(e,mk){try{if(shRec(e.id,mk))return true}catch(x){}return _ph(e,mk)}}
+{const _ps=paySync;paySync=function(p){_ps(p);try{if(p.cat==='payroll'&&p.status!=='Paid'&&shRec(p.emp,p.mk))p.status='Held'}catch(x){}}}
+/* the three holds that the system makes by itself are written here too; they end by themselves and the date is kept */
+function shAutoSync(){try{if(Date.now()-_shT<1500)return;_shT=Date.now();
+  const mkAuto=(e,mk,reason,remark,key)=>{if(SHOLD.some(r=>r.key===key))return;const net=(()=>{try{return calc(e,mk).net}catch(x){return 0}})();SHOLD.push({id:++seq,no:shNo(),emp:e.id,mk,amount:net,reason,remark,heldOn:TODAY_S,heldBy:'System',auto:true,key,cont:false,status:'Held',hist:[{at:TODAY_S,by:'System',act:'Held',note:remark}]})};
+  Object.keys(PAYRUN).forEach(mk=>{
+    const ids=PAYRUN[mk]==='draft'?DATA.emps.filter(e=>e.active&&letterHeld(e)).map(e=>e.id):(HOLD[mk]||[]);
+    ids.forEach(id=>{const e=empById(id);if(e)mkAuto(e,mk,'letter',L('Warning or show-cause letter is not acknowledged','वार्निंग या शो-कॉज़ पत्र की पावती नहीं दी'),'auto|letter|'+id+'|'+mk)});
+    const P=ATTP[mk];if(P&&P.rows)Object.entries(P.rows).forEach(([id,r])=>{if(r.held){const e=empById(+id);if(e)mkAuto(e,mk,'att',(r.why||L('Attendance is not settled','हाज़िरी तय नहीं')),'auto|att|'+id+'|'+mk)}})});
+  SHOLD.filter(r=>r.auto&&shActive(r)).forEach(r=>{let over=false,on=TODAY_S;
+    if(r.reason==='letter'){const rel=HOLDREL[r.mk+'|'+r.emp];if(rel){over=true;on=rel}else if(PAYRUN[r.mk]==='draft'&&!letterHeld(empById(r.emp))){over=true}}
+    if(r.reason==='att'){const P=ATTP[r.mk], row=P&&P.rows&&P.rows[r.emp];if(!row||!row.held)over=true}
+    if(over){r.status='Released';r.rel={on,by:'System',byId:0,utr:'',note:L('The reason is over','कारण ख़त्म हुआ'),at:TODAY_S};shLog(r,'Released',r.rel.note,'System')}});
+  /* "hold the coming months too": the next payroll month gets its own record */
+  SHOLD.filter(r=>r.cont&&shActive(r)).forEach(r=>{const nx=mkNext(r.mk);if(!PMON[nx]||nx>curMk()||SHOLD.some(x=>x.emp===r.emp&&x.mk===nx))return;const e=empById(r.emp);if(!e)return;let net=0;try{net=calc(e,nx).net}catch(x){}
+    SHOLD.push({id:++seq,no:shNo(),emp:r.emp,mk:nx,amount:net,reason:r.reason,remark:r.remark,heldOn:TODAY_S,heldBy:r.heldBy,auto:false,cont:true,contFrom:r.no,status:'Held',hist:[{at:TODAY_S,by:'System',act:'Held, continued from '+r.no,note:r.remark}]});r.cont=false;shLog(r,'Next month also held','','System')})
+ }catch(x){}}
+{const _rsh=render;render=function(){shAutoSync();return _rsh.apply(this,arguments)}}
+/* releasing: the salary is paid, or the hold is cleared so that the next run takes it */
+function shDoRelease(r,on,utr,note){const e=empById(r.emp);r.status='Released';r.rel={on,by:shNm(me()),byId:me(),utr,note,at:TODAY_S};shLog(r,'Released on '+fmtS(on),(utr?'UTR '+utr+'. ':'')+note);
+  if(PAYRUN[r.mk]&&PAYRUN[r.mk]!=='draft'){SNAP[r.mk]=SNAP[r.mk]||{};if(!SNAP[r.mk][e.id]){SNAP[r.mk][e.id]=_calc(e,r.mk);advPost(r.mk)}
+   const p=payNew('payroll',`payroll:${r.mk}:${e.id}`,e.id,SNAP[r.mk][e.id].net,r.mk);if(p.status!=='Paid'&&utr){p.paid=p.amount;p.status='Paid';p.method='Bank transfer';p.utr=utr;p.date=on;p.by=shNm(me());payHist(p,'Paid after salary hold '+r.no,note)}paySync(p)}
+  audit('Salary hold','Released',`${e.code} ${e.name} ${mkP(r.mk)}`,`${r.no} ${fmtS(on)}`);notify([hrId()],`${L('Held salary released','रुकी सैलरी रिलीज़ हुई')}: ${e.name} · ${mkP(r.mk)} · ${fmtS(on)}`,{page:'payroll',tab:'shold'},'shr|'+r.id)}
+function shHoldModal(){if(!shCanHold())return;const emps=DATA.emps.filter(e=>e.active), mks=Object.keys(PMON).filter(m=>m<=curMk()).sort().reverse();
+  const bg=openModal(`<h3>${L('Hold a salary','सैलरी रोकें')}</h3><label>${t('employees')} *</label><select class="inp" name="emp">${emps.map(e=>`<option value="${e.id}">${esc(e.name)} (${e.code})</option>`).join('')}</select>
+   <div class="fgrid"><div><label>${L('Salary month','सैलरी का महीना')} *</label><select class="inp" name="mk">${mks.map(m=>`<option value="${m}" ${m===curMk()?'selected':''}>${mkP(m)}</option>`).join('')}</select></div><div><label>${L('Amount held (₹)','रोकी गई राशि (₹)')} *</label><input class="inp" type="number" min="0" name="amt"></div></div>
+   <div class="fgrid"><div><label>${L('Reason','कारण')} *</label><select class="inp" name="rs">${SH_REASONS.map(r=>`<option value="${r[0]}">${L(r[1],r[2])}</option>`).join('')}</select></div><div><label>${L('Date of hold','रोकने की तारीख़')} *</label><input class="inp" type="date" name="on" value="${TODAY_S}" max="${TODAY_S}"></div></div>
+   <label>${L('Remark (why, which file)','टिप्पणी (क्यों, कौन सी फ़ाइल)')} *</label><textarea class="inp" name="rm" rows="2"></textarea>
+   <label style="display:flex;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" name="cont"> ${L('Hold the coming months too (a record is made in every next payroll month until it is released)','आगे के महीने भी रोकें (हर अगले पेरोल महीने में रिकॉर्ड बनेगा, रिलीज़ होने तक)')}</label>
+   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${t('save')}</button></div>`,
+  (f,close,b2)=>{const v=Object.fromEntries(new FormData(f)), er=m=>{b2.querySelector('#me').textContent=m}, emp=+v.emp, amt=Math.round(+v.amt);
+    if(!emp||!v.mk||!v.rm.trim())return er(t('e_req'));if(!(amt>=0)||v.amt==='')return er(L('Enter the amount held','रोकी गई राशि लिखें'));if(shRec(emp,v.mk))return er(L('This salary is already on hold','इस महीने की सैलरी पहले से रुकी है'));if(!v.on||v.on>TODAY_S)return er(L('Choose the date of hold (not in the future)','रोकने की तारीख़ चुनें (आगे की नहीं)'));
+    const e=empById(emp), r={id:++seq,no:shNo(),emp,mk:v.mk,amount:amt,reason:v.rs,remark:v.rm.trim(),heldOn:v.on,heldBy:USERS[state.role].name,heldById:me(),auto:false,cont:!!v.cont,status:'Held',hist:[]};shLog(r,'Held on '+fmtS(v.on),`${shReasonL(v.rs)}: ${r.remark}`);SHOLD.push(r);audit('Salary hold','Held',`${e.code} ${e.name} ${mkP(v.mk)}`,`${r.no} ${inr(amt)} ${shReasonL(v.rs)}`);close();toast(t('saved'));render()});
+  const sync=()=>{const e=empById(+bg.querySelector('[name=emp]').value), mk=bg.querySelector('[name=mk]').value;let n=0;try{n=e?calc(e,mk).net:0}catch(x){}bg.querySelector('[name=amt]').value=n};
+  bg.querySelector('[name=emp]').addEventListener('change',sync);bg.querySelector('[name=mk]').addEventListener('change',sync);sync()}
+function shReqModal(id){const r=SHOLD.find(x=>x.id===id);if(!r||r.status!=='Held'||!canManage())return;const e=empById(r.emp);
+  openModal(`<h3>${L('Request release','रिलीज़ की माँग')} · ${r.no}</h3><p style="font-size:13px;color:var(--muted)">${esc(e.name)} · ${mkP(r.mk)} · ${inr(r.amount)}</p>
+   <label>${L('Why it can be released now (the Accounts person reads this)','अब क्यों रिलीज़ हो सकती है (Accounts वाला यह पढ़ेगा)')} *</label><textarea class="inp" name="n" rows="2"></textarea><label>${L('Release by (date, optional)','कब तक रिलीज़ हो (तारीख़, वैकल्पिक)')}</label><input class="inp" type="date" name="x" min="${TODAY_S}">
+   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Send to Accounts','Accounts को भेजें')}</button></div>`,
+  (f,close,bg)=>{const v=Object.fromEntries(new FormData(f));if(!v.n.trim())return bg.querySelector('#me').textContent=t('e_req');r.status='Release requested';r.req={by:USERS[state.role].name,byId:me(),at:TODAY_S,note:v.n.trim(),expect:v.x||''};shLog(r,'Release requested',r.req.note);audit('Salary hold','Release requested',`${e.code} ${e.name} ${mkP(r.mk)}`,r.no);close();toast(L('Sent to Accounts','Accounts को भेजा गया'));render()})}
+function shRelModal(id){const r=SHOLD.find(x=>x.id===id);if(!r||r.status!=='Release requested'||!shCanRelease(r))return;const e=empById(r.emp), run=PAYRUN[r.mk]&&PAYRUN[r.mk]!=='draft';
+  openModal(`<h3>${L('Mark released','रिलीज़ दर्ज करें')} · ${r.no}</h3><div class="card" style="padding:10px 12px;font-size:13px;margin-bottom:8px"><b>${esc(e.name)}</b> (${e.code}) · ${mkP(r.mk)} · <b>${inr(r.amount)}</b><br>${L('Held on','रोकी')} ${fmtS(r.heldOn)} · ${esc(shReasonL(r.reason))}: ${esc(r.remark)}<br>${L('Release asked by','रिलीज़ की माँग')} ${esc(r.req.by)} · ${fmtS(r.req.at)}: ${esc(r.req.note)}${r.req.expect?` · ${L('by','तक')} ${fmtS(r.req.expect)}`:''}</div>
+   <div class="fgrid"><div><label>${L('Release date','रिलीज़ की तारीख़')} *</label><input class="inp" type="date" name="on" value="${TODAY_S}" min="${r.heldOn}" max="${TODAY_S}"></div><div><label>UTR / ${L('payment reference','भुगतान संदर्भ')} ${run?'*':''}</label><input class="inp" name="u"></div></div><label>${L('Remark','टिप्पणी')}</label><input class="inp" name="n">
+   <p style="font-size:12px;color:var(--muted)">${run?L('The salary of this month is already run: the payment is recorded as Paid with this date and UTR.','इस महीने का पेरोल चल चुका: भुगतान इसी तारीख़ और UTR के साथ Paid दर्ज होगा।'):L('The salary of this month is not run yet: the hold is cleared and the next run takes this salary.','इस महीने का पेरोल अभी नहीं चला: होल्ड हट जाएगा और अगला रन यह सैलरी लेगा।')}</p>
+   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button><button class="btn btn-p">${L('Mark released','रिलीज़ दर्ज करें')}</button></div>`,
+  (f,close,bg)=>{const v=Object.fromEntries(new FormData(f)), er=m=>{bg.querySelector('#me').textContent=m};if(!v.on||v.on<r.heldOn||v.on>TODAY_S)return er(L('Choose the release date (after the hold date, not in the future)','रिलीज़ की तारीख़ चुनें (रोकने की तारीख़ के बाद, आगे की नहीं)'));if(run&&!v.u.trim())return er(L('Enter the UTR','UTR लिखें'));shDoRelease(r,v.on,v.u.trim(),(v.n||'').trim());close();toast(t('saved'));render()})}
+function shHistModal(id){const r=SHOLD.find(x=>x.id===id);if(!r)return;openModal(`<h3>${r.no} · ${nmE(r.emp)} · ${mkP(r.mk)}</h3><p style="font-size:13px;color:var(--muted)">${inr(r.amount)} · ${esc(shReasonL(r.reason))}: ${esc(r.remark)}</p><div class="list">${(r.hist||[]).map(h=>`<div><div class="grow"><b style="font-size:13px">${esc(h.act)}</b><small>${fmtS(h.at)} · ${esc(h.by)}${h.note?' · '+esc(h.note):''}</small></div></div>`).join('')}</div><div class="acts"><button type="button" class="btn btn-o" data-close>${t('cancel')}</button></div>`,(f,c)=>c())}
+Object.assign(state,{shf:'open',shm:''});
+const shPill=r=>`<span class="pill ${r.status==='Released'?'p-ok':r.status==='Release requested'?'p-warn':'p-bad'}">${r.status==='Released'?L('Released','रिलीज़'):r.status==='Release requested'?L('Release requested','रिलीज़ की माँग'):L('Held','रुकी')}</span>`;
+function shBody(){const f=state.shf, mkf=state.shm, mine=shCanHold(), rows=SHOLD.filter(r=>(f==='all'||(f==='open'?shActive(r):f==='req'?r.status==='Release requested':r.status==='Released'))&&(!mkf||r.mk===mkf)).sort((a,b)=>b.id-a.id);
+  const cnt=k=>SHOLD.filter(r=>k==='open'?shActive(r):k==='req'?r.status==='Release requested':k==='done'?r.status==='Released':true).length;
+  return `<div class="tools"><div class="seg">${[['open',L('On hold','रुकी')],['req',L('Release requested','रिलीज़ की माँग')],['done',L('Released','रिलीज़')],['all',L('All','सभी')]].map(([k,l])=>`<button data-shf="${k}" class="${f===k?'on':''}">${l} ${cnt(k)}</button>`).join('')}</div><select class="inp" data-shm style="max-width:160px"><option value="">${L('All months','सभी महीने')}</option>${Object.keys(PMON).sort().reverse().map(m=>`<option value="${m}" ${mkf===m?'selected':''}>${mkP(m)}</option>`).join('')}</select><div style="flex:1"></div>${mine?`<button class="btn btn-p" data-shnew>+ ${L('Hold a salary','सैलरी रोकें')}</button>`:''}</div>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${L('No.','क्र.')}</th><th>${t('employees')}</th><th>${L('Salary month','महीना')}</th><th>${L('Amount','राशि')}</th><th>${L('Reason','कारण')}</th><th>${L('Held on','रोकी')}</th><th>${t('status')}</th><th>${L('Release','रिलीज़')}</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${r.no}</b>${r.auto?`<small style="display:block;color:var(--muted)">${L('by the system','सिस्टम ने')}</small>`:''}</td><td>${nmE(r.emp)}</td><td>${mkP(r.mk)}${r.cont?`<small style="display:block;color:var(--muted)">${L('coming months too','आगे के महीने भी')}</small>`:''}</td><td>${inr(r.amount)}</td><td style="font-size:12px">${esc(shReasonL(r.reason))}<small style="display:block;color:var(--muted)">${esc(r.remark)}</small></td><td style="white-space:nowrap">${fmtS(r.heldOn)}<small style="display:block;color:var(--muted)">${esc(r.heldBy)} · ${shDays(r)} ${L('days','दिन')}</small></td><td>${shPill(r)}</td>
+   <td style="font-size:12px">${r.status==='Released'?`${fmtS(r.rel.on)}<small style="display:block;color:var(--muted)">${esc(r.rel.by)}${r.rel.utr?' · UTR '+esc(r.rel.utr):''}</small>`:r.status==='Release requested'?`${L('asked','माँगा')} ${fmtS(r.req.at)}<small style="display:block;color:var(--muted)">${esc(r.req.by)}${r.req.expect?' · '+L('by','तक')+' '+fmtS(r.req.expect):''}</small>`:'—'}</td>
+   <td style="text-align:right;white-space:nowrap">${r.status==='Held'&&canManage()&&!r.auto?`<button class="btn btn-o btn-s" data-shreq="${r.id}">${L('Request release','रिलीज़ की माँग')}</button> `:''}${r.status==='Release requested'&&shCanRelease(r)?`<button class="btn btn-p btn-s" data-shrel="${r.id}">${L('Mark released','रिलीज़ दर्ज करें')}</button> `:''}<button class="btn btn-o btn-s" data-shhist="${r.id}">${L('History','इतिहास')}</button></td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">${L('No salary hold record.','सैलरी होल्ड का कोई रिकॉर्ड नहीं।')}</td></tr>`}</tbody></table></div>
+  <p class="rule" style="font-size:12px;margin-top:8px">${L('A hold is never deleted. HR holds and asks for the release; the Accounts person (the holder of the role Accounts) marks it released with the date. Holds that the system makes by itself (a letter not acknowledged, attendance not settled) are written here too and end by themselves.','होल्ड कभी डिलीट नहीं होता। HR रोकता है और रिलीज़ की माँग करता है; Accounts रोल का धारक तारीख़ के साथ रिलीज़ दर्ज करता है। जो होल्ड सिस्टम ख़ुद बनाता है (पत्र की पावती नहीं, हाज़िरी तय नहीं) वे भी यहाँ लिखे जाते हैं और अपने आप ख़त्म होते हैं।')}</p>`}
+PAYT2.splice(Math.max(0,PAYT2.findIndex(x=>x[0]==='pays')+1),0,['shold',null,'Salary hold','सैलरी होल्ड']);
+{const _ppq=payrollPage;payrollPage=function(){if(state.paytab!=='shold'||!shSeeAll())return _ppq();
+  const strip=canManage()?PAYT2.filter(x=>x[0]!=='vars'||modOn('pms')).map(([k,l,en,hi])=>`<button data-paytab="${k}" class="${k==='shold'?'on':''}">${l?t(l):L(en,hi)}</button>`).join(''):`<button data-paytab="shold" class="on">${L('Salary hold','सैलरी होल्ड')}</button>`;
+  return `<div class="page-h"><div><h1>${t('payroll')}</h1><p>${L('Salary on hold: who held it, why, and when it was released','रुकी सैलरी: किसने रोकी, क्यों, और कब रिलीज़ हुई')}</p></div></div><div class="tabs">${strip}</div>${shBody()}`}}
+{const _bsh=bindExtra;bindExtra=function(){_bsh();const m=$('#main');if(!m)return;
+  m.querySelectorAll('[data-shf]').forEach(b=>b.onclick=()=>{state.shf=b.dataset.shf;render()});m.querySelectorAll('[data-shm]').forEach(s=>s.onchange=()=>{state.shm=s.value;render()});
+  m.querySelectorAll('[data-shnew]').forEach(b=>b.onclick=shHoldModal);m.querySelectorAll('[data-shreq]').forEach(b=>b.onclick=()=>shReqModal(+b.dataset.shreq));m.querySelectorAll('[data-shrel]').forEach(b=>b.onclick=()=>shRelModal(+b.dataset.shrel));m.querySelectorAll('[data-shhist]').forEach(b=>b.onclick=()=>shHistModal(+b.dataset.shhist))}}
+/* the Inbox: the Accounts person gets the release task; HR is reminded of an old hold */
+KINDL.shrel=['Salary release','सैलरी रिलीज़'];KINDL.shold=['Salary hold','सैलरी होल्ड'];IBK.Pay+=' shrel shold';IBKM.shrel='Pay';IBKM.shold='Pay';
+INBOX_SRC.push((id,out)=>{try{SHOLD.forEach(r=>{
+  if(r.status==='Release requested'&&shAcct(r.emp).includes(id))ibAdd(out,{kind:'shrel',title:`${L('Release the held salary','रुकी सैलरी रिलीज़ करें')}: ${shNm(r.emp)} · ${mkP(r.mk)} · ${inr(r.amount)}`,subject:r.emp,page:'payroll',tab:'shold',due:r.req.expect||addD(r.req.at,2),ref:r.no});
+  if(r.status==='Held'&&!r.auto&&canManage()&&shCanHold()&&shDays(r)>=SLA.shDays)ibAdd(out,{kind:'shold',title:`${L('Salary on hold for','सैलरी रुकी है')} ${shDays(r)} ${L('days','दिन')}: ${shNm(r.emp)} · ${mkP(r.mk)}`,subject:r.emp,page:'payroll',tab:'shold',due:addD(r.heldOn,SLA.shDays),ref:r.no})})}catch(e){}});
+{const _ibc3=ibClass;ibClass=function(r){if(r.kind==='shrel')return{g:'do',v:['Release the salary','सैलरी रिलीज़ करें'],b:['Open and release','खोलकर रिलीज़ करें']};if(r.kind==='shold')return{g:'do',v:['Follow up the hold','होल्ड पर कार्रवाई'],b:['Open','खोलें']};return _ibc3(r)}}
+/* the profile: the history of the holds (HR and Admin), and a plain message for the employee */
+function shProfile(eid){const rows=SHOLD.filter(r=>r.emp===eid).sort((a,b)=>b.id-a.id);
+  if(canManage()||xIsAcct(me())){if(!rows.length)return '';return `<div class="card" style="margin-top:16px"><h3>${L('Salary hold history','सैलरी होल्ड का इतिहास')}</h3><div class="card tw" style="padding:0"><table class="tbl"><thead><tr><th>${L('No.','क्र.')}</th><th>${L('Month','महीना')}</th><th>${L('Amount','राशि')}</th><th>${L('Reason','कारण')}</th><th>${L('Held on','रोकी')}</th><th>${L('Released on','रिलीज़')}</th><th>${t('status')}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.no}</td><td>${mkP(r.mk)}</td><td>${inr(r.amount)}</td><td style="font-size:12px">${esc(shReasonL(r.reason))}<small style="display:block;color:var(--muted)">${esc(r.remark)}</small></td><td>${fmtS(r.heldOn)}</td><td>${r.rel?fmtS(r.rel.on)+(r.rel.utr?' · '+esc(r.rel.utr):''):'—'}</td><td>${shPill(r)}</td></tr>`).join('')}</tbody></table></div></div>`}
+  if(eid===me()&&rows.some(shActive))return `<div class="card" style="margin-top:16px;border-left:4px solid var(--warn)"><b>${L('Your salary is on hold','आपकी सैलरी रुकी है')}</b><p style="font-size:13px;margin-top:4px">${rows.filter(shActive).map(r=>mkP(r.mk)).join(', ')} · ${L('Please contact HR.','कृपया HR से बात करें।')}</p></div>`;
+  return ''}
+{const _ppsh=profilePage;profilePage=function(id,fromList){const h=_ppsh(id,fromList), eid=id||MYEMP[state.role];if(state.view&&state.view.type==='edit')return h;try{return h+shProfile(eid)}catch(e){return h}}}
+/* the report */
+rp('pr_shold','payroll','Salary hold register','सैलरी होल्ड रजिस्टर','none','A',(f)=>{const ids=new Set(rptEmps(f).map(e=>e.id)), H=[L('No.','क्र.'),L('Code','कोड'),t('name'),L('Salary month','सैलरी का महीना'),L('Amount','राशि'),L('Reason','कारण'),L('Remark','टिप्पणी'),L('Held on','रोकने की तारीख़'),L('Held by','किसने रोकी'),t('status'),L('Release asked on','रिलीज़ माँगी'),L('Released on','रिलीज़ की तारीख़'),L('Released by','किसने रिलीज़ की'),'UTR',L('Days held','रुकने के दिन')];
+  const rows=SHOLD.filter(r=>ids.has(r.emp)).sort((a,b)=>a.id-b.id).map(r=>{const e=empById(r.emp);return[r.no,e.code,e.name,mkP(r.mk),r.amount,shReasonL(r.reason),r.remark,r.heldOn,r.heldBy,r.status,r.req?r.req.at:'',r.rel?r.rel.on:'',r.rel?r.rel.by:'',r.rel?r.rel.utr||'':'',shDays(r)]});
+  return{cols:H,rows,foot:['',L('Total','कुल'),'','',rows.reduce((q,x)=>q+(+x[4]||0),0)],note:`${rows.filter(x=>x[9]!=='Released').length} ${L('still on hold','अभी रुकी')}`,dl:[{label:'Excel (.xlsx)',run:()=>{audit('Report','Salary hold register','','');chlnXlsx('Salary-hold-register-'+TODAY_S+'.xlsx','xlsx',[H,...rows],[10,10,22,12,12,24,28,12,18,16,14,14,16,18,10])}}]}});
+
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
