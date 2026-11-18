@@ -156,19 +156,19 @@ G('leave', ['Leave', 'छुट्टी'], ['Apply for leave, approve leave, en
     notes: [['HR sets the holidays in Core Setting > Time Office > Public/Festival Calendar.', 'HR छुट्टियाँ Core Setting > Time Office > Public/Festival Calendar में तय करता है।']] }
 ]);
 
-G('attendance', ['Attendance', 'हाज़िरी'], ['Your own attendance and the attendance of your team today.', 'आपकी अपनी हाज़िरी और आज आपकी टीम की हाज़िरी।'], [
+G('attendance', ['Attendance', 'हाज़िरी'], ['Your own attendance and the attendance of your team for the month.', 'आपकी अपनी हाज़िरी और आपकी टीम की पूरे महीने की हाज़िरी।'], [
   { id: 'mine', n: ['My attendance', 'मेरी हाज़िरी'],
     path: ['Attendance > My attendance', 'Attendance > My attendance'],
     what: ['A calendar of your month: present, late, absent, leave, weekly off and holiday, with your in and out times.', 'आपके महीने का कैलेंडर: present, late, absent, छुट्टी, साप्ताहिक अवकाश और holiday, आपके इन और आउट टाइम के साथ।'],
     why: ['So that you can check your attendance and ask for a correction in time.', 'ताकि आप अपनी हाज़िरी जाँच सकें और समय पर सुधार माँग सकें।'],
     who: ['Every employee.', 'हर कर्मचारी।'],
     steps: [['Open Attendance > My attendance.', 'Attendance > My attendance खोलें।'], ['If a day is wrong, open Attendance requests and raise a regularization for that day.', 'कोई दिन गलत हो तो Attendance requests खोलकर उस दिन का regularization डालें।']] },
-  { id: 'team', n: ['Team today', 'आज की टीम'],
-    path: ['Attendance > Team today', 'Attendance > Team today'],
-    what: ['Who of your team is present, late, absent or on leave today.', 'आपकी टीम में आज कौन present, late, absent या छुट्टी पर है।'],
-    why: ['So that a manager knows the strength of the day.', 'ताकि मैनेजर को दिन की ताक़त पता रहे।'],
+  { id: 'team', n: ['Team', 'टीम'],
+    path: ['Attendance > Team', 'Attendance > Team'],
+    what: ['The whole month of your team, one line for each person and one column for each day. Two views: Status shows P (present), A (absent), WO (weekly off), H (holiday), LV (leave), HD (half day); Check-in shows the in and out time of each day. A late day is shaded and today is marked.', 'आपकी टीम का पूरा महीना, हर व्यक्ति की एक लाइन और हर दिन का एक कॉलम। दो व्यू: Status में P (उपस्थित), A (अनुपस्थित), WO (साप्ताहिक अवकाश), H (अवकाश), LV (छुट्टी), HD (आधा दिन) दिखता है; Check-in में हर दिन का इन और आउट समय दिखता है। देर का दिन रंगीन है और आज का दिन चिह्नित है।'],
+    why: ['So that a manager sees how the team came through the month, and when each person came and left.', 'ताकि मैनेजर देख सके कि टीम का महीना कैसा रहा और हर व्यक्ति कब आया और कब गया।'],
     who: ['Managers and HR.', 'मैनेजर और HR।'],
-    steps: [['Open Attendance > Team today and read the list.', 'Attendance > Team today खोलें और लिस्ट पढ़ें।']] }
+    steps: [['Open Attendance > Team. The Status view of the current month opens.', 'Attendance > Team खोलें। चालू महीने का Status व्यू खुलता है।'], ['Press Check-in to see the in and out time of every day. “?” means there is no out punch.', 'हर दिन का इन और आउट समय देखने के लिए Check-in दबाएँ। “?” का मतलब Out पंच नहीं है।'], ['Choose another month in the month box. A month with no attendance data says so on top.', 'महीने वाले बॉक्स से दूसरा महीना चुनें। जिस महीने का हाज़िरी डेटा नहीं है उसके बारे में ऊपर लिखा आता है।']] }
 ]);
 
 G('attreq', ['Attendance requests', 'हाज़िरी की माँगें'], ['Corrections of attendance (regularization) and on-duty requests.', 'हाज़िरी के सुधार (regularization) और on-duty की माँगें।'], [

@@ -868,9 +868,7 @@ function teamTable(){
   if(!rows.length)return `<div class="card empty">${t('no_team')}</div>`;
   const reg=pendingFor().filter(a=>a.kind==='R');
   return `${reg.length?`<div class="card" style="margin-bottom:16px"><h3>${t('regularize')} <span>${reg.length}</span></h3><div class="list">${reg.map(a=>`<div><div class="av" style="background:var(--gold)">${esc(empById(a.emp).name[0])}</div><div class="grow"><b>${esc(empById(a.emp).name)}</b><small>${fmtS(a.date)} · ${a.in} – ${a.out} · ${esc(a.reason)}</small></div><button class="mini a" data-ap="${a.key}">${t('approve')}</button><button class="mini r" data-rj="${a.key}">${t('reject')}</button></div>`).join('')}</div></div>`:''}
-  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('status')}</th><th>${t('in_time')}</th><th>${t('out_time')}</th><th>${t('source')}</th></tr></thead><tbody>${
-   rows.map(e=>{const r=dayRec(e.id,TODAY_D);return `<tr><td><div class="cell"><div class="av">${esc(e.name[0])}</div><div><b>${esc(e.name)}</b><small>${esc(nm('depts',e.dept))} · ${esc(nm('branches',e.branch))}</small></div></div></td>
-   <td><span class="pill ${pill(r.st)}">${t('s_'+r.st)}</span></td><td>${r.in||'-'}</td><td>${r.out||'-'}</td><td>${srcT(r.src)}</td></tr>`}).join('')}</tbody></table></div>`;
+  ${teamGrid()}`;
 }
 function attendancePage(){
   const ap=scope().length>0;
@@ -14464,6 +14462,47 @@ function ctMine(eid){
  };
  let busy=false;const run=()=>{busy=false;document.querySelectorAll('select:not([data-sp])').forEach(s=>{try{if(isEmpSel(s))upgrade(s);else if(s.options.length>=12)s.dataset.sp='no'}catch(e){}})};
  new MutationObserver(()=>{if(!busy){busy=true;setTimeout(run,30)}}).observe(document.body,{childList:true,subtree:true});run()}
+/* ================= Day-wise attendance: two reports (status, check-in) and the Team view of My Attendance ================= */
+const agHasData=mk=>!!(ATTP&&ATTP[mk])||Object.keys(ATT).some(k=>k.indexOf('|'+mk)>-1);
+const AGWD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+Object.assign(T.en,{att_team:'Team'});Object.assign(T.hi,{att_team:'टीम'});
+/* one grid for many employees and many dates (may cross months); every cell: code (P, A, WO, H, LV, LWP, HD), late, in, out */
+function agGrid(emps,from,to){
+  const dates=[];for(let d=from;d<=to&&dates.length<70;d=addD(d,1))dates.push(d);
+  const rows=emps.map(e=>({e,cells:[]}));
+  [...new Set(dates.map(d=>d.slice(0,7)))].forEach(mk=>{const has=agHasData(mk);
+    withMonth(mk,()=>{dates.filter(d=>d.slice(0,7)===mk).forEach(date=>{const dn=+date.slice(8);
+      rows.forEach(row=>{let c={c:'',late:false,in:'',out:''};
+        if(has&&date<=TODAY_S&&!(row.e.doj&&date<row.e.doj)){const r=dayRec(row.e.id,dn);const m={P:'P',L:'P',A:'A',W:'WO',H:'H',LV:'LV',LWP:'LWP'};
+          c={c:r.half?'HD':(m[r.st]!==undefined?m[r.st]:''),late:r.st==='L',in:r.in||'',out:r.out||''}}
+        row.cells.push(c)})})})});
+  return{dates,rows,has:[...new Set(dates.map(d=>d.slice(0,7)))].map(mk=>[mk,agHasData(mk)])}}
+const agTot=cells=>{const t={P:0,A:0,WO:0,H:0,LV:0,late:0,noout:0,days:0};cells.forEach(c=>{if(c.c==='P')t.P++;else if(c.c==='HD')t.P+=.5;else if(c.c==='A')t.A++;else if(c.c==='WO')t.WO++;else if(c.c==='H')t.H++;else if(c.c==='LV'||c.c==='LWP')t.LV++;if(c.late)t.late++;if(c.in&&!c.out&&(c.c==='P'||c.c==='HD'))t.noout++;if(c.in)t.days++});return t};
+const agNote=g=>{const no=g.has.filter(x=>!x[1]).map(x=>mkP(x[0]));return no.length?`${L('No attendance data for','इन महीनों का हाज़िरी डेटा नहीं')}: ${no.join(', ')}`:(g.has.some(x=>x[0]===curMk())?L('Days up to today. A month that is not processed shows the punches and shifts as they are.','आज तक के दिन। जो महीना प्रोसेस नहीं हुआ उसमें पंच और शिफ़्ट जैसे हैं वैसे दिखते हैं।'):'')};
+const agHead=d=>`${d.slice(8)} ${L(...{Sun:['Sun','रवि'],Mon:['Mon','सोम'],Tue:['Tue','मंगल'],Wed:['Wed','बुध'],Thu:['Thu','गुरु'],Fri:['Fri','शुक्र'],Sat:['Sat','शनि']}[AGWD[new Date(d+'T00:00:00Z').getUTCDay()]])}`;
+const agRange=f=>{const from=f.from||curMk()+'-01', to=f.to||TODAY_S;return to<from?null:{from,to}};
+rp('to_agrid','timeoffice','Monthly attendance report (day-wise)','मासिक हाज़िरी रिपोर्ट (दिन-वार)','range','M',(f)=>{
+  const rg=agRange(f);if(!rg)return{cols:[],rows:[],note:L('The To date is before the From date','To तारीख़ From से पहले की है')};
+  if(addD(rg.from,70)<rg.to)return{cols:[],rows:[],note:L('Choose at most 70 days','ज़्यादा से ज़्यादा 70 दिन चुनें')};
+  const g=agGrid(rActive(rptEmps(f)).filter(e=>!e.doj||e.doj<=rg.to),rg.from,rg.to);
+  const rows=g.rows.map(r=>{const t=agTot(r.cells);return[r.e.code,r.e.name,...r.cells.map(c=>c.c),t.P,t.A,t.WO,t.H,t.LV,t.late]});
+  return{cols:[L('Code','कोड'),L('Name','नाम'),...g.dates.map(agHead),L('Present','उपस्थित'),L('Absent','अनुपस्थित'),L('Weekly off','साप्ताहिक अवकाश'),L('Holiday','अवकाश'),L('Leave','छुट्टी'),L('Late days','देर के दिन')],rows,note:agNote(g)||L('P present, A absent, WO weekly off, H holiday, LV leave, LWP leave without pay, HD half day','P उपस्थित, A अनुपस्थित, WO साप्ताहिक अवकाश, H अवकाश, LV छुट्टी, LWP बिना वेतन छुट्टी, HD आधा दिन')}});
+rp('to_cgrid','timeoffice','Monthly check-in report (day-wise in and out)','मासिक चेक-इन रिपोर्ट (दिन-वार आना और जाना)','range','M',(f)=>{
+  const rg=agRange(f);if(!rg)return{cols:[],rows:[],note:L('The To date is before the From date','To तारीख़ From से पहले की है')};
+  if(addD(rg.from,70)<rg.to)return{cols:[],rows:[],note:L('Choose at most 70 days','ज़्यादा से ज़्यादा 70 दिन चुनें')};
+  const g=agGrid(rActive(rptEmps(f)).filter(e=>!e.doj||e.doj<=rg.to),rg.from,rg.to);
+  const rows=g.rows.map(r=>{const t=agTot(r.cells);return[r.e.code,r.e.name,...r.cells.map(c=>c.in?`${c.in} – ${c.out||'?'}`:c.c),t.days,t.noout]});
+  return{cols:[L('Code','कोड'),L('Name','नाम'),...g.dates.map(agHead),L('Days with punch','पंच वाले दिन'),L('No out punch','Out पंच नहीं')],rows,note:agNote(g)||L('First punch is In, last punch is Out. “?” means no out punch. Other cells show the day status.','पहला पंच In और आख़िरी Out है। “?” का मतलब Out पंच नहीं। बाकी खानों में दिन की स्थिति है।')}});
+/* the Team view of My Attendance: the whole month, switch between Status and Check-in */
+Object.assign(state,{tgm:'',tgv:'s'});
+function teamGrid(){
+  const mk=state.tgm&&rptMonths().includes(state.tgm)?state.tgm:curMk(), last=monthDays(mk), to=mk===curMk()?TODAY_S:mk+'-'+pad(last);
+  const g=agGrid(scope(),mk+'-01',mk+'-'+pad(last)), chk=state.tgv==='c', cls=c=>c==='A'?'ag-A':c==='WO'||c==='H'?'ag-W':c==='LV'||c==='LWP'?'ag-V':c?'ag-P':'';
+  return `<style>.ag-t td,.ag-t th{padding:5px 7px;text-align:center;white-space:nowrap;font-size:12px}.ag-t td.n,.ag-t th.n{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}.ag-P{color:var(--ok)}.ag-A{color:var(--bad);font-weight:600}.ag-W{color:var(--muted)}.ag-V{color:var(--teal)}.ag-L{background:var(--warn-l)}.ag-T{background:var(--teal-l)}.ag-x{font-size:10.5px;line-height:1.25}</style>
+  <div class="tools"><div class="seg"><button data-tgv="s" class="${chk?'':'on'}">${L('Status','स्थिति')}</button><button data-tgv="c" class="${chk?'on':''}">${L('Check-in','चेक-इन')}</button></div><select class="inp" data-tgm style="max-width:160px">${rptMonths().map(m=>`<option value="${m}" ${m===mk?'selected':''}>${mkP(m)}</option>`).join('')}</select><span style="color:var(--muted);font-size:12px">${esc(agNote(g)||(chk?L('First punch In, last punch Out. “?” = no out punch.','पहला पंच In, आख़िरी Out। “?” = Out पंच नहीं।'):L('P present, A absent, WO weekly off, H holiday, LV leave, HD half day. A late day is shaded.','P उपस्थित, A अनुपस्थित, WO साप्ताहिक अवकाश, H अवकाश, LV छुट्टी, HD आधा दिन। देर का दिन रंगीन है।')))}</span></div>
+  <div class="card tw" style="overflow:auto"><table class="tbl ag-t"><thead><tr><th class="n">${t('employees')}</th>${g.dates.map(d=>`<th class="${d===TODAY_S?'ag-T':''}">${d.slice(8)}<br><small>${AGWD[new Date(d+'T00:00:00Z').getUTCDay()]}</small></th>`).join('')}<th>${L('Present','उपस्थित')}</th><th>${L('Absent','अनुपस्थित')}</th></tr></thead><tbody>${
+   g.rows.map(r=>{const tt=agTot(r.cells);return `<tr><td class="n"><b>${esc(r.e.name)}</b><small style="display:block;color:var(--muted)">${esc(r.e.code)}</small></td>${r.cells.map((c,i)=>{const d=g.dates[i], txt=chk&&c.in?`<span class="ag-x">${c.in}<br>${c.out?c.out:`<span class="ag-A">?</span>`}</span>`:esc(c.c);return `<td class="${cls(c.c)}${c.late?' ag-L':''}${d===TODAY_S?' ag-T':''}">${txt}</td>`}).join('')}<td><b>${tt.P}</b></td><td>${tt.A}</td></tr>`}).join('')}</tbody></table></div>`}
+{const _bt=bindExtra;bindExtra=function(){_bt();const m=$('#main');m.querySelectorAll('[data-tgv]').forEach(b=>b.onclick=()=>{state.tgv=b.dataset.tgv;render()});m.querySelectorAll('[data-tgm]').forEach(s=>s.onchange=()=>{state.tgm=s.value;render()})}}
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
