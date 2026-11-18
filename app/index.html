@@ -14537,13 +14537,20 @@ function dtOverModal(id){const x=TODO.find(y=>y.id===id);if(!x||x.status==='Done
   m.querySelectorAll('[data-bmv$=":Done"]').forEach(b=>{const k=b.dataset.bmv.split(':')[0];if(k[0]!=='T')return;const x=TODO.find(y=>y.id===+k.slice(1)), msg=x?dtLockMsg(x):'';if(msg){b.disabled=true;b.title=msg;b.style.opacity='.5';b.style.cursor='not-allowed'}});
   m.querySelectorAll('[data-dtov]').forEach(b=>b.onclick=()=>dtOverModal(+b.dataset.dtov))}}
 /* ================= Daily scoring by the reporting manager (Grooming and any KPI HR adds), and KPI scoring from the assignment date ================= */
-const DSCORE={}, DAYK={'KPI-183':true};
-const dsKpis=()=>KPI.filter(k=>DAYK[k.id]&&k.active&&k.method==='Manager Scoring'&&!kpiModOff(k));
+const DSCORE={}, DAYK={'KPI-183':true,'KPI-007':true,'KPI-016':true}, DAYK_DEF=['KPI-183','KPI-007','KPI-016'], DAYW={'KPI-016':6}, DAYW_DEF={'KPI-016':6};
+const dsOn=id=>{if(DAYK[id]===undefined&&DAYK_DEF.includes(id))DAYK[id]=true;return !!DAYK[id]};
+/* a KPI is scored every working day (-1) or once a week on a fixed weekday (0 Sunday to 6 Saturday) */
+const dsSched=id=>{let v=DAYW[id];if(v===undefined)v=DAYW_DEF[id];return v!=null&&v>=0?+v:-1};
+const DSWD=[['Sunday','रविवार'],['Monday','सोमवार'],['Tuesday','मंगलवार'],['Wednesday','बुधवार'],['Thursday','गुरुवार'],['Friday','शुक्रवार'],['Saturday','शनिवार']];
+const dsSchedL=id=>{const w=dsSched(id);return w<0?'Every day':'Every week '+DSWD[w][0]};
+const dsSchedOpts=cur=>[-1,0,1,2,3,4,5,6].map(v=>`<option value="${v}" ${cur===v?'selected':''}>${v<0?L('Every day','रोज़'):L('Every week','हर हफ़्ते')+' · '+L(...DSWD[v])}</option>`).join('');
+const dsKpis=()=>KPI.filter(k=>dsOn(k.id)&&k.active&&k.method==='Manager Scoring'&&!kpiModOff(k));
 const dsEmpsFor=k=>DATA.emps.filter(e=>e.active&&(!e.status||e.status==='Working')&&assignedKpis(e,CUR_P).some(x=>x.id===k.id));
 function kRuleOf(e,k,p){return KRULES.filter(r=>r.st==='Active'&&inPeriod(r,p)&&ruleHits(r,e)&&r.kpi===k.id).sort((a,b)=>SCOPES.indexOf(a.scope)-SCOPES.indexOf(b.scope))[0]||null}
 /* the day a KPI starts counting inside the month it was assigned: empty when it was assigned on the 1st or earlier */
 function kFromOf(e,k,p){const r=kRuleOf(e,k,p);if(!r||!r.from)return '';return r.from.slice(0,7)===payKey(p)&&r.from.slice(8,10)>'01'?r.from:''}
 const dsDates=()=>[0,1,2,3].map(n=>addD(TODAY_S,-n)).filter(d=>d.slice(0,7)===curMk());
+const dsDatesFor=k=>{const w=dsSched(k.id);if(w<0)return dsDates();const o=[];for(let n=0;n<=13;n++){const d=addD(TODAY_S,-n);if(d.slice(0,7)===curMk()&&new Date(d+'T00:00:00Z').getUTCDay()===w)o.push(d)}return o};
 const dsStOn=(e,date)=>date.slice(0,7)===curMk()?dayRec(e.id,+date.slice(8)).st:'';
 const dsOk=(e,k,date)=>{const r=kRuleOf(e,k,CUR_P);return !r||!r.from||date>=r.from};
 const dsHere=st=>st==='P'||st==='L';
@@ -14551,49 +14558,50 @@ const dsKey=(emp,k,date)=>emp+'|'+k+'|'+date;
 const dsMgrOf=e=>{try{return evaluatorOf(e)}catch(x){return 0}};
 function dsRows(k,date,mgr){return dsEmpsFor(k).filter(e=>(!mgr||dsMgrOf(e)===mgr)&&dsOk(e,k,date)&&dsHere(dsStOn(e,date)))}
 const dsPending=(k,date,mgr)=>dsRows(k,date,mgr).filter(e=>!DSCORE[dsKey(e.id,k.id,date)]);
-KINDL.dscore=['Daily scoring','रोज़ की स्कोरिंग'];IBK.Perf+=' dscore';IBKM.dscore='Perf';
-INBOX_SRC.push((id,out)=>{try{dsKpis().forEach(k=>dsDates().forEach(date=>{const n=dsPending(k,date,id).length;
-  if(n)ibAdd(out,{kind:'dscore',title:`${L('Daily scoring','रोज़ की स्कोरिंग')}: ${k.name} · ${fmtS(date)} · ${n} ${L('to score','बाकी')}`,subject:0,page:'decision',tab:'dscore',due:date,ref:k.id+'|'+date})}))}catch(e){}});
+KINDL.dscore=['Scoring','स्कोरिंग'];IBK.Perf+=' dscore';IBKM.dscore='Perf';
+INBOX_SRC.push((id,out)=>{try{dsKpis().forEach(k=>dsDatesFor(k).forEach(date=>{const n=dsPending(k,date,id).length;
+  if(n)ibAdd(out,{kind:'dscore',title:`${dsSched(k.id)>=0?L('Weekly scoring','हफ़्ते की स्कोरिंग'):L('Daily scoring','रोज़ की स्कोरिंग')}: ${k.name} · ${fmtS(date)} · ${n} ${L('to score','बाकी')}`,subject:0,page:'decision',tab:'dscore',due:date,ref:k.id+'|'+date})}))}catch(e){}});
 {const _ibc2=ibClass;ibClass=function(r){if(r.kind==='dscore')return{g:'do',v:['Score the team','टीम को स्कोर दें'],b:['Open and score','खोलकर स्कोर दें']};return _ibc2(r)}}
 /* the month result of a daily-scored KPI: the average of the days scored (from the assignment day) */
 function dsResult(emp,k,p){if(p!==CUR_P)return null;const mk=payKey(p), from=KFROM||'';
   const rows=Object.values(DSCORE).filter(x=>x&&x.emp===emp&&x.kpi===k.id&&String(x.date).slice(0,7)===mk&&(!from||x.date>=from));
-  if(!rows.length)return{state:'PENDING',text:L('No daily score yet','अभी कोई रोज़ का स्कोर नहीं')};
-  const avg=rows.reduce((a,x)=>a+x.r,0)/rows.length;return{state:'SCORED',score:r2(avg*k.max/10),text:`${rows.length} ${L('days scored','दिन का स्कोर')} · ${L('average','औसत')} ${r2(avg)} / 10`}}
-{const _krd=kpiResult;kpiResult=function(emp,k,p){if(k&&DAYK[k.id]&&k.method==='Manager Scoring'){const r=dsResult(emp,k,p);if(r)return r}return _krd.apply(this,arguments)}}
+  const wk=dsSched(k.id)>=0;if(!rows.length)return{state:'PENDING',text:wk?L('No weekly score yet','अभी कोई हफ़्ते का स्कोर नहीं'):L('No daily score yet','अभी कोई रोज़ का स्कोर नहीं')};
+  const avg=rows.reduce((a,x)=>a+x.r,0)/rows.length;return{state:'SCORED',score:r2(avg*k.max/10),text:`${rows.length} ${wk?L('weeks scored','हफ़्ते का स्कोर'):L('days scored','दिन का स्कोर')} · ${L('average','औसत')} ${r2(avg)} / 10`}}
+{const _krd=kpiResult;kpiResult=function(emp,k,p){if(k&&dsOn(k.id)&&k.method==='Manager Scoring'){const r=dsResult(emp,k,p);if(r)return r}return _krd.apply(this,arguments)}}
 /* a KPI scored daily has no monthly rating task */
-{const _et=evalTasks;evalTasks=function(p){return _et(p).filter(x=>!DAYK[x.k.id])}}
+{const _et=evalTasks;evalTasks=function(p){return _et(p).filter(x=>!dsOn(x.k.id))}}
 /* pro-rata: while one KPI of one employee is worked out, KFROM holds its start day, and the records before it are left out */
 {const _krp=kpiResult;kpiResult=function(emp,k,p){const e=empById(emp);if(!e||!k)return _krp.apply(this,arguments);const f=kFromOf(e,k,p), old=KFROM;KFROM=f;try{const r=_krp.apply(this,arguments);if(f&&r&&r.state==='SCORED'&&r.text&&!r.text.includes(fmtS(f)))r.text+=` · ${L('from','से')} ${fmtS(f)}`;return r}finally{KFROM=old}}}
-const dsAccess=()=>canManage()||(state.role==='manager'&&dsKpis().length>0);
+const dsAccess=()=>canManage()||(state.role==='manager'&&dsKpis().some(k=>dsEmpsFor(k).some(e=>dsMgrOf(e)===me())));
 Object.assign(state,{dsd:'',dsk:'',dsm:''});
 function dsBody(){
   const ks=dsKpis(), hr=canManage();
-  const kset=hr?`<div class="card" style="margin-bottom:14px"><b>${L('KPIs scored daily','रोज़ स्कोर होने वाली KPI')}</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${ks.map(k=>`<span class="pill p-teal">${k.id} ${esc(k.name)} <a href="#" data-dsrm="${k.id}" title="${L('Remove','हटाएँ')}" style="margin-left:6px">×</a></span>`).join('')||`<span style="color:var(--muted)">—</span>`}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><select class="inp" id="dsAddSel" style="max-width:380px"><option value="">${L('Add a Manager Scoring KPI','Manager Scoring KPI जोड़ें')}</option>${KPI.filter(k=>k.active&&k.method==='Manager Scoring'&&!DAYK[k.id]&&!kpiModOff(k)).map(k=>`<option value="${k.id}">${k.id} · ${esc(k.name)}</option>`).join('')}</select><button class="btn btn-o btn-s" data-dsadd>${L('Add','जोड़ें')}</button></div>
-    <small style="display:block;color:var(--muted);margin-top:6px">${L('A KPI added here is scored by the reporting manager every working day, from the day it is assigned. It has no monthly rating task any more.','यहाँ जोड़ी गई KPI को रिपोर्टिंग मैनेजर हर कार्य दिन स्कोर करता है, असाइन होने के दिन से। उसका महीने की रेटिंग का टास्क नहीं रहता।')}</small></div>`:'';
+  const kset=hr?`<div class="card" style="margin-bottom:14px"><b>${L('KPIs scored by the manager every day or every week','मैनेजर रोज़ या हर हफ़्ते जो KPI स्कोर करता है')}</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${ks.map(k=>`<span class="pill p-teal">${k.id} ${esc(k.name)} <select data-dssch="${k.id}" style="font-size:11px;margin-left:6px">${dsSchedOpts(dsSched(k.id))}</select> <a href="#" data-dsrm="${k.id}" title="${L('Remove','हटाएँ')}" style="margin-left:6px">×</a></span>`).join('')||`<span style="color:var(--muted)">—</span>`}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><select class="inp" id="dsAddSel" style="max-width:380px"><option value="">${L('Add a Manager Scoring KPI','Manager Scoring KPI जोड़ें')}</option>${KPI.filter(k=>k.active&&k.method==='Manager Scoring'&&!dsOn(k.id)&&!kpiModOff(k)).map(k=>`<option value="${k.id}">${k.id} · ${esc(k.name)}</option>`).join('')}</select><select class="inp" id="dsAddSch" style="max-width:200px">${dsSchedOpts(-1)}</select><button class="btn btn-o btn-s" data-dsadd>${L('Add','जोड़ें')}</button></div>
+    <small style="display:block;color:var(--muted);margin-top:6px">${L('A KPI added here is scored by the reporting manager every working day, or once a week on the weekday you choose (the task comes to the manager on that day and is late after the day ends), from the day it is assigned. It has no monthly rating task any more.','यहाँ जोड़ी गई KPI को रिपोर्टिंग मैनेजर हर कार्य दिन, या आपके चुने हफ़्ते के एक दिन स्कोर करता है (उस दिन मैनेजर को टास्क आता है और दिन ख़त्म होने के बाद वह देर दिखता है), असाइन होने के दिन से। उसका महीने की रेटिंग का टास्क नहीं रहता।')}</small></div>`:'';
   if(!ks.length)return kset+`<div class="card empty">${L('No KPI is scored daily.','कोई KPI रोज़ स्कोर नहीं होती।')}</div>`;
-  const k=ks.find(x=>x.id===state.dsk)||ks[0], dates=dsDates();
+  const k=ks.find(x=>x.id===state.dsk)||ks[0], dates=dsDatesFor(k), none=!dates.length, wk=dsSched(k.id)>=0;
   const mgr=hr?(+state.dsm||0):me();
-  const date=dates.includes(state.dsd)?state.dsd:(dates.slice().reverse().find(d=>dsPending(k,d,mgr).length)||TODAY_S);
-  const pool=dsEmpsFor(k).filter(e=>!mgr||dsMgrOf(e)===mgr), mk=payKey(CUR_P);
+  const date=dates.includes(state.dsd)?state.dsd:(dates.slice().reverse().find(d=>dsPending(k,d,mgr).length)||dates[0]||TODAY_S);
+  const pool=none?[]:dsEmpsFor(k).filter(e=>!mgr||dsMgrOf(e)===mgr), mk=payKey(CUR_P);
   const stl=st=>({P:[L('Present','उपस्थित'),'p-ok'],L:[L('Late','देर'),'p-warn'],A:[L('Absent','अनुपस्थित'),'p-bad'],W:[L('Weekly off','साप्ताहिक अवकाश'),''],H:[L('Holiday','अवकाश'),''],LV:[L('Leave','छुट्टी'),''],LWP:[L('Leave','छुट्टी'),''],N:[L('Not in yet','अभी आए नहीं'),'p-warn'],F:['—','']})[st]||['—',''];
   const mgrs=[...new Set(dsEmpsFor(k).map(dsMgrOf).filter(Boolean))];
   const rows=pool.slice(0,hr&&!mgr?80:500).map(e=>{const st=dsStOn(e,date), sl=stl(st), ok=dsOk(e,k,date), here=dsHere(st), key=dsKey(e.id,k.id,date), cur=DSCORE[key], can_=hr||dsMgrOf(e)===me();
     const mine=Object.values(DSCORE).filter(x=>x.emp===e.id&&x.kpi===k.id&&String(x.date).slice(0,7)===mk&&x.date>=(kRuleOf(e,k,CUR_P)||{from:''}).from), avg=mine.length?r2(mine.reduce((a,x)=>a+x.r,0)/mine.length):'';
     const mid=!ok?`<td colspan="2" style="color:var(--muted)">${L('The KPI starts on','KPI शुरू होती है')} ${fmtS((kRuleOf(e,k,CUR_P)||{}).from)}</td>`:!here?`<td colspan="2" style="color:var(--muted)">${L('Not at work, no score','काम पर नहीं, स्कोर नहीं')}</td>`:
      `<td>${can_?`<select class="inp" style="width:74px" data-dsr="${e.id}"><option value="">—</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option ${cur&&cur.r===n?'selected':''}>${n}</option>`).join('')}</select>`:(cur?`<b>${cur.r} / 10</b>`:'—')}</td><td>${can_?`<input class="inp" style="min-width:150px" data-dsc="${e.id}" value="${esc(cur?cur.note||'':'')}">`:esc(cur?cur.note||'':'')}</td>`;
-    return `<tr><td><b>${esc(e.name)}</b><small style="display:block;color:var(--muted)">${esc(e.code)}</small></td><td><span class="pill ${sl[1]}">${sl[0]}</span></td>${mid}<td style="white-space:nowrap">${mine.length?`${mine.length} ${L('days','दिन')} · ${L('avg','औसत')} ${avg}`:'—'}</td></tr>`}).join('');
+    return `<tr><td><b>${esc(e.name)}</b><small style="display:block;color:var(--muted)">${esc(e.code)}</small></td><td><span class="pill ${sl[1]}">${sl[0]}</span></td>${mid}<td style="white-space:nowrap">${mine.length?`${mine.length} ${wk?L('weeks','हफ़्ते'):L('days','दिन')} · ${L('avg','औसत')} ${avg}`:'—'}</td></tr>`}).join('');
   return `${kset}<div class="tools">${ks.length>1?`<select class="inp" data-dsk>${ks.map(x=>`<option value="${x.id}" ${x.id===k.id?'selected':''}>${x.id} ${esc(x.name)}</option>`).join('')}</select>`:`<b>${k.id} · ${esc(k.name)}</b>`}<select class="inp" data-dsd style="max-width:180px">${dates.map(d=>`<option value="${d}" ${d===date?'selected':''}>${d===TODAY_S?L('Today','आज')+', ':''}${fmtS(d)}${dsPending(k,d,mgr).length?' · '+dsPending(k,d,mgr).length+' '+L('to score','बाकी'):''}</option>`).join('')}</select>
    ${hr?`<select class="inp" data-dsm style="max-width:200px"><option value="">${L('All scoring managers','सभी स्कोर करने वाले मैनेजर')}</option>${mgrs.map(id=>`<option value="${id}" ${+state.dsm===id?'selected':''}>${esc(nm_(id))}</option>`).join('')}</select>`:''}
-   <span style="color:var(--muted);font-size:12px">${L('Score 1 to 10 for each person who is at work. The month score is the average of the days scored × the maximum ÷ 10, counted from the day the KPI was assigned.','काम पर आए हर व्यक्ति को 1 से 10 स्कोर दें। महीने का स्कोर = स्कोर हुए दिनों का औसत × अधिकतम ÷ 10, KPI असाइन होने के दिन से गिना जाता है।')}</span><div style="flex:1"></div><button class="btn btn-p" data-dssave="${k.id}|${date}">${L('Save scores','स्कोर सेव करें')}</button></div>
-  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${L('That day','उस दिन')}</th><th>${L('Score','स्कोर')}</th><th>${L('Remark','टिप्पणी')}</th><th>${L('This month','इस महीने')}</th></tr></thead><tbody>${rows||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">${L('Nobody to score','स्कोर देने को कोई नहीं')}</td></tr>`}</tbody></table></div>${hr&&!mgr&&pool.length>80?`<small style="color:var(--muted)">${L('First 80 shown. Choose a scoring manager to see the rest.','पहले 80 दिख रहे हैं। बाकी देखने के लिए स्कोर करने वाला मैनेजर चुनें।')}</small>`:''}`}
-DEX.push(['dscore','Daily scoring','रोज़ की स्कोरिंग',()=>dsAccess(),()=>dsBody()]);
+   <span style="color:var(--muted);font-size:12px">${wk?L('Scoring day: every '+DSWD[dsSched(k.id)][0]+'. Observe that day and give each person who is at work a score from 1 to 10. One score a week. The month score is the average of the weeks scored × the maximum ÷ 10, counted from the day the KPI was assigned.','स्कोरिंग का दिन: हर '+DSWD[dsSched(k.id)][1]+'। उस दिन देखें और काम पर आए हर व्यक्ति को 1 से 10 स्कोर दें। हफ़्ते में एक स्कोर। महीने का स्कोर = स्कोर हुए हफ़्तों का औसत × अधिकतम ÷ 10, KPI असाइन होने के दिन से गिना जाता है।'):L('Score 1 to 10 for each person who is at work. The month score is the average of the days scored × the maximum ÷ 10, counted from the day the KPI was assigned.','काम पर आए हर व्यक्ति को 1 से 10 स्कोर दें। महीने का स्कोर = स्कोर हुए दिनों का औसत × अधिकतम ÷ 10, KPI असाइन होने के दिन से गिना जाता है।')}</span><div style="flex:1"></div><button class="btn btn-p" data-dssave="${k.id}|${date}">${L('Save scores','स्कोर सेव करें')}</button></div>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${L('That day','उस दिन')}</th><th>${L('Score','स्कोर')}</th><th>${L('Remark','टिप्पणी')}</th><th>${L('This month','इस महीने')}</th></tr></thead><tbody>${rows||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">${none?L('The scoring day of this KPI is every '+DSWD[dsSched(k.id)][0]+'. The task comes to the manager on that day.','इस KPI के स्कोरिंग का दिन हर '+DSWD[dsSched(k.id)][1]+' है। उस दिन मैनेजर को टास्क आता है।'):L('Nobody to score','स्कोर देने को कोई नहीं')}</td></tr>`}</tbody></table></div>${hr&&!mgr&&pool.length>80?`<small style="color:var(--muted)">${L('First 80 shown. Choose a scoring manager to see the rest.','पहले 80 दिख रहे हैं। बाकी देखने के लिए स्कोर करने वाला मैनेजर चुनें।')}</small>`:''}`}
+DEX.push(['dscore','Daily / weekly scoring','रोज़ / हफ़्ते की स्कोरिंग',()=>dsAccess(),()=>dsBody()]);
 {const _bds=bindExtra;bindExtra=function(){_bds();const m=$('#main');if(!m)return;
   m.querySelectorAll('[data-dsk]').forEach(s=>s.onchange=()=>{state.dsk=s.value;render()});
   m.querySelectorAll('[data-dsd]').forEach(s=>s.onchange=()=>{state.dsd=s.value;render()});
   m.querySelectorAll('[data-dsm]').forEach(s=>s.onchange=()=>{state.dsm=s.value;render()});
-  m.querySelectorAll('[data-dsadd]').forEach(b=>b.onclick=()=>{const v=(m.querySelector('#dsAddSel')||{}).value;if(!v||!canManage())return;DAYK[v]=true;audit('Daily scoring','KPI added',v,'');toast(t('saved'));render()});
+  m.querySelectorAll('[data-dsadd]').forEach(b=>b.onclick=()=>{const v=(m.querySelector('#dsAddSel')||{}).value;if(!v||!canManage())return;DAYK[v]=true;DAYW[v]=+((m.querySelector('#dsAddSch')||{}).value||-1);audit('Daily scoring','KPI added',v,dsSchedL(v));toast(t('saved'));render()});
+  m.querySelectorAll('[data-dssch]').forEach(sl=>sl.onchange=()=>{if(!canManage())return;DAYW[sl.dataset.dssch]=+sl.value;audit('Daily scoring','Schedule changed',sl.dataset.dssch,dsSchedL(sl.dataset.dssch));toast(t('saved'));render()});
   m.querySelectorAll('[data-dsrm]').forEach(a=>a.onclick=ev=>{ev.preventDefault();if(!canManage())return;DAYK[a.dataset.dsrm]=false;audit('Daily scoring','KPI removed',a.dataset.dsrm,'');toast(t('saved'));render()});
   m.querySelectorAll('[data-dssave]').forEach(b=>b.onclick=()=>{const [kid,date]=b.dataset.dssave.split('|'), k=kpiById(kid);let n=0,bad=0;
     m.querySelectorAll('[data-dsr]').forEach(s=>{const id=+s.dataset.dsr, e=empById(id), key=dsKey(id,kid,date);if(!(canManage()||dsMgrOf(e)===me()))return;if(!dsOk(e,k,date)||!dsHere(dsStOn(e,date)))return;
