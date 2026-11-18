@@ -14537,7 +14537,7 @@ function dtOverModal(id){const x=TODO.find(y=>y.id===id);if(!x||x.status==='Done
   m.querySelectorAll('[data-bmv$=":Done"]').forEach(b=>{const k=b.dataset.bmv.split(':')[0];if(k[0]!=='T')return;const x=TODO.find(y=>y.id===+k.slice(1)), msg=x?dtLockMsg(x):'';if(msg){b.disabled=true;b.title=msg;b.style.opacity='.5';b.style.cursor='not-allowed'}});
   m.querySelectorAll('[data-dtov]').forEach(b=>b.onclick=()=>dtOverModal(+b.dataset.dtov))}}
 /* ================= Daily scoring by the reporting manager (Grooming and any KPI HR adds), and KPI scoring from the assignment date ================= */
-const DSCORE={}, DAYK={'KPI-183':true,'KPI-007':true,'KPI-016':true,'KPI-186':true}, DAYK_DEF=['KPI-183','KPI-007','KPI-016','KPI-186'], DAYW={'KPI-016':6}, DAYW_DEF={'KPI-016':6};
+const DSCORE={}, DAYK={'KPI-183':true,'KPI-007':true,'KPI-016':true,'KPI-186':true}, DAYK_DEF=['KPI-183','KPI-007','KPI-016','KPI-186'], DAYW={'KPI-016':1}, DAYW_DEF={'KPI-016':1};
 const dsOn=id=>{if(DAYK[id]===undefined&&DAYK_DEF.includes(id))DAYK[id]=true;return !!DAYK[id]};
 /* a KPI is scored every working day (-1) or once a week on a fixed weekday (0 Sunday to 6 Saturday) */
 const dsSched=id=>{let v=DAYW[id];if(v===undefined)v=DAYW_DEF[id];return v!=null&&v>=0?+v:-1};
