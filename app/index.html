@@ -14633,6 +14633,12 @@ document.addEventListener('click',e=>{
 INBOX_SRC.push((id,out)=>{SRQ.forEach(r=>{if(!sqPurFor(r.div,r.sub).includes(id))return;
   if(r.status==='Approved')ibAdd(out,{kind:'srq-o',title:`${L('Order the requirement','रिक्वायरमेंट का ऑर्डर दें')} ${r.no}`,subject:r.emp,page:'stock',tab:'req'});
   if(r.status==='Ordered'&&r.ord&&r.ord.exp&&r.ord.exp<=TODAY_S)ibAdd(out,{kind:'srq-r',title:`${L('Has it come? Mark received','माल आया? आ गया दबाएँ')} ${r.no}`,subject:r.emp,page:'stock',tab:'req',due:r.ord.exp})})});
+/* ================= KPI-005 Daily Time Log Completion: worked out from the To Do list and the tasks given (the Log work entries), like KPI-006 ================= */
+{const k=KPI.find(x=>x.id==='KPI-005');if(k){k.method='Auto';k.freq='Monthly';k.rule='My Assignment → To Do list and Task assignment — On every working day the employee writes what was done and the time spent (Log work) on at least one work of his To Do list or of a task given to him. A day with at least one such log counts. Weekly off, holiday and leave days are not counted. Score = KPI max × days with a log ÷ working days. When the KPI starts in the middle of a month, only the days from its start date are counted.'}}
+AUTO2['KPI-005']=(e,k,p)=>{const w=ccWork(e,p);if(!w)return kN(L('No working day in the month','इस महीने कोई कार्यदिवस नहीं'));const days=new Set();
+ [...TODO.filter(x=>x.emp===e.id),...ASG.filter(a=>a.to===e.id)].forEach(x=>(x.work||[]).forEach(wl=>{if(wl.date&&inM(wl.date,p)&&['P','L','HD','A'].includes(dayRec(e.id,+String(wl.date).slice(8,10)).st))days.add(wl.date)}));
+ return kS(k,k.max*Math.min(1,days.size/w),`${L('Days with a time log','समय के लॉग वाले दिन')} ${days.size} / ${w}`)};
+AUTO_IMPL.add('KPI-005');
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
