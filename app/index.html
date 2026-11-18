@@ -850,7 +850,7 @@ function calendar(emp){
 }
 function myAttendance(){
   const e=me(), c={P:0,L:0,A:0,LV:0};
-  for(let d=1;d<=TODAY_D;d++){const s=dayRec(e,d).st;if(c[s]!=null)c[s]++}
+  for(let d=KSD();d<=TODAY_D;d++){const s=dayRec(e,d).st;if(c[s]!=null)c[s]++}
   const log=[];for(let d=TODAY_D;d>=1&&log.length<7;d--){const r=dayRec(e,d);if(['P','L','A','HD','WOP','HP'].includes(r.st))log.push({d,...r})}
   const regs=REGS.filter(r=>r.emp===e).sort((a,b)=>a.date<b.date?1:-1);
   return `<div class="grid g4" style="margin-bottom:16px">
@@ -1828,7 +1828,7 @@ DATA.emps.forEach(e=>PERIODS.slice(0,6).forEach((p,i)=>{KFS[e.id+'|'+p]={pct:62+
 const r2=x=>Math.round(x*100)/100;
 
 function autoKpi(e,k){
-  const dd=[];for(let d=1;d<=TODAY_D;d++)dd.push({d,r:dayRec(e.id,d)});
+  const dd=[];for(let d=KSD();d<=TODAY_D;d++)dd.push({d,r:dayRec(e.id,d)});
   const c={P:0,L:0,A:0,LV:0};dd.forEach(x=>{if(c[x.r.st]!=null)c[x.r.st]++});dd.forEach(x=>{if(x.r.st==='HD'){c.P+=0.5;c.A+=0.5}});
   const S=(score,text)=>({state:'SCORED',score:r2(Math.max(0,Math.min(k.max,score))),text}), N=text=>({state:'NOT_COUNTED',text}), P=text=>({state:'PENDING',text});
   if(k.id==='KPI-001'){const den=c.P+c.L+c.LV+c.A;if(!den)return N(t('kr_none'));const pct=(c.P+c.L+c.LV)/den*100;return S(pct*k.max/100,`${t('kr_att')} ${c.P+c.L+c.LV} / ${den} = ${pct.toFixed(1)}%`)}
@@ -1841,7 +1841,7 @@ function autoKpi(e,k){
   if(k.id==='KPI-004')return S(k.max*Math.max(0,1-c.A/SLA.ul),`${t('kr_ul')} ${c.A} · ${t('kr_limit')} ${SLA.ul}`);
   if(k.id==='KPI-018'){
     const mates=DATA.emps.filter(x=>x.active&&x.branch===e.branch);let days=0,pass=0;
-    for(let d=1;d<=TODAY_D;d++){const st=mates.map(x=>dayRec(x.id,d).st);if(st.every(s=>s==='W'||s==='H'||s==='F'))continue;days++;
+    for(let d=KSD();d<=TODAY_D;d++){const st=mates.map(x=>dayRec(x.id,d).st);if(st.every(s=>s==='W'||s==='H'||s==='F'))continue;days++;
       if(st.filter(s=>s==='P'||s==='L'||s==='HD').length/mates.length*100>=SLA.avail)pass++}
     if(!days)return N(t('kr_none'));return S(k.max*pass/days,`${t('kr_avail')} ${pass} / ${days}`)}
   if(k.id==='KPI-019'||k.id==='KPI-020'){
@@ -2070,7 +2070,8 @@ Object.assign(T.hi,{
 });
 
 const addD=(s,n)=>new Date(Date.parse(s)+n*864e5).toISOString().slice(0,10);
-const inM=(d,p)=>!!d&&String(d).slice(0,7)===payKey(p);
+let KFROM='';const KSD=()=>KFROM&&KFROM.slice(0,7)===curMk()?+KFROM.slice(8,10):1;
+const inM=(d,p)=>!!d&&String(d).slice(0,7)===payKey(p)&&!(KFROM&&String(d).slice(0,10)<KFROM);
 const L=(en,hi)=>lang==='hi'?hi:en;
 Object.assign(SLA,{conv:[[75,100],[65,75],[55,50],[0,0]],reLo:3,reHi:6,lowLine:70,lowRise:10,lowTarget:50,pipGrace:3,advDays:2,onbDays:7,uniGrace:7,retDays:90});
 
@@ -2381,7 +2382,7 @@ function pipModal(id){
 const CRULE={late:3,ul:1,bottom:10,score:75}, CT={};
 const REASONS=['late','ul','bottom','score'];
 function ctReasons(e,p){
-  const r=[], dd=[];for(let d=1;d<=TODAY_D;d++)dd.push(dayRec(e.id,d).st);
+  const r=[], dd=[];for(let d=KSD();d<=TODAY_D;d++)dd.push(dayRec(e.id,d).st);
   if(CRULE.late>0&&dd.filter(s=>s==='L').length>=CRULE.late)r.push('late');
   if(CRULE.ul>0&&dd.filter(s=>s==='A').length>=CRULE.ul)r.push('ul');
   if(CRULE.bottom>0){const pool=DATA.emps.filter(x=>x.active&&x.division==e.division&&SRC.rep_emp.some(q=>q.emp==x.id&&q.month===p));
@@ -2785,7 +2786,7 @@ const AUTO3={
      if(bad)return;if(open){wait++;return}ok++});
    if(wait)return kP(L('A decision is still inside its deadlines','कोई निर्णय अभी अपनी समय-सीमा में है'));return kS(k,ok/d.length*k.max,`${ok} / ${d.length}`)},
  'KPI-075':(e,k,p)=>{const rows=SRC.fbcalls.filter(x=>x.emp==e.id&&inM(x.date,p));if(!rows.length)return kP(L('No feedback form entry','कोई फ़ीडबैक फ़ॉर्म एंट्री नहीं'));
-   const days=[];for(let d=1;d<=TODAY_D;d++){const s=dayRec(e.id,d).st;if(s==='P'||s==='L')days.push(d)}if(!days.length)return kN(L('No applicable day','कोई लागू दिन नहीं'));
+   const days=[];for(let d=KSD();d<=TODAY_D;d++){const s=dayRec(e.id,d).st;if(s==='P'||s==='L')days.push(d)}if(!days.length)return kN(L('No applicable day','कोई लागू दिन नहीं'));
    const sc=days.reduce((a,d)=>a+Math.min(1,(rows.filter(r=>r.date===ds(d)).reduce((s,r)=>s+r.forms,0))/SLA.callT),0)/days.length*100;return kS(k,sc*k.max/100,`${sc.toFixed(1)}% (${days.length} ${L('days','दिन')})`)},
  'KPI-072':(e,k,p)=>{const mk=payKey(p);if(!PAYRUN[mk]||PAYRUN[mk]==='draft')return kN(L('No payroll run in the month','इस महीने कोई पेरोल रन नहीं'));
    const n=DATA.emps.filter(x=>x.active).length, er=new Map();SRC.pcorr.filter(x=>x.month===p).forEach(x=>er.set(x.emp,Math.max(er.get(x.emp)||0,x.kind==='Correction'?1:SLA.errW)));
@@ -3034,7 +3035,7 @@ Object.assign(AUTO2,{
    const dec=c.filter(x=>x.result==='Guilty'||x.result==='Not Guilty');if(!dec.length)return kN(L('Complaints are still under investigation','शिकायतों की जाँच जारी है'));
    const ng=dec.filter(x=>x.result==='Not Guilty').length, pc=ng/dec.length*100;return kS(k,pc*k.max/100,`${L('Not guilty','दोषी नहीं')} ${ng} / ${dec.length} = ${pc.toFixed(0)}%`)},
  'KPI-075':(e,k,p)=>{const rows=CFB.filter(x=>x.by==e.id&&inM(x.date,p));if(!rows.length)return kP(L('No feedback form filled yet','अभी कोई फ़ीडबैक फ़ॉर्म नहीं भरा'));
-   const days=[];for(let d=1;d<=TODAY_D;d++){const s=dayRec(e.id,d).st;if(s==='P'||s==='L')days.push(d)}if(!days.length)return kN(L('No applicable day','कोई लागू दिन नहीं'));
+   const days=[];for(let d=KSD();d<=TODAY_D;d++){const s=dayRec(e.id,d).st;if(s==='P'||s==='L')days.push(d)}if(!days.length)return kN(L('No applicable day','कोई लागू दिन नहीं'));
    const sc=days.reduce((a,d)=>a+Math.min(1,rows.filter(r=>r.date===ds(d)).length/SLA.callT),0)/days.length*100;return kS(k,sc*k.max/100,`${sc.toFixed(1)}% (${days.length} ${L('days','दिन')})`)}
 });
 function crmTabs(){return canManage()?['list','dup','tgt','setup','cmp','form']:state.role==='manager'?['form','list','cmp']:['form']}
@@ -3069,7 +3070,7 @@ function crTgt(){
   const emps=DATA.emps.filter(e=>e.active&&(CFB.some(x=>x.by===e.id&&inM(x.date,CUR_P))||assignedKpis(e,CUR_P).some(k=>k.id==='KPI-075')));
   return `<div class="tools"><span class="pill p-teal">${t('tg_target')}: ${SLA.callT}</span><span style="color:var(--muted);font-size:13px">${t('tg_note')}</span></div>
   <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${t('tg_forms')}</th><th>${t('tg_days')}</th><th>${t('tg_met')}</th><th>${t('tg_short')}</th><th>${t('tg_score')}</th></tr></thead><tbody>${
-   emps.map(e=>{const rows=CFB.filter(x=>x.by===e.id&&inM(x.date,CUR_P));let days=0,met=0,sc=0;for(let d=1;d<=TODAY_D;d++){const s=dayRec(e.id,d).st;if(s!=='P'&&s!=='L')continue;days++;const n=rows.filter(r=>r.date===ds(d)).length;if(n>=SLA.callT)met++;sc+=Math.min(1,n/SLA.callT)}
+   emps.map(e=>{const rows=CFB.filter(x=>x.by===e.id&&inM(x.date,CUR_P));let days=0,met=0,sc=0;for(let d=KSD();d<=TODAY_D;d++){const s=dayRec(e.id,d).st;if(s!=='P'&&s!=='L')continue;days++;const n=rows.filter(r=>r.date===ds(d)).length;if(n>=SLA.callT)met++;sc+=Math.min(1,n/SLA.callT)}
     return `<tr><td><b>${esc(e.name)}</b></td><td>${rows.length}</td><td>${days}</td><td>${met}</td><td>${days-met}</td><td>${days?(sc/days*100).toFixed(1)+'%':'—'}</td></tr>`}).join('')||`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">${t('bd_empty')}</td></tr>`}</tbody></table></div>`;
 }
 function crSetup(){
@@ -3339,7 +3340,7 @@ function wfStats(filter){const [a,b]=wfRange(), L0=DATA.emps.filter(filter), ope
   const avg=(open.length+close.length)/2, at=avg?ex.length/avg*100:0;return{open,close,join,ex,at,ret:100-at}}
 function riskOf(e){const pts=[],why=[];const prev=PERIODS[PERIODS.indexOf(CUR_P)-1], s=KFS[e.id+'|'+CUR_P]||KFS[e.id+'|'+prev];
   if(s&&s.pct<60){pts.push(3);why.push('rk_kpi60')}else if(s&&s.pct<75){pts.push(1);why.push('rk_kpi75')}
-  const st=[];for(let d=1;d<=TODAY_D;d++)st.push(dayRec(e.id,d).st);
+  const st=[];for(let d=KSD();d<=TODAY_D;d++)st.push(dayRec(e.id,d).st);
   if(st.includes('A')){pts.push(1);why.push('rk_ul')}if(st.filter(x=>x==='L').length>=3){pts.push(1);why.push('rk_late')}
   ctSync();if(CT[e.id+'|'+CUR_P]&&CT[e.id+'|'+CUR_P].status==='Open'){pts.push(1);why.push('rk_cns')}
   if(LETTERS.some(l=>l.emp===e.id&&l.st!=='Cancelled'&&['Warning Letter','PIP Letter','Show Cause Notice'].includes(l.type)&&l.date>=addD(TODAY_S,-183))){pts.push(2);why.push('rk_warn')}
@@ -4567,7 +4568,7 @@ const ojtTpl=o=>OJTT.find(x=>x.id===o.tpl)||{name:'?',pts:[],pass:70,days:7};
 function ojtSuggest(){
   const out=[], open=(e,t0)=>SRC.ojt.some(o=>o.emp===e.id&&o.tpl===t0.id&&o.status!=='Closed'), T0=n=>OJTT.find(x=>x.name===n);
   DATA.emps.filter(e=>e.active).forEach(e=>{
-    const late=(()=>{let n=0;for(let d=1;d<=TODAY_D;d++)if(dayRec(e.id,d).st==='L')n++;return n})();
+    const late=(()=>{let n=0;for(let d=KSD();d<=TODAY_D;d++)if(dayRec(e.id,d).st==='L')n++;return n})();
     if(late>=3&&!open(e,T0('Division Discipline')))out.push({e,t:T0('Division Discipline'),why:`${late} ${L('late days this month','इस महीने देर के दिन')}`});
     const neg=CFB.filter(c=>c.result==='Negative'&&inM(c.date,CUR_P)&&(c.by===e.id||(c.emps||[]).includes(e.id))).length;if(neg&&!open(e,T0('Greeting')))out.push({e,t:T0('Greeting'),why:`${neg} ${L('negative feedback','नेगेटिव फ़ीडबैक')}`});
     const k27=kpiById('KPI-027'),k10=kpiById('KPI-010'), asg=assignedKpis(e,CUR_P);
@@ -8334,7 +8335,7 @@ function calendar(emp){
 const EXCLOG=[];state.exf='all';
 const EXTYPE={miss:['Missed punch (Absent)','पंच छूटी (Absent)','p-bad'],short:['Short duty (Absent)','कम ड्यूटी (Absent)','p-bad'],half:['Half day','आधा दिन','p-warn'],leave:['Punch on a leave day','छुट्टी के दिन पंच','p-teal'],early:['Early going','जल्दी गए','p-warn']};
 const EXWHY={hrs:['duty hours below a full day','पूरे दिन से कम ड्यूटी'],late:['came very late','बहुत देर से आए'],early:['left very early','बहुत जल्दी गए']};
-function excRows(){const out=[];DATA.emps.filter(e=>e.active!==false).forEach(e=>{for(let d=1;d<=TODAY_D;d++){const s=ds(d);if(e.doj&&s<e.doj)continue;const a=ATT[e.id+'|'+s];if(!(a&&a.bio)||ACORR[e.id+'|'+s])continue;
+function excRows(){const out=[];DATA.emps.filter(e=>e.active!==false).forEach(e=>{for(let d=KSD();d<=TODAY_D;d++){const s=ds(d);if(e.doj&&s<e.doj)continue;const a=ATT[e.id+'|'+s];if(!(a&&a.bio)||ACORR[e.id+'|'+s])continue;
   const r=dayRec(e.id,d), ty=r.miss?'miss':r.short?'short':r.conflict?'leave':r.st==='HD'?'half':r.early?'early':'';if(ty)out.push({emp:e.id,d,s,type:ty,r})}});return out.sort((a,b)=>a.s<b.s?1:a.s>b.s?-1:a.emp-b.emp)}
 function excTab(){const E=can('timeoffice','E'), all=excRows(), f=state.exf, rows=f==='all'?all:all.filter(x=>x.type===f), cnt=k=>all.filter(x=>x.type===k).length;
  return `<p style="color:var(--muted);font-size:13px;margin:6px 0">${L('Days that came from the biometric machine and need a look. A day with only one punch stays Absent (missed punch) until HR corrects it here. A correction needs a reason, is saved with who did it and when, tells the employee, and the day then follows the corrected times and the shift rules. The rules for half day and duty hours are in SLA master, SLA-043.','बायोमेट्रिक मशीन से आए वे दिन जिन्हें देखना है। सिर्फ़ एक पंच वाला दिन Absent (missed punch) रहता है जब तक HR उसे यहाँ सुधारे नहीं। सुधार के लिए कारण चाहिए, किसने और कब किया यह दर्ज होता है, कर्मचारी को बताया जाता है, और फिर दिन सुधरे समय और शिफ़्ट के नियम से चलता है। आधे दिन और ड्यूटी के घंटों के नियम SLA मास्टर में SLA-043 में हैं।')}</p>
@@ -8370,7 +8371,7 @@ INBOX_SRC.push((id,out)=>{
 rp('att_exc','timeoffice','Punch exceptions','पंच अपवाद','none','M',f=>({cols:[L('Code','कोड'),t('name'),L('Date','तारीख़'),L('What','क्या'),L('In','आना'),L('Out','जाना'),L('Hours','घंटे')],rows:excRows().map(x=>{const e=empById(x.emp);return[e.code,e.name,x.s,EXTYPE[x.type][0],x.r.in||'',x.r.out||'',x.r.hrs||'']})}));
 rp('att_fix','timeoffice','Punch corrections done','किए गए पंच सुधार','none','M',f=>({cols:[L('Ref','संदर्भ'),L('Code','कोड'),t('name'),L('Date','तारीख़'),L('Before','पहले'),L('After','बाद में'),L('Reason','कारण'),L('By','किसने'),L('At','कब')],rows:EXCLOG.map(x=>{const e=empById(x.emp);return[x.ref,e.code,e.name,x.s,x.before,x.after,x.why,x.by,x.at]})}));
 /* two KPIs from the same data */
-{const b=KPI.find(x=>x.id==='KPI-002'), cat=b?b.cat:'Admin & HR Operations', days=(e,p,f)=>{let n=0,w=0;for(let d=1;d<=TODAY_D;d++){if(!inM(ds(d),p))continue;const r=dayRec(e.id,d);if(['P','L','HD'].includes(r.st))w++;if(f(r))n++}return{n,w}};
+{const b=KPI.find(x=>x.id==='KPI-002'), cat=b?b.cat:'Admin & HR Operations', days=(e,p,f)=>{let n=0,w=0;for(let d=KSD();d<=TODAY_D;d++){if(!inM(ds(d),p))continue;const r=dayRec(e.id,d);if(['P','L','HD'].includes(r.st))w++;if(f(r))n++}return{n,w}};
  KPI.push({id:'KPI-389',name:'Early Going Days',cat,level:'Data',max:10,freq:'Monthly',method:'Auto',rule:'Time Office — Days in the month on which the person left earlier than the shift end by more than the minutes in SLA-043. Score falls to zero at the number of days in SLA-043. A month with no working day is not counted.',active:true});
  AUTO2['KPI-389']=(e,k,p)=>{const x=days(e,p,r=>r.early&&['P','L','HD'].includes(r.st));if(!x.w)return kN(L('No working day in the month','इस महीने कोई कार्यदिवस नहीं'));return kS(k,k.max*Math.max(0,1-x.n/SLA.attEarlyMax),`${L('Early going days','जल्दी जाने के दिन')} ${x.n} / ${SLA.attEarlyMax}`)};
  KPI.push({id:'KPI-390',name:'Missed Punch Days',cat,level:'Data',max:10,freq:'Monthly',method:'Auto',rule:'Time Office — Days in the month with only one punch that were not corrected (counted Absent). A day that HR corrected is not counted. Score falls to zero at the number of days in SLA-043.',active:true});
@@ -8419,7 +8420,7 @@ function ltEligible(m,e){if(!e||!e.id)return true;if(m.gender!=='All'&&(e.gender
 const _lvW={};
 function lvWorked(e){const k=e.id+'|'+TODAY_S, c=_lvW[k];if(c&&Date.now()-c.t<5000)return c.v;const ys=ltYearStart(), from=e.doj&&e.doj>ys?e.doj:ys;let w=0;
  Object.keys(typeof ATTP!=='undefined'?ATTP:{}).forEach(mk=>{if(mk<from.slice(0,7)||mk>=curMk())return;const r=ATTP[mk].rows&&ATTP[mk].rows[e.id];if(r&&!r.seed)w+=(+r.present||0)+(+r.lv||0)+(+r.hol||0)});
- for(let d=1;d<=TODAY_D;d++){const s=ds(d);if(s<from)continue;const st=dayRec(e.id,d).st;if(['P','L','WOP','HP','LV','H'].includes(st))w+=1;else if(st==='HD')w+=0.5}
+ for(let d=KSD();d<=TODAY_D;d++){const s=ds(d);if(s<from)continue;const st=dayRec(e.id,d).st;if(['P','L','WOP','HP','LV','H'].includes(st))w+=1;else if(st==='HD')w+=0.5}
  _lvW[k]={t:Date.now(),v:w};return w}
 function lvEarned(e,m){if(!e||!e.id)return 0;const per=Math.max(1,+m.accDays||20), min=+m.accMin||180, ys=ltYearStart(), w=lvWorked(e);
  const old=e.doj&&addD(e.doj,365)<=ys;if(!old&&w<min)return 0;return Math.floor(w/per)}
@@ -9949,7 +9950,7 @@ const _db54=dashboard;dashboard=function(){const h=_db54(), i=h.indexOf('</div><
  return head+tabs+(tab==='tgt'?(tgDash()||`<div class="card empty">${L('No target is set for you this month.','इस महीने आपके लिए कोई टारगेट तय नहीं है।')}</div>`):tab==='today'?`<div class="dash-today">${today}</div>`:`<div class="dash-perf">${perf}</div>`)};
 state.dtab='perf';const _bindExtra55=bindExtra;bindExtra=function(){_bindExtra55();$('#main').querySelectorAll('[data-dtab]').forEach(b=>b.onclick=()=>{state.dtab=b.dataset.dtab;render()})};
 /* ---------- demo: quantity and the daily history of this month ---------- */
-{const hsh=(a,b)=>((a*131+b*17)%97)/97, mkS=(kind,key,total,qtyTotal,prof)=>{let prev=0;for(let d=1;d<=TODAY_D;d++){const share=(d/TODAY_D)**prof, v=d===TODAY_D?total:Math.round(total*share*(0.97+hsh(key,d)*0.06)/100)*100, sale=Math.max(prev,Math.min(total,v));prev=sale;saleHist(kind,{date:ds(d),val:sale,qty:Math.round(qtyTotal*sale/total),...(kind==='emp'?{emp:key}:{division:key})})}};
+{const hsh=(a,b)=>((a*131+b*17)%97)/97, mkS=(kind,key,total,qtyTotal,prof)=>{let prev=0;for(let d=KSD();d<=TODAY_D;d++){const share=(d/TODAY_D)**prof, v=d===TODAY_D?total:Math.round(total*share*(0.97+hsh(key,d)*0.06)/100)*100, sale=Math.max(prev,Math.min(total,v));prev=sale;saleHist(kind,{date:ds(d),val:sale,qty:Math.round(qtyTotal*sale/total),...(kind==='emp'?{emp:key}:{division:key})})}};
  const q={134:214,135:140,136:38};SRC.rep_emp.filter(r=>r.month===CUR_P).forEach(r=>{r.qty=q[r.id]||Math.round(r.sale/1120);mkS('emp',r.emp,r.sale,r.qty,1.05+hsh(r.emp,3)*.2)});
  SRC.rep_div.filter(r=>r.month===CUR_P).forEach(r=>{r.qty=Math.round(r.sale/1130);mkS('div',r.division,r.sale,r.qty,1.08)})}
 
@@ -12375,7 +12376,7 @@ const CCT=[{id:1,code:'DISC',name:'Division Discipline',hi:'डिवीज़�
 const CCO=[];
 const EVP=[];
 const ccName=t0=>L(t0.name,t0.hi||t0.name);
-const ccWork=(e,p)=>{let n=0;for(let d=1;d<=TODAY_D;d++){if(!inM(ds(d),p))continue;if(['P','L','HD','A'].includes(dayRec(e.id,d).st))n++}return n};
+const ccWork=(e,p)=>{let n=0;for(let d=KSD();d<=TODAY_D;d++){if(!inM(ds(d),p))continue;if(['P','L','HD','A'].includes(dayRec(e.id,d).st))n++}return n};
 function ccAdd(o){const r={id:++seq,no:sysNo('CCO',CCO.length+1),date:o.date,type:o.type,division:o.division||0,emp:o.emp||0,fb:o.fb,remark:o.remark,file:o.file||null,by:o.by,at:TODAY_S};CCO.push(r);audit('CCTV monitoring','Observation',r.no,`${(CCT.find(x=>x.id===r.type)||{}).name} ${r.fb==='N'?'negative':'positive'}`);return r}
 {const d=n=>addD(TODAY_S,-n);ccAdd({date:d(13),type:1,division:3,fb:'N',remark:'Two staff on mobile phones on the floor',by:19});ccAdd({date:d(12),type:1,division:3,fb:'P',remark:'Floor was in order all day',by:19});ccAdd({date:d(9),type:2,division:3,fb:'N',remark:'Rude reply to a customer at the counter',by:19});ccAdd({date:d(6),type:3,emp:15,fb:'P',remark:'On the floor through the busy hours',by:19});ccAdd({date:d(2),type:1,division:3,fb:'N',remark:'Floor left empty for 10 minutes',by:19})}
 function ccScoreFor(e,k,p){const ty=CCT.filter(x=>x.kpi===k.id&&x.active), ids=new Set(ty.map(x=>x.id));
@@ -12385,7 +12386,7 @@ function ccScoreFor(e,k,p){const ty=CCT.filter(x=>x.kpi===k.id&&x.active), ids=n
  const n=os.filter(o=>o.fb==='N').length;return kS(k,s,`${n} ${L('negative','नेगेटिव')}, ${os.length-n} ${L('positive','पॉज़िटिव')} · ${CCS.step}`)}
 ['KPI-189','KPI-187','KPI-190'].forEach(id=>{AUTO2[id]=(e,k,p)=>ccScoreFor(e,k,p);AUTO_IMPL.add(id)});
 AUTO2['KPI-119']=(e,k,p)=>{const ty=CCT.filter(x=>x.active), w=ccWork(e,p);if(!ty.length||!w)return kN(L('No working day in the month','इस महीने कोई कार्यदिवस नहीं'));let sum=0;
- for(let d=1;d<=TODAY_D;d++){if(!inM(ds(d),p))continue;if(!['P','L','HD','A'].includes(dayRec(e.id,d).st))continue;const day=ds(d);sum+=new Set(CCO.filter(o=>o.by===e.id&&o.date===day&&ty.some(x=>x.id===o.type)).map(o=>o.type)).size/ty.length}
+ for(let d=KSD();d<=TODAY_D;d++){if(!inM(ds(d),p))continue;if(!['P','L','HD','A'].includes(dayRec(e.id,d).st))continue;const day=ds(d);sum+=new Set(CCO.filter(o=>o.by===e.id&&o.date===day&&ty.some(x=>x.id===o.type)).map(o=>o.type)).size/ty.length}
  return kS(k,k.max*sum/w,`${L('Daily coverage','रोज़ की कवरेज')} ${Math.round(sum/w*100)}% · ${w} ${L('working days','कार्यदिवस')}`)};
 AUTO_IMPL.add('KPI-119');
 const monIsMonitor=()=>{const e=empById(me());return !!e&&assignedKpis(e,CUR_P).some(k=>k.id==='KPI-119')};
@@ -12528,7 +12529,7 @@ function atvDeadline(mid,date){let n=addD(date,1),i=0;while(!atvWorks(mid,n)&&i+
 const atvOpenIssues=(e,date)=>excRows().filter(x=>x.emp===e.id&&x.s===date);
 const atvAction=(e,date,V)=>{const ar=AR.find(a=>a.kind==='REG'&&a.emp===e.id&&a.date===date&&!['Rejected','Cancelled'].includes(a.status));if(ar)return L('Regularization '+ar.no,'रेगुलराइज़ेशन '+ar.no);if(V&&V.notes&&V.notes[e.id])return L('Note given','टिप्पणी दी');return ''};
 /* days on which this manager's team worked, before today, in the running month */
-function atvDays(mid){const team=atvTeam(mid), out=[];for(let d=1;d<=TODAY_D;d++){const s=ds(d);if(s>=TODAY_S)break;if(team.some(e=>['P','L','HD','A'].includes(dayRec(e.id,d).st)))out.push(s)}return out}
+function atvDays(mid){const team=atvTeam(mid), out=[];for(let d=KSD();d<=TODAY_D;d++){const s=ds(d);if(s>=TODAY_S)break;if(team.some(e=>['P','L','HD','A'].includes(dayRec(e.id,d).st)))out.push(s)}return out}
 function atvStatus(mid,date){const V=ATV.find(v=>v.mgr===mid&&v.date===date), dl=atvDeadline(mid,date);
  if(V){const ok=V.at<=dl;return{V,dl,state:ok&&V.open===0?'full':ok?'open':'late',credit:ok&&V.open===0?1:0.5}}
  return nowTs()>dl?{V:null,dl,state:'missed',credit:0}:{V:null,dl,state:'due',credit:0}}
@@ -12719,7 +12720,7 @@ const rfName=r=>L(r.name,r.hi||r.name);
 KRULES.push({id:++seq,kpi:'KPI-034',scope:'Designation',value:4,from:'2026-04-01',until:'',st:'Active'});
 function rfSave(emp,date,range,need,done,by){let r=RFL.find(x=>x.emp===emp&&x.date===date&&x.range===range);if(r)Object.assign(r,{need,done,at:nowTs()});else RFL.push(r={id:++seq,emp,date,range,need,done,at:nowTs(),by:by||emp});return r}
 /* the score: the average completion of the working days */
-function rfDays(e,p){const out=[];for(let d=1;d<=TODAY_D;d++){const s=ds(d);if(!inM(s,p))continue;const has=RFL.some(x=>x.emp===e.id&&x.date===s);if(s>=TODAY_S&&!has)continue;if(['P','L','HD','A'].includes(dayRec(e.id,d).st)||has)out.push(s)}return out}
+function rfDays(e,p){const out=[];for(let d=KSD();d<=TODAY_D;d++){const s=ds(d);if(!inM(s,p))continue;const has=RFL.some(x=>x.emp===e.id&&x.date===s);if(s>=TODAY_S&&!has)continue;if(['P','L','HD','A'].includes(dayRec(e.id,d).st)||has)out.push(s)}return out}
 function rfDayPct(emp,s){return RFL.some(x=>x.emp===emp&&x.date===s&&x.done>0)?1:0}
 AUTO2['KPI-034']=(e,k,p)=>{const ds_=rfDays(e,p);if(!ds_.length)return kN(L('No working day in the month','इस महीने कोई कार्यदिवस नहीं'));const f=ds_.filter(s=>RFL.some(x=>x.emp===e.id&&x.date===s)).length, avg=ds_.reduce((a,s)=>a+rfDayPct(e.id,s),0)/ds_.length;
  return kS(k,k.max*avg,`${L('Days with refilling','रिफ़िलिंग वाले दिन')} ${Math.round(avg*100)}% · ${L('form filled on','फ़ॉर्म भरा')} ${f} / ${ds_.length} ${L('days','दिन')}`)};
@@ -13066,7 +13067,7 @@ const clItems=kid=>{const c=chkById(CHKLINK[kid]);return c?c.items:[]};
 const clName=kid=>{const c=chkById(CHKLINK[kid]);return c?c.name:kid};
 function clSave(emp,kid,date,ans,rem){const c=chkById(CHKLINK[kid]), pct=auditScore({items:c.items},ans);let r=CLF.find(x=>x.emp===emp&&x.kpi===kid&&x.date===date);const o={ans,pct:pct==null?0:pct,rem:rem||'',chk:c.id,ver:c.version,at:TODAY_S};
  if(r)Object.assign(r,o);else CLF.push(r={id:++seq,emp,kpi:kid,date,...o});return r}
-function clDays(e,kid,p){const out=[];for(let d=1;d<=TODAY_D;d++){const s=ds(d);if(!inM(s,p))continue;const has=CLF.some(x=>x.emp===e.id&&x.kpi===kid&&x.date===s);if(s>=TODAY_S&&!has)continue;if(['P','L','HD','A'].includes(dayRec(e.id,d).st)||has)out.push(s)}return out}
+function clDays(e,kid,p){const out=[];for(let d=KSD();d<=TODAY_D;d++){const s=ds(d);if(!inM(s,p))continue;const has=CLF.some(x=>x.emp===e.id&&x.kpi===kid&&x.date===s);if(s>=TODAY_S&&!has)continue;if(['P','L','HD','A'].includes(dayRec(e.id,d).st)||has)out.push(s)}return out}
 const clPct=(emp,kid,s)=>{const r=CLF.find(x=>x.emp===emp&&x.kpi===kid&&x.date===s);return r?r.pct/100:0};
 CLK.forEach(kid=>{AUTO2[kid]=(e,k,p)=>{const dd=clDays(e,kid,p);if(!dd.length)return kN(L('No working day in the month','इस महीने कोई कार्यदिवस नहीं'));const f=dd.filter(s=>CLF.some(x=>x.emp===e.id&&x.kpi===kid&&x.date===s)).length, avg=dd.reduce((a,s)=>a+clPct(e.id,kid,s),0)/dd.length;
  return kS(k,k.max*avg,`${L('Average','औसत')} ${Math.round(avg*100)}% · ${L('form filled on','फ़ॉर्म भरा')} ${f} / ${dd.length} ${L('days','दिन')}`)}});
@@ -13120,10 +13121,10 @@ const sqMine=()=>{const e=empById(me());return !!e&&assignedKpis(e,CUR_P).some(k
 const sqVisible=()=>sqMine()||SRQ.some(r=>r.emp===me());
 const sqIsDm=()=>{const e=empById(me());return !!e&&e.desig===DIVMGR};
 const sqPurchase=()=>{const a=(SRQSET.purchase||[]).filter(x=>{const y=empById(x);return y&&y.active});return a.length?a:[hrId()]};
-const sqIsPurchase=()=>sqPurchase().includes(me());
+const sqIsPurchase=()=>sqPurchase().includes(me())||sqPB().some(x=>sqActive(x.emps).includes(me()));
 const sqStaffAdmin=()=>canManage()||sqIsPurchase()||sqIsDm();
 const sqTask=r=>r.wfi?myWfTask(r.wfi):null;
-const sqSees=r=>canManage()||sqIsPurchase()||!!sqTask(r)||(sqIsDm()&&empById(me())&&empById(me()).division===r.div);
+const sqSees=r=>canManage()||sqIsPurchaseOf(r)||!!sqTask(r)||(sqIsDm()&&empById(me())&&empById(me()).division===r.div);
 function sqSt(r){if(r.kind==='none')return 'Nothing';if(r.status==='In approval'){const i=WFI.find(x=>x.id===r.wfi);return i&&i.step>=1?'Waiting for Purchase Head':'Waiting for verify'}return r.status}
 const SQ_STL={'Waiting for verify':['Waiting for verify','verify का इंतज़ार','p-warn'],'Waiting for Purchase Head':['Waiting for Purchase Head','Purchase Head का इंतज़ार','p-teal'],'Sent back':['Sent back','वापस आई','p-warn'],Rejected:['Rejected','अस्वीकृत','p-bad'],Approved:['Approved','मंज़ूर','p-ok'],Ordered:['Ordered','ऑर्डर हुआ','p-ok'],'Partly received':['Partly received','कुछ आया','p-teal'],Received:['Received','आ गया','p-ok'],Nothing:['Nothing to send','कुछ भेजना नहीं','p-gray']};
 const sqPill=r=>{const s=sqSt(r), x=SQ_STL[s]||[s,s,'p-gray'];return `<span class="pill ${x[2]}">${L(x[0],x[1])}</span>`};
@@ -13133,11 +13134,11 @@ const sqSub=r=>{const p=[];if(r.kind==='cust'&&r.cc!=='')p.push(`${r.cc} ${L('cu
 const sqThumbs=(r,sz)=>(r.photos||[]).map(p=>`<a href="#" data-sqph="${ccKeep(p)}"><img src="${p.data}" alt="" style="width:${sz||36}px;height:${sz||36}px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin-right:4px"></a>`).join('');
 function sqShrink(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const mx=1280, k=Math.min(1,mx/Math.max(im.width,im.height)), c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);res({name:(file.name||'photo').replace(/\.[^.]+$/,'')+'.jpg',data:c.toDataURL('image/jpeg',.8)})};im.onerror=()=>rej(new Error('image'));im.src=fr.result};fr.onerror=()=>rej(new Error('read'));fr.readAsDataURL(file)})}
 /* the workflow: the Division Manager of the division verifies, then the Purchase Head approves */
-function sqStart(r){const e=empById(r.emp), dm=DATA.emps.filter(x=>x.active&&x.desig===DIVMGR&&x.division===e.division&&x.id!==e.id).map(x=>x.id), ver=dm.length?dm:(e.mgr?[+e.mgr]:[hrId()]);
- const inst=wfStart({wf:'SRQ',type:'Stock Requirement',subject:r.emp,title:`${r.no}: ${sqKindL(r.kind)} · ${(r.items[0]||{}).name||''}${r.items.length>1?' +'+(r.items.length-1):''}`,payload:{srq:r.id},action:'srq',by:r.emp,opener:{page:'stock',tab:'req'},steps:[{k:'emps',emps:ver},{k:'emps',emps:sqPurchase()}]});r.wfi=inst?inst.id:0;return inst}
+function sqStart(r){const e=empById(r.emp), ver=sqVerifiers(r.div||e.division,e);
+ const inst=wfStart({wf:'SRQ',type:'Stock Requirement',subject:r.emp,title:`${r.no}: ${sqKindL(r.kind)} · ${(r.items[0]||{}).name||''}${r.items.length>1?' +'+(r.items.length-1):''}`,payload:{srq:r.id},action:'srq',by:r.emp,opener:{page:'stock',tab:'req'},steps:[{k:'emps',emps:ver},{k:'emps',emps:sqPurFor(r.div,r.sub)}]});r.wfi=inst?inst.id:0;return inst}
 WF_ACTIONS.srq={
  stepApproved:(i,n,c,by)=>{const r=SRQ.find(x=>x.id===i.payload.srq);if(!r)return;r.hist.push({at:TODAY_S,by:nm_(by),act:n===0?'Verified':'Approved by the Purchase Head',note:c||''});notify([r.emp],`${n===0?L('Requirement verified','रिक्वायरमेंट verify हुई'):L('Requirement approved','रिक्वायरमेंट मंज़ूर')}: ${r.no}`,{page:'decision',tab:'sreq'},'srq|s'+r.id+'|'+n)},
- approved:i=>{const r=SRQ.find(x=>x.id===i.payload.srq);if(!r)return;r.status='Approved';notify(sqPurchase().filter(x=>x!==r.emp),`${L('Approved requirement to order','ऑर्डर करने की मंज़ूर रिक्वायरमेंट')}: ${r.no}`,{page:'stock',tab:'req'},'srq|p'+r.id)},
+ approved:i=>{const r=SRQ.find(x=>x.id===i.payload.srq);if(!r)return;r.status='Approved';notify(sqPurFor(r.div,r.sub).filter(x=>x!==r.emp),`${L('Approved requirement to order','ऑर्डर करने की मंज़ूर रिक्वायरमेंट')}: ${r.no}`,{page:'stock',tab:'req'},'srq|p'+r.id)},
  sentBack:(i,c,by)=>{const r=SRQ.find(x=>x.id===i.payload.srq);if(!r||r.status!=='In approval')return;r.status='Sent back';r.sbk={by:nm_(by),at:TODAY_S,reason:c};r.hist.push({at:TODAY_S,by:nm_(by),act:'Sent back',note:c});notify([r.emp],`${L('Requirement sent back','रिक्वायरमेंट वापस आई')}: ${r.no} (${c})`,{page:'decision',tab:'sreq'},'srq|b'+r.id+'|'+r.hist.length)},
  rejected:i=>{const r=SRQ.find(x=>x.id===i.payload.srq);if(!r)return;const s=[...i.steps].reverse().find(x=>x.by)||{};r.status='Rejected';r.reason=s.comment||'';r.hist.push({at:TODAY_S,by:nm_(s.by),act:'Rejected',note:s.comment||''});notify([r.emp],`${L('Requirement rejected','रिक्वायरमेंट अस्वीकृत')}: ${r.no}${r.reason?' ('+r.reason+')':''}`,{page:'decision',tab:'sreq'},'srq|r'+r.id)}};
 /* the form */
@@ -13145,7 +13146,7 @@ function sqForm(id){const r=id?SRQ.find(x=>x.id===id):null, e=empById(r?r.emp:me
  const v=x=>esc(x==null?'':x);
  const rowH=c=>{c=c||{};return `<tr><td><input class="inp" name="ic" value="${v(c.code)}" placeholder="${L('optional','वैकल्पिक')}" style="min-width:110px"></td><td><input class="inp" name="in" value="${v(c.name)}" placeholder="${L('Article name','आर्टिकल का नाम')}" style="min-width:150px"></td><td><input class="inp" name="icl" value="${v(c.cs)}" placeholder="${L('Colour, size','रंग, साइज़')}" style="min-width:110px"></td><td><input class="inp" name="iq" inputmode="numeric" value="${v(c.qty)}" style="min-width:60px"></td><td><a href="#" data-sqrdel style="color:var(--bad)">✕</a></td></tr>`};
  const tile=(name,val,txt,on)=>`<label class="sqt" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center;cursor:pointer;margin:0;font-weight:400;font-size:13px;display:block"><input type="radio" name="${name}" value="${val}" ${on?'checked':''} style="display:none">${txt}</label>`;
- const bg=openModal(`<h3>${r?L('Correct and send again','सुधारकर दोबारा भेजें'):L('New requirement','नई रिक्वायरमेंट')}</h3><p style="font-size:12px;color:var(--muted);margin:0 0 6px">${fmtS(r?r.date:TODAY_S)} · ${esc(nm_(e.id))} · ${esc(divName(e.division))}</p>
+ const bg=openModal(`<h3>${r?L('Correct and send again','सुधारकर दोबारा भेजें'):L('New requirement','नई रिक्वायरमेंट')}</h3><p style="font-size:12px;color:var(--muted);margin:0 0 6px">${fmtS(r?r.date:TODAY_S)} · ${esc(nm_(e.id))}</p><div class="fgrid"><div><label>${L('Division','डिवीज़न')} *</label><select class="inp" name="div" id="sqDiv">${DATA.divisions.filter(d=>!d.off).map(d=>`<option value="${d.id}" ${d.id===(r?r.div:e.division)?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div><div><label>${L('Sub-division','सब-डिवीज़न')} *</label><select class="inp" name="sub" id="sqSub"></select></div></div><div id="sqRoute" style="font-size:12px;color:var(--muted);margin:4px 0 8px"></div>
   ${r&&r.sbk?`<p style="font-size:13px"><b>${esc(r.sbk.by)}:</b> ${esc(r.sbk.reason)}</p>`:''}
   <label>1. ${L('What kind of requirement','किस तरह की रिक्वायरमेंट')} *</label><div id="sqKinds" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">${SQ_KINDS.map(([k,en,hi])=>tile('kind',k,L(en,hi),r&&r.kind===k)).join('')}</div>
   <label>2. ${L('What is needed','क्या चाहिए')} *</label><div class="card tw"><table class="tbl"><thead><tr><th>${L('Barcode or code','बारकोड या कोड')}</th><th>${L('Article name','आर्टिकल का नाम')}</th><th>${L('Colour, size','रंग, साइज़')}</th><th>${L('Qty','मात्रा')} *</th><th></th></tr></thead><tbody id="sqRows">${((r&&r.items.length)?r.items:[{},{}]).map(rowH).join('')}</tbody></table></div><a href="#" id="sqAdd" style="font-size:12px">+ ${L('Add another item','एक और आइटम जोड़ें')}</a>
@@ -13159,7 +13160,7 @@ function sqForm(id){const r=id?SRQ.find(x=>x.id===id):null, e=empById(r?r.emp:me
   <div id="me" style="color:var(--bad);font-size:12px;margin-top:8px"></div><div class="acts"><button type="button" class="btn btn-o" data-close>${tt('cancel')}</button><button class="btn btn-p">${r?L('Send again','दोबारा भेजें'):L('Send requirement','रिक्वायरमेंट भेजें')}</button></div>`,
  (f,close,bg2)=>{const fd=new FormData(f), er=m=>{bg2.querySelector('#me').textContent=m}, kind=fd.get('kind'), inst=fd.get('inst');
   if(busy)return er(L('Wait, the photo is being prepared','रुकें, फ़ोटो तैयार हो रही है'));
-  if(!kind)return er(L('Choose the kind of requirement','रिक्वायरमेंट की किस्म चुनें'));
+  if(!kind)return er(L('Choose the kind of requirement','रिक्वायरमेंट की किस्म चुनें'));const dvv=+fd.get('div'), sbv=+fd.get('sub');if(!dvv)return er(L('Choose the division','डिवीज़न चुनें'));if(sqSubsOf(dvv).length&&!sbv)return er(L('Choose the sub-division','सब-डिवीज़न चुनें'));
   const C=fd.getAll('ic'), N=fd.getAll('in'), CL=fd.getAll('icl'), Q=fd.getAll('iq'), items=[];
   for(let i=0;i<N.length;i++){const c=String(C[i]).trim(), n=String(N[i]).trim(), cs=String(CL[i]).trim(), q=String(Q[i]).trim();if(!c&&!n&&!cs&&!q)continue;const k=items.length+1;
    if(!c&&!n)return er(L(`Item ${k}: write the name or the code`,`आइटम ${k}: नाम या कोड लिखें`));const qn=Number(q);if(!(qn>=1)||!Number.isInteger(qn))return er(L(`Item ${k}: the quantity must be a whole number, 1 or more`,`आइटम ${k}: मात्रा पूरी संख्या हो, 1 या ज़्यादा`));
@@ -13169,14 +13170,17 @@ function sqForm(id){const r=id?SRQ.find(x=>x.id===id):null, e=empById(r?r.emp:me
   const num=x=>{const s=String(x==null?'':x).trim();return s===''?'':(isFinite(+s)&&+s>=0?Math.round(+s):NaN)};
   const sn=inst==='yes'?num(fd.get('sn')):'', s30=inst==='yes'?num(fd.get('s30')):'', cc=kind==='cust'?num(fd.get('cc')):'';
   if([sn,s30,cc].some(x=>Number.isNaN(x)))return er(L('Numbers must be 0 or more','संख्या 0 या ज़्यादा हो'));
-  const o={kind,items,inst,sn,s30,cc,adv:kind==='cust'?(fd.get('adv')||''):'',seen:kind==='trend'?(fd.get('seen')||''):'',photos:photos.slice(),prio:fd.get('prio')||'Normal',need:fd.get('need')||'',note:String(fd.get('note')||'').trim()};
-  if(r){Object.assign(r,o);r.hist.push({at:TODAY_S,by:nm_(me()),act:'Sent again'});r.lastSbk=r.sbk;r.sbk=null;r.status='In approval';const old=r.wfi&&WFI.find(x=>x.id===r.wfi);if(!(old&&wfReopen(old)))sqStart(r);audit('Stock requirement','Sent again',r.no,'')}
+  const o={div:dvv,sub:sbv,kind,items,inst,sn,s30,cc,adv:kind==='cust'?(fd.get('adv')||''):'',seen:kind==='trend'?(fd.get('seen')||''):'',photos:photos.slice(),prio:fd.get('prio')||'Normal',need:fd.get('need')||'',note:String(fd.get('note')||'').trim()};
+  if(r){const ch=r.div!==o.div||(r.sub||0)!==o.sub;Object.assign(r,o);r.hist.push({at:TODAY_S,by:nm_(me()),act:'Sent again'});r._ch=ch;r.lastSbk=r.sbk;r.sbk=null;r.status='In approval';const old=r.wfi&&WFI.find(x=>x.id===r.wfi);if(r._ch||!(old&&wfReopen(old)))sqStart(r);delete r._ch;audit('Stock requirement','Sent again',r.no,'')}
   else{const n={id:++seq,no:sysNo('SRQ',SRQ.filter(x=>x.kind!=='none').length+1),emp:me(),date:TODAY_S,div:e.division,...o,status:'In approval',wfi:0,created:nowTs(),hist:[{at:TODAY_S,by:nm_(me()),act:'Sent'}]};SRQ.unshift(n);if(!sqStart(n)){n.status='Approved';n.hist.push({at:TODAY_S,by:'System',act:'Approved (no approver found)'})}audit('Stock requirement','Sent',n.no,sqKindL(kind))}
   close();toast(tt('saved'));render()});
  const box=bg.firstElementChild;if(box){box.style.maxWidth='820px';box.style.width='96%'}
  const sync=()=>{bg.querySelectorAll('.sqt').forEach(l=>{const on=l.querySelector('input').checked;l.style.background=on?'var(--bg-accent,#e6f1fb)':'';l.style.borderColor=on?'var(--text-accent,#185fa5)':'';l.style.color=on?'var(--text-accent,#185fa5)':''});
   const k=(bg.querySelector('input[name=kind]:checked')||{}).value, i=(bg.querySelector('input[name=inst]:checked')||{}).value;bg.querySelector('#sqCust').style.display=k==='cust'?'':'none';bg.querySelector('#sqTrend').style.display=k==='trend'?'':'none';bg.querySelector('#sqStock').style.display=i==='yes'?'':'none'};
  bg.addEventListener('change',sync);sync();
+ {const dvS=bg.querySelector('#sqDiv'), sbS=bg.querySelector('#sqSub'), rt=bg.querySelector('#sqRoute'), want=r?(r.sub||0):(e.subdiv||0);
+  const fill=()=>{const l=sqSubsOf(+dvS.value), keep=+sbS.value||want;sbS.innerHTML=l.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')||'<option value="0">—</option>';if(l.some(x=>x.id===keep))sbS.value=keep;rt.innerHTML=`${L('Goes to','किसके पास जाएगी')}: ${sqRouteTxt(+dvS.value,+sbS.value||0,e)}`};
+  dvS.onchange=()=>{sbS.value='';fill()};sbS.onchange=fill;fill()}
  const rows=bg.querySelector('#sqRows');bg.querySelector('#sqAdd').onclick=ev=>{ev.preventDefault();rows.insertAdjacentHTML('beforeend',rowH({}))};
  bg.addEventListener('click',ev=>{const d=ev.target.closest('[data-sqrdel]');if(d){ev.preventDefault();if(rows.querySelectorAll('tr').length>1)d.closest('tr').remove();return}const x=ev.target.closest('[data-sqpx]');if(x){ev.preventDefault();photos.splice(+x.dataset.sqpx,1);drawPh()}});
  const ph=bg.querySelector('#sqPh'), drawPh=()=>{ph.innerHTML=photos.map((p,i)=>`<span style="display:inline-block;position:relative;margin:0 6px 6px 0"><img src="${p.data}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"><a href="#" data-sqpx="${i}" style="position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;font-size:12px;text-decoration:none">×</a></span>`).join('')};drawPh();
@@ -13194,7 +13198,7 @@ function sqView(id){const r=SRQ.find(x=>x.id===id);if(!r)return;const acts=sqAct
   <div class="sec-t" style="margin-top:10px">${L('History','इतिहास')}</div>${(r.hist||[]).map(h=>`<div style="font-size:12px;color:var(--muted)">${fmtS(h.at)} · ${esc(h.by)} · ${esc(h.act)}${h.note?' · '+esc(h.note):''}</div>`).join('')}
   <div class="acts" style="flex-wrap:wrap"><button type="button" class="btn btn-o" data-close>${L('Close','बंद करें')}</button>${acts}</div>`,(f,c)=>c())}
 /* what the person may do with a requirement */
-function sqActs(r){if(r.kind==='none')return '';const B=(k,txt,cls)=>`<button type="button" class="btn ${cls||'btn-o'} btn-s" data-sqa="${k}:${r.id}">${txt}</button> `, tk=sqTask(r), i=tk&&WFI.find(x=>x.id===r.wfi), pu=sqIsPurchase()||canManage();let h='';
+function sqActs(r){if(r.kind==='none')return '';const B=(k,txt,cls)=>`<button type="button" class="btn ${cls||'btn-o'} btn-s" data-sqa="${k}:${r.id}">${txt}</button> `, tk=sqTask(r), i=tk&&WFI.find(x=>x.id===r.wfi), pu=sqIsPurchaseOf(r)||canManage();let h='';
  if(tk)h+=B('ok',i&&i.step>=1?L('Approve','मंज़ूर करें'):L('Verify','verify करें'),'btn-p')+B('sb',L('Send back','वापस भेजें'))+B('rej',L('Reject','अस्वीकार'),'btn-o btn-d');
  if(r.status==='Approved'&&pu)h+=B('ord',L('Mark ordered','ऑर्डर हुआ'),'btn-p');
  if(['Ordered','Partly received'].includes(r.status)&&pu)h+=B('rcv',L('Mark received','आ गया'),'btn-p');
@@ -13220,7 +13224,7 @@ function sqAdminBody(){const f=state.sqf, canSet=canManage(), all=SRQ.filter(r=>
  const rows=all.filter(r=>(!f.div||String(r.div)===f.div)&&(!f.kind||r.kind===f.kind)&&(!f.st||sqSt(r)===f.st)).sort((a,b)=>b.id-a.id);
  const opt=(arr,v,al)=>`<option value="">${al}</option>`+arr.map(([k,n])=>`<option value="${k}" ${String(v)===String(k)?'selected':''}>${esc(n)}</option>`).join('');
  const pur=SRQSET.purchase||[];
- const setup=canSet?`<div class="card" style="margin-bottom:14px"><b>${L('Purchase Head (approves requirements and orders)','Purchase Head (रिक्वायरमेंट मंज़ूर करता और ऑर्डर करता है)')}</b><div style="margin-top:8px">${pur.map(id=>`<span class="pill p-teal" style="margin:2px">${esc(nm_(id))} <a href="#" data-sqprm="${id}">×</a></span>`).join('')||`<span style="color:var(--bad);font-size:13px">${L('Nobody is set: HR gets the approval step.','कोई तय नहीं: मंज़ूरी का स्टेप HR को जाता है।')}</span>`}</div><div style="display:flex;gap:8px;margin-top:10px;max-width:460px"><select class="inp" id="sqPSel"><option value="">${L('Choose a person','व्यक्ति चुनें')}</option>${DATA.emps.filter(e=>e.active&&!pur.includes(e.id)).map(e=>`<option value="${e.id}">${esc(e.name)} · ${esc(nm('desigs',e.desig))}</option>`).join('')}</select><button class="btn btn-o btn-s" data-sqpadd>${L('Add','जोड़ें')}</button></div><p style="font-size:12px;color:var(--muted);margin:6px 0 0">${L('The Division Manager of the division of the staff verifies first. If the division has none, the reporting manager of the staff does.','पहले स्टाफ़ के डिवीज़न का डिवीज़न मैनेजर verify करता है। डिवीज़न में न हो तो स्टाफ़ का रिपोर्टिंग मैनेजर।')}</p></div>`:'';
+ const setup=canSet?sqSetupHTML():'';
  return `${setup}<div class="tools"><select class="inp" data-sqf="div" style="max-width:170px">${opt(DATA.divisions.filter(d=>d.id>1).map(d=>[d.id,d.name]),f.div,L('All divisions','सभी डिवीज़न'))}</select><select class="inp" data-sqf="kind" style="max-width:190px">${opt(SQ_KINDS.map(k=>[k[0],L(k[1],k[2])]),f.kind,L('All kinds','सभी किस्म'))}</select><select class="inp" data-sqf="st" style="max-width:210px">${opt(Object.keys(SQ_STL).filter(x=>x!=='Nothing').map(k=>[k,L(SQ_STL[k][0],SQ_STL[k][1])]),f.st,L('All status','सभी स्थिति'))}</select><div style="flex:1"></div><span style="color:var(--muted);font-size:13px">${rows.length} ${L('requirements','रिक्वायरमेंट')}</span></div>
  <div class="card tw"><table class="tbl"><thead><tr><th>${L('No.','क्र.')}</th><th>${t('date')}</th><th>${L('By','किसने')}</th><th>${L('Kind','किस्म')}</th><th>${L('Items','आइटम')}</th><th>${L('Photos','फ़ोटो')}</th><th>${L('Priority','प्राथमिकता')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${rows.slice(0,150).map(r=>`<tr><td><b>${r.no}</b></td><td>${fmtS(r.date)}</td><td>${nmE(r.emp)}<small style="display:block;color:var(--muted)">${esc(divName(r.div))}</small></td><td>${esc(sqKindL(r.kind))}</td><td>${sqItemsTxt(r)}<small style="display:block;color:var(--muted)">${sqSub(r)}</small></td><td>${sqThumbs(r)}</td><td><span class="pill ${r.prio==='Urgent'?'p-bad':r.prio==='High'?'p-warn':'p-gray'}">${esc(r.prio)}</span></td><td>${sqPill(r)}</td><td style="white-space:nowrap;text-align:right">${sqActs(r)}<button class="btn btn-o btn-s" data-sqa="view:${r.id}">${L('View','देखें')}</button></td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">${t('bd_empty')}</td></tr>`}</tbody></table></div>`}
 {const _stt=stockTabs;stockTabs=function(){const a=_stt().slice();if(sqStaffAdmin()&&!a.includes('req'))a.push('req');return a};
@@ -13529,7 +13533,7 @@ anD('sa_tgt_align','pms','Sales: division target against the total of the employ
    if(!SRC.tgt_div.some(r=>r.division===d&&r.month===m))SRC.tgt_div.push({id:++seq,division:d,month:m,amount:Math.round(v.t*(d===2?1.2:d===3?1.0:1.12)*(cur?1:1)/1000)*1000,status:'Approved'})})});
  /* the daily history of this month, as the daily uploads would have made it */
  const ramp=(total,prof,key,d)=>{const share=(d/TODAY_D)**prof;return d===TODAY_D?total:Math.round(total*share*(0.97+hsh(key,d)*0.06)/100)*100};
- [['emp',SRC.rep_emp,r=>r.emp],['div',SRC.rep_div,r=>r.division]].forEach(([kind,arr,keyOf])=>arr.filter(r=>r.month===CUR_P&&!SALEH_IX.has(kind+'|'+keyOf(r)+'|'+ds(TODAY_D))).forEach(r=>{let prev=0,pb=0;for(let d=1;d<=TODAY_D;d++){const sale=Math.max(prev,ramp(r.sale,1.05+hsh(keyOf(r),3)*.2,keyOf(r),d)), bills=Math.max(pb,Math.round((r.bills||0)*sale/(r.sale||1)));prev=sale;pb=bills;
+ [['emp',SRC.rep_emp,r=>r.emp],['div',SRC.rep_div,r=>r.division]].forEach(([kind,arr,keyOf])=>arr.filter(r=>r.month===CUR_P&&!SALEH_IX.has(kind+'|'+keyOf(r)+'|'+ds(TODAY_D))).forEach(r=>{let prev=0,pb=0;for(let d=KSD();d<=TODAY_D;d++){const sale=Math.max(prev,ramp(r.sale,1.05+hsh(keyOf(r),3)*.2,keyOf(r),d)), bills=Math.max(pb,Math.round((r.bills||0)*sale/(r.sale||1)));prev=sale;pb=bills;
    saleHist(kind,{date:ds(d),val:sale,qty:r.qty!=null?Math.round(r.qty*sale/(r.sale||1)):null,...(kind==='emp'?{emp:r.emp}:{division:r.division})});billHist(kind,{date:ds(d),val:bills,...(kind==='emp'?{emp:r.emp}:{division:r.division})})}}))}
 /* ================= Setup guide: what a new company must set up, in what order ================= */
 Object.assign(T.en,{setupck:'Setup guide'});Object.assign(T.hi,{setupck:'सेटअप गाइड'});
@@ -14150,7 +14154,7 @@ gvModule=function(m){const pg=state.page;if(pg==='dashboard'||state.role==='plat
 /* ---------- Game view (part 3): badges of the month from the real records, and a short celebration for a new badge or a new career level ---------- */
 const GVBI={time:'M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z',full:'M22 11.1V12a10 10 0 11-5.9-9.1M22 4L12 14l-3-3',fire:'M13 2L3 14h9l-1 8 10-12h-9l1-8z',inbox:'M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.5-6.9A2 2 0 0016.8 4H7.2a2 2 0 00-1.7 1.1z',kpi:'M12 22a10 10 0 100-20 10 10 0 000 20zM12 18a6 6 0 100-12 6 6 0 000 12zM12 14a2 2 0 100-4 2 2 0 000 4z',top:'M12 15a7 7 0 100-14 7 7 0 000 14zM8.2 13.9L7 23l5-3 5 3-1.2-9.1',learn:'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z'};
 function gvBadges(id){const e=empById(id)||{};let pres=0,late=0,abs=0;
- try{for(let d=1;d<=TODAY_D;d++){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)pres++;else if(r.st==='L'){pres++;late++}else if(r.half){pres++;abs+=.5}else if(r.st==='A'&&d<TODAY_D)abs++}}catch(x){}
+ try{for(let d=KSD();d<=TODAY_D;d++){const r=dayRec(id,d)||{};if(r.st==='P'&&!r.half)pres++;else if(r.st==='L'){pres++;late++}else if(r.half){pres++;abs+=.5}else if(r.st==='A'&&d<TODAY_D)abs++}}catch(x){}
  let ib={ok:0,late:0,over:0};try{ib=ibStat(id,curMk(),true)}catch(x){}
  const sc=gvScore(id), st=gvStreak(id);let pos=0,n=0;try{const rk=gvRank(e);n=rk.length;const i=rk.findIndex(r=>r.id===id);pos=i>=0&&rk[i].s!=null?i+1:0}catch(x){}
  let cert=0;try{cert=SLCERT.filter(c=>c.emp===id&&String(c.date).slice(0,7)===curMk()).length}catch(x){}
@@ -14429,11 +14433,11 @@ function ctMine(eid){
 /* ================= Employee picker: every long list of employees becomes a box with search (name, code or designation) ================= */
 {const css=document.createElement('style');css.textContent=`.sp{position:relative;display:block}.sp input{width:100%}.sp-dd{position:fixed;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:99999;overflow:auto;display:none}.sp-it{padding:7px 10px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:8px;color:var(--text)}.sp-it.h,.sp-it:hover{background:var(--teal-l)}.sp-it small{color:var(--muted);font-size:11px;white-space:nowrap}.sp-no{padding:8px 10px;font-size:13px;color:var(--muted)}`;document.head.appendChild(css);
  const desigOf=e=>{try{return nm('desigs',e.desig)||''}catch(x){return ''}};
- const isEmpSel=s=>{if(s.multiple||s.dataset.sp)return false;const o=[...s.options].filter(x=>x.value!=='');if(o.length<12)return false;let n=0;o.forEach(x=>{const e=empById(+x.value);if(e&&e.name&&x.text.trim().startsWith(e.name))n++});return n>=o.length*.7};
+ const isEmpSel=s=>{if(s.multiple||s.dataset.sp||s.dataset.ee)return false;const o=[...s.options].filter(x=>x.value!=='');if(o.length<12)return false;let n=0;o.forEach(x=>{const e=empById(+x.value);if(e&&e.name&&x.text.trim().startsWith(e.name))n++});return n>=o.length*.7};
  const upgrade=s=>{
   const w=document.createElement('div');w.className='sp';['flex','width','minWidth','maxWidth','margin'].forEach(k=>{if(s.style[k])w.style[k]=s.style[k]});if(!w.style.minWidth)w.style.minWidth='140px';
   const inp=document.createElement('input');inp.className='inp';inp.autocomplete='off';inp.placeholder=L('Search name or code','नाम या कोड खोजें');
-  const dd=document.createElement('div');dd.className='sp-dd';w.append(inp,dd);s.dataset.sp='1';s.style.display='none';s.after(w);
+  const dd=document.createElement('div');dd.className='sp-dd';w.append(inp,dd);s.dataset.sp='1';s.dataset.ee='1';s.style.display='none';s.after(w);
   const label=()=>{const o=s.options[s.selectedIndex];if(!o||o.value==='')return '';const e=empById(+o.value);return o.text.trim()+(e&&e.code?` (${e.code})`:'')};
   const sync=()=>{inp.value=label();inp.disabled=s.disabled};sync();
   let hi=0,items=[],isOpen=false;
@@ -14532,6 +14536,103 @@ function dtOverModal(id){const x=TODO.find(y=>y.id===id);if(!x||x.status==='Done
 {const _bd=bindExtra;bindExtra=function(){_bd();const m=$('#main');if(!m)return;
   m.querySelectorAll('[data-bmv$=":Done"]').forEach(b=>{const k=b.dataset.bmv.split(':')[0];if(k[0]!=='T')return;const x=TODO.find(y=>y.id===+k.slice(1)), msg=x?dtLockMsg(x):'';if(msg){b.disabled=true;b.title=msg;b.style.opacity='.5';b.style.cursor='not-allowed'}});
   m.querySelectorAll('[data-dtov]').forEach(b=>b.onclick=()=>dtOverModal(+b.dataset.dtov))}}
+/* ================= Daily scoring by the reporting manager (Grooming and any KPI HR adds), and KPI scoring from the assignment date ================= */
+const DSCORE={}, DAYK={'KPI-183':true};
+const dsKpis=()=>KPI.filter(k=>DAYK[k.id]&&k.active&&k.method==='Manager Scoring'&&!kpiModOff(k));
+const dsEmpsFor=k=>DATA.emps.filter(e=>e.active&&(!e.status||e.status==='Working')&&assignedKpis(e,CUR_P).some(x=>x.id===k.id));
+function kRuleOf(e,k,p){return KRULES.filter(r=>r.st==='Active'&&inPeriod(r,p)&&ruleHits(r,e)&&r.kpi===k.id).sort((a,b)=>SCOPES.indexOf(a.scope)-SCOPES.indexOf(b.scope))[0]||null}
+/* the day a KPI starts counting inside the month it was assigned: empty when it was assigned on the 1st or earlier */
+function kFromOf(e,k,p){const r=kRuleOf(e,k,p);if(!r||!r.from)return '';return r.from.slice(0,7)===payKey(p)&&r.from.slice(8,10)>'01'?r.from:''}
+const dsDates=()=>[0,1,2,3].map(n=>addD(TODAY_S,-n)).filter(d=>d.slice(0,7)===curMk());
+const dsStOn=(e,date)=>date.slice(0,7)===curMk()?dayRec(e.id,+date.slice(8)).st:'';
+const dsOk=(e,k,date)=>{const r=kRuleOf(e,k,CUR_P);return !r||!r.from||date>=r.from};
+const dsHere=st=>st==='P'||st==='L';
+const dsKey=(emp,k,date)=>emp+'|'+k+'|'+date;
+const dsMgrOf=e=>{try{return evaluatorOf(e)}catch(x){return 0}};
+function dsRows(k,date,mgr){return dsEmpsFor(k).filter(e=>(!mgr||dsMgrOf(e)===mgr)&&dsOk(e,k,date)&&dsHere(dsStOn(e,date)))}
+const dsPending=(k,date,mgr)=>dsRows(k,date,mgr).filter(e=>!DSCORE[dsKey(e.id,k.id,date)]);
+KINDL.dscore=['Daily scoring','रोज़ की स्कोरिंग'];IBK.Perf+=' dscore';IBKM.dscore='Perf';
+INBOX_SRC.push((id,out)=>{try{dsKpis().forEach(k=>dsDates().forEach(date=>{const n=dsPending(k,date,id).length;
+  if(n)ibAdd(out,{kind:'dscore',title:`${L('Daily scoring','रोज़ की स्कोरिंग')}: ${k.name} · ${fmtS(date)} · ${n} ${L('to score','बाकी')}`,subject:0,page:'decision',tab:'dscore',due:date,ref:k.id+'|'+date})}))}catch(e){}});
+{const _ibc2=ibClass;ibClass=function(r){if(r.kind==='dscore')return{g:'do',v:['Score the team','टीम को स्कोर दें'],b:['Open and score','खोलकर स्कोर दें']};return _ibc2(r)}}
+/* the month result of a daily-scored KPI: the average of the days scored (from the assignment day) */
+function dsResult(emp,k,p){if(p!==CUR_P)return null;const mk=payKey(p), from=KFROM||'';
+  const rows=Object.values(DSCORE).filter(x=>x&&x.emp===emp&&x.kpi===k.id&&String(x.date).slice(0,7)===mk&&(!from||x.date>=from));
+  if(!rows.length)return{state:'PENDING',text:L('No daily score yet','अभी कोई रोज़ का स्कोर नहीं')};
+  const avg=rows.reduce((a,x)=>a+x.r,0)/rows.length;return{state:'SCORED',score:r2(avg*k.max/10),text:`${rows.length} ${L('days scored','दिन का स्कोर')} · ${L('average','औसत')} ${r2(avg)} / 10`}}
+{const _krd=kpiResult;kpiResult=function(emp,k,p){if(k&&DAYK[k.id]&&k.method==='Manager Scoring'){const r=dsResult(emp,k,p);if(r)return r}return _krd.apply(this,arguments)}}
+/* a KPI scored daily has no monthly rating task */
+{const _et=evalTasks;evalTasks=function(p){return _et(p).filter(x=>!DAYK[x.k.id])}}
+/* pro-rata: while one KPI of one employee is worked out, KFROM holds its start day, and the records before it are left out */
+{const _krp=kpiResult;kpiResult=function(emp,k,p){const e=empById(emp);if(!e||!k)return _krp.apply(this,arguments);const f=kFromOf(e,k,p), old=KFROM;KFROM=f;try{const r=_krp.apply(this,arguments);if(f&&r&&r.state==='SCORED'&&r.text&&!r.text.includes(fmtS(f)))r.text+=` · ${L('from','से')} ${fmtS(f)}`;return r}finally{KFROM=old}}}
+const dsAccess=()=>canManage()||(state.role==='manager'&&dsKpis().length>0);
+Object.assign(state,{dsd:'',dsk:'',dsm:''});
+function dsBody(){
+  const ks=dsKpis(), hr=canManage();
+  const kset=hr?`<div class="card" style="margin-bottom:14px"><b>${L('KPIs scored daily','रोज़ स्कोर होने वाली KPI')}</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${ks.map(k=>`<span class="pill p-teal">${k.id} ${esc(k.name)} <a href="#" data-dsrm="${k.id}" title="${L('Remove','हटाएँ')}" style="margin-left:6px">×</a></span>`).join('')||`<span style="color:var(--muted)">—</span>`}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><select class="inp" id="dsAddSel" style="max-width:380px"><option value="">${L('Add a Manager Scoring KPI','Manager Scoring KPI जोड़ें')}</option>${KPI.filter(k=>k.active&&k.method==='Manager Scoring'&&!DAYK[k.id]&&!kpiModOff(k)).map(k=>`<option value="${k.id}">${k.id} · ${esc(k.name)}</option>`).join('')}</select><button class="btn btn-o btn-s" data-dsadd>${L('Add','जोड़ें')}</button></div>
+    <small style="display:block;color:var(--muted);margin-top:6px">${L('A KPI added here is scored by the reporting manager every working day, from the day it is assigned. It has no monthly rating task any more.','यहाँ जोड़ी गई KPI को रिपोर्टिंग मैनेजर हर कार्य दिन स्कोर करता है, असाइन होने के दिन से। उसका महीने की रेटिंग का टास्क नहीं रहता।')}</small></div>`:'';
+  if(!ks.length)return kset+`<div class="card empty">${L('No KPI is scored daily.','कोई KPI रोज़ स्कोर नहीं होती।')}</div>`;
+  const k=ks.find(x=>x.id===state.dsk)||ks[0], dates=dsDates();
+  const mgr=hr?(+state.dsm||0):me();
+  const date=dates.includes(state.dsd)?state.dsd:(dates.slice().reverse().find(d=>dsPending(k,d,mgr).length)||TODAY_S);
+  const pool=dsEmpsFor(k).filter(e=>!mgr||dsMgrOf(e)===mgr), mk=payKey(CUR_P);
+  const stl=st=>({P:[L('Present','उपस्थित'),'p-ok'],L:[L('Late','देर'),'p-warn'],A:[L('Absent','अनुपस्थित'),'p-bad'],W:[L('Weekly off','साप्ताहिक अवकाश'),''],H:[L('Holiday','अवकाश'),''],LV:[L('Leave','छुट्टी'),''],LWP:[L('Leave','छुट्टी'),''],N:[L('Not in yet','अभी आए नहीं'),'p-warn'],F:['—','']})[st]||['—',''];
+  const mgrs=[...new Set(dsEmpsFor(k).map(dsMgrOf).filter(Boolean))];
+  const rows=pool.slice(0,hr&&!mgr?80:500).map(e=>{const st=dsStOn(e,date), sl=stl(st), ok=dsOk(e,k,date), here=dsHere(st), key=dsKey(e.id,k.id,date), cur=DSCORE[key], can_=hr||dsMgrOf(e)===me();
+    const mine=Object.values(DSCORE).filter(x=>x.emp===e.id&&x.kpi===k.id&&String(x.date).slice(0,7)===mk&&x.date>=(kRuleOf(e,k,CUR_P)||{from:''}).from), avg=mine.length?r2(mine.reduce((a,x)=>a+x.r,0)/mine.length):'';
+    const mid=!ok?`<td colspan="2" style="color:var(--muted)">${L('The KPI starts on','KPI शुरू होती है')} ${fmtS((kRuleOf(e,k,CUR_P)||{}).from)}</td>`:!here?`<td colspan="2" style="color:var(--muted)">${L('Not at work, no score','काम पर नहीं, स्कोर नहीं')}</td>`:
+     `<td>${can_?`<select class="inp" style="width:74px" data-dsr="${e.id}"><option value="">—</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option ${cur&&cur.r===n?'selected':''}>${n}</option>`).join('')}</select>`:(cur?`<b>${cur.r} / 10</b>`:'—')}</td><td>${can_?`<input class="inp" style="min-width:150px" data-dsc="${e.id}" value="${esc(cur?cur.note||'':'')}">`:esc(cur?cur.note||'':'')}</td>`;
+    return `<tr><td><b>${esc(e.name)}</b><small style="display:block;color:var(--muted)">${esc(e.code)}</small></td><td><span class="pill ${sl[1]}">${sl[0]}</span></td>${mid}<td style="white-space:nowrap">${mine.length?`${mine.length} ${L('days','दिन')} · ${L('avg','औसत')} ${avg}`:'—'}</td></tr>`}).join('');
+  return `${kset}<div class="tools">${ks.length>1?`<select class="inp" data-dsk>${ks.map(x=>`<option value="${x.id}" ${x.id===k.id?'selected':''}>${x.id} ${esc(x.name)}</option>`).join('')}</select>`:`<b>${k.id} · ${esc(k.name)}</b>`}<select class="inp" data-dsd style="max-width:180px">${dates.map(d=>`<option value="${d}" ${d===date?'selected':''}>${d===TODAY_S?L('Today','आज')+', ':''}${fmtS(d)}${dsPending(k,d,mgr).length?' · '+dsPending(k,d,mgr).length+' '+L('to score','बाकी'):''}</option>`).join('')}</select>
+   ${hr?`<select class="inp" data-dsm style="max-width:200px"><option value="">${L('All scoring managers','सभी स्कोर करने वाले मैनेजर')}</option>${mgrs.map(id=>`<option value="${id}" ${+state.dsm===id?'selected':''}>${esc(nm_(id))}</option>`).join('')}</select>`:''}
+   <span style="color:var(--muted);font-size:12px">${L('Score 1 to 10 for each person who is at work. The month score is the average of the days scored × the maximum ÷ 10, counted from the day the KPI was assigned.','काम पर आए हर व्यक्ति को 1 से 10 स्कोर दें। महीने का स्कोर = स्कोर हुए दिनों का औसत × अधिकतम ÷ 10, KPI असाइन होने के दिन से गिना जाता है।')}</span><div style="flex:1"></div><button class="btn btn-p" data-dssave="${k.id}|${date}">${L('Save scores','स्कोर सेव करें')}</button></div>
+  <div class="card tw"><table class="tbl"><thead><tr><th>${t('employees')}</th><th>${L('That day','उस दिन')}</th><th>${L('Score','स्कोर')}</th><th>${L('Remark','टिप्पणी')}</th><th>${L('This month','इस महीने')}</th></tr></thead><tbody>${rows||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">${L('Nobody to score','स्कोर देने को कोई नहीं')}</td></tr>`}</tbody></table></div>${hr&&!mgr&&pool.length>80?`<small style="color:var(--muted)">${L('First 80 shown. Choose a scoring manager to see the rest.','पहले 80 दिख रहे हैं। बाकी देखने के लिए स्कोर करने वाला मैनेजर चुनें।')}</small>`:''}`}
+DEX.push(['dscore','Daily scoring','रोज़ की स्कोरिंग',()=>dsAccess(),()=>dsBody()]);
+{const _bds=bindExtra;bindExtra=function(){_bds();const m=$('#main');if(!m)return;
+  m.querySelectorAll('[data-dsk]').forEach(s=>s.onchange=()=>{state.dsk=s.value;render()});
+  m.querySelectorAll('[data-dsd]').forEach(s=>s.onchange=()=>{state.dsd=s.value;render()});
+  m.querySelectorAll('[data-dsm]').forEach(s=>s.onchange=()=>{state.dsm=s.value;render()});
+  m.querySelectorAll('[data-dsadd]').forEach(b=>b.onclick=()=>{const v=(m.querySelector('#dsAddSel')||{}).value;if(!v||!canManage())return;DAYK[v]=true;audit('Daily scoring','KPI added',v,'');toast(t('saved'));render()});
+  m.querySelectorAll('[data-dsrm]').forEach(a=>a.onclick=ev=>{ev.preventDefault();if(!canManage())return;DAYK[a.dataset.dsrm]=false;audit('Daily scoring','KPI removed',a.dataset.dsrm,'');toast(t('saved'));render()});
+  m.querySelectorAll('[data-dssave]').forEach(b=>b.onclick=()=>{const [kid,date]=b.dataset.dssave.split('|'), k=kpiById(kid);let n=0,bad=0;
+    m.querySelectorAll('[data-dsr]').forEach(s=>{const id=+s.dataset.dsr, e=empById(id), key=dsKey(id,kid,date);if(!(canManage()||dsMgrOf(e)===me()))return;if(!dsOk(e,k,date)||!dsHere(dsStOn(e,date)))return;
+      const c=m.querySelector(`[data-dsc="${id}"]`), note=(c?c.value:'').trim();
+      if(s.value===''){if(DSCORE[key]){delete DSCORE[key];n++}return}
+      const r=+s.value, old=DSCORE[key];if(!old||old.r!==r||(old.note||'')!==note){DSCORE[key]={emp:id,kpi:kid,date,r,note,by:me(),at:TODAY_S};n++}});
+    audit('Daily scoring','Saved',kid,`${n} · ${date}`);toast(n?`${n} ${L('scores saved','स्कोर सेव हुए')}`:L('Nothing changed','कुछ नहीं बदला'));render()})}}
+/* ================= Stock requirement: Purchase Head by division and sub-division ================= */
+const sqPB=()=>SRQSET.purchaseBy||(SRQSET.purchaseBy=[]);
+const sqActive=ids=>(ids||[]).filter(x=>{const y=empById(x);return y&&y.active});
+/* who approves and orders a requirement of this division and sub-division: the person set for the sub-division, else for the whole division, else the default */
+const sqPurFor=(div,sub)=>{const L1=sqPB(), pick=f=>{const r=L1.find(f);return r?sqActive(r.emps):[]};let a=+sub?pick(x=>+x.division===+div&&+x.sub===+sub):[];if(!a.length)a=pick(x=>+x.division===+div&&!+x.sub);return a.length?a:sqPurchase()};
+const sqIsPurchaseOf=r=>sqPurFor(r.div,r.sub).includes(me());
+const sqSubsOf=div=>(DATA.subdivs||[]).filter(s=>(s.parents||[]).includes(+div)&&!s.off);
+const sqVerifiers=(div,e)=>{const dm=DATA.emps.filter(x=>x.active&&x.desig===DIVMGR&&x.division===+div&&(!e||x.id!==e.id)).map(x=>x.id);return dm.length?dm:(e&&e.mgr?[+e.mgr]:[hrId()])};
+const sqRouteTxt=(div,sub,e)=>`<b style="font-weight:500">1. ${L('Verify','Verify')}</b> ${L('Division Manager of','डिवीज़न मैनेजर:')} ${esc(divName(div))} (${sqVerifiers(div,e).map(nmE).join(', ')}) · <b style="font-weight:500">2. ${L('Approve and order','मंज़ूर और ऑर्डर')}</b> Purchase Head (${sqPurFor(div,sub).map(nmE).join(', ')})`;
+/* the setup box of Stock Management > Requirements */
+Object.assign(state,{sqdv:0});
+function sqSetupHTML(){const rows=sqPB(), def=SRQSET.purchase||[], dv=+state.sqdv||0;
+  const chips=(ids,att)=>ids.map(id=>`<span class="pill p-teal" style="margin:2px">${esc(nm_(id))} <a href="#" ${att}="${id}">×</a></span>`).join('')||`<span style="color:var(--bad);font-size:13px">${L('Nobody','कोई नहीं')}</span>`;
+  return `<div class="card" style="margin-bottom:14px"><b>${L('Purchase Head (approves requirements and orders)','Purchase Head (रिक्वायरमेंट मंज़ूर करता और ऑर्डर करता है)')}</b>
+  <div class="card tw" style="margin-top:8px;padding:0"><table class="tbl"><thead><tr><th>${L('Division','डिवीज़न')}</th><th>${L('Sub-division','सब-डिवीज़न')}</th><th>Purchase Head</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${esc(divName(r.division))}</td><td>${+r.sub?esc(nm('subdivs',r.sub)):L('All sub-divisions','सभी सब-डिवीज़न')}</td><td>${r.emps.map(id=>`<span class="pill p-teal" style="margin:2px">${esc(nm_(id))} <a href="#" data-sqrp="${i}:${id}">×</a></span>`).join('')||`<span style="color:var(--bad);font-size:13px">${L('Nobody','कोई नहीं')}</span>`}</td><td style="text-align:right"><a href="#" data-sqrowdel="${i}">${L('Remove','हटाएँ')}</a></td></tr>`).join('')}
+   <tr><td colspan="2" style="color:var(--muted)">${L('Every other division (default)','बाकी हर डिवीज़न (डिफ़ॉल्ट)')}</td><td>${chips(def,'data-sqprm')}</td><td></td></tr></tbody></table></div>
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:flex-start"><select class="inp" data-sqdv style="max-width:190px"><option value="">${L('Choose division','डिवीज़न चुनें')}</option>${DATA.divisions.filter(d=>!d.off).map(d=>`<option value="${d.id}" ${dv===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select>
+   <select class="inp" id="sqSubSel" style="max-width:190px"><option value="0">${L('All sub-divisions','सभी सब-डिवीज़न')}</option>${dv?sqSubsOf(dv).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''):''}</select>
+   <select class="inp" id="sqPSel2" style="min-width:200px"><option value="">${L('Choose a person','व्यक्ति चुनें')}</option>${DATA.emps.filter(e=>e.active).map(e=>`<option value="${e.id}">${esc(e.name)} · ${esc(nm('desigs',e.desig))}</option>`).join('')}</select><button class="btn btn-o btn-s" data-sqpadd2>${L('Add','जोड़ें')}</button></div>
+  <div style="margin-top:10px;display:flex;gap:8px;max-width:520px;align-items:flex-start"><select class="inp" id="sqPSel"><option value="">${L('Default Purchase Head: choose a person','डिफ़ॉल्ट Purchase Head: व्यक्ति चुनें')}</option>${DATA.emps.filter(e=>e.active&&!def.includes(e.id)).map(e=>`<option value="${e.id}">${esc(e.name)} · ${esc(nm('desigs',e.desig))}</option>`).join('')}</select><button class="btn btn-o btn-s" data-sqpadd>${L('Add','जोड़ें')}</button></div>
+  <p style="font-size:12px;color:var(--muted);margin:8px 0 0">${L('A requirement goes to the person set for its sub-division; if none, to the person set for the whole division; if none, to the default row. If nobody is set, HR gets it. The Division Manager of the division of the requirement verifies first; if the division has none, the reporting manager of the staff does.','रिक्वायरमेंट उसकी सब-डिवीज़न के तय व्यक्ति के पास जाती है; न हो तो पूरी डिवीज़न के तय व्यक्ति के पास; न हो तो डिफ़ॉल्ट वाली पंक्ति के पास। कोई तय न हो तो HR को जाती है। पहले रिक्वायरमेंट की डिवीज़न का डिवीज़न मैनेजर verify करता है; डिवीज़न में न हो तो स्टाफ़ का रिपोर्टिंग मैनेजर।')}</p></div>`}
+document.addEventListener('change',e=>{const s=e.target.closest('[data-sqdv]');if(s){state.sqdv=+s.value||0;render()}});
+document.addEventListener('click',e=>{
+  const pa=e.target.closest('[data-sqpadd2]');if(pa){if(!canManage())return;const dv=+state.sqdv, sub=+(document.getElementById('sqSubSel')||{}).value||0, p=+(document.getElementById('sqPSel2')||{}).value;if(!dv||!p)return toast(L('Choose the division and the person','डिवीज़न और व्यक्ति चुनें'));
+    let r=sqPB().find(x=>+x.division===dv&&+x.sub===sub);if(!r){r={division:dv,sub,emps:[]};sqPB().push(r)}if(!r.emps.includes(p))r.emps.push(p);audit('Stock requirement','Purchase Head set',nm_(p),`${divName(dv)}${sub?' / '+nm('subdivs',sub):''}`);toast(t('saved'));render();return}
+  const rp=e.target.closest('[data-sqrp]');if(rp){e.preventDefault();if(!canManage())return;const [i,id]=rp.dataset.sqrp.split(':').map(Number), r=sqPB()[i];if(r){r.emps=r.emps.filter(x=>x!==id);audit('Stock requirement','Purchase Head removed',nm_(id),divName(r.division));render()}return}
+  const rd=e.target.closest('[data-sqrowdel]');if(rd){e.preventDefault();if(!canManage())return;const i=+rd.dataset.sqrowdel, r=sqPB()[i];if(r){sqPB().splice(i,1);audit('Stock requirement','Purchase Head row removed','',divName(r.division));render()}}});
+/* the Inbox: the approved requirements wait for the Purchase Head of their own division */
+{const i=INBOX_SRC.findIndex(f=>String(f).includes("'srq-o'"));if(i>=0)INBOX_SRC.splice(i,1)}
+INBOX_SRC.push((id,out)=>{SRQ.forEach(r=>{if(!sqPurFor(r.div,r.sub).includes(id))return;
+  if(r.status==='Approved')ibAdd(out,{kind:'srq-o',title:`${L('Order the requirement','रिक्वायरमेंट का ऑर्डर दें')} ${r.no}`,subject:r.emp,page:'stock',tab:'req'});
+  if(r.status==='Ordered'&&r.ord&&r.ord.exp&&r.ord.exp<=TODAY_S)ibAdd(out,{kind:'srq-r',title:`${L('Has it come? Mark received','माल आया? आ गया दबाएँ')} ${r.no}`,subject:r.emp,page:'stock',tab:'req',due:r.ord.exp})})});
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
