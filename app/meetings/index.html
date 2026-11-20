@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client Meetings</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#16181d;--muted:#5d6470;--line:#e2e5ea;--brand:#2f5bd3;--brand-ink:#fff;--soft:#eef2fc;--ok:#1e7d4f;--ok-soft:#e5f4ec;--warn:#9a6200;--warn-soft:#fff3dc;--bad:#b42318;--bad-soft:#fdeceb;--rec:#d92d20;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111317;--card:#1a1d23;--ink:#eceef2;--muted:#a1a8b3;--line:#2c3039;--brand:#7d9cf0;--brand-ink:#0d1020;--soft:#1f2740;--ok:#5ccf95;--ok-soft:#173226;--warn:#f0b955;--warn-soft:#3a2d12;--bad:#f3877e;--bad-soft:#3d1c1a;--rec:#ff6b5f;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif}
+a{color:var(--brand)}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0;flex:1}
+main{max-width:980px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 10px}h3{font-size:15px;margin:16px 0 6px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+textarea{min-height:90px;resize:vertical}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px}
+button,.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.muted{color:var(--muted)}.small{font-size:13px}
+.err{background:var(--bad-soft);color:var(--bad);padding:10px 12px;border-radius:8px;margin:10px 0}
+.note{background:var(--warn-soft);color:var(--warn);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:14px}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--brand)}
+.chip.done{background:var(--ok-soft);color:var(--ok)}.chip.failed{background:var(--bad-soft);color:var(--bad)}.chip.run{background:var(--warn-soft);color:var(--warn)}
+.chip.high{background:var(--bad-soft);color:var(--bad)}.chip.medium{background:var(--warn-soft);color:var(--warn)}.chip.low{background:var(--soft);color:var(--brand)}
+.chip.suggested{background:var(--soft);color:var(--muted)}.chip.discussed{background:var(--ok-soft);color:var(--ok)}
+.list .item{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}
+.list .item:first-child{border-top:0}.list .item .grow{flex:1;min-width:0}
+.list .item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 14px;overflow-x:auto}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--muted);padding:8px 12px;white-space:nowrap}
+.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:max-content;max-width:100%}
+.seg button{border:0;border-radius:0;font-weight:500}.seg button.on{background:var(--brand);color:var(--brand-ink)}
+.rec{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px;border-radius:12px;background:var(--bg);border:1px solid var(--line);margin-top:12px}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--muted)}.dot.on{background:var(--rec);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.timer{font:600 28px/1 ui-monospace,Menlo,Consolas,monospace;min-width:110px}
+.meter{flex:1;min-width:120px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .1s}
+ul.clean{margin:4px 0;padding-left:20px}ul.clean li{margin:3px 0}
+.fa{border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+.fa h3{margin-top:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600;font-size:12px}
+.tbl{overflow-x:auto}
+.turn{display:grid;grid-template-columns:64px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.turn .t{font:12px ui-monospace,Menlo,monospace;color:var(--brand);cursor:pointer;padding-top:2px}
+.turn .who{font-weight:600;font-size:13px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.steps span{font-size:13px;padding:4px 10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.steps span.on{background:var(--warn-soft);color:var(--warn);border-color:transparent}.steps span.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:r .8s linear infinite;vertical-align:-2px}@keyframes r{to{transform:rotate(1turn)}}
+pre.msg{white-space:pre-wrap;font:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0}
+.hide{display:none!important}
+@media print{header,.noprint,.tabs{display:none!important}body{background:#fff;color:#000}.card{border:0;padding:0}.tabpane{display:block!important}}
+@media (max-width:560px){main{padding:12px}.card{padding:14px}.turn{grid-template-columns:52px 1fr}}
+</style>
+</head>
+<body>
+<header><h1>🎙️ Client Meetings</h1><span id="who" class="muted small"></span><button id="logout" class="hide">Sign out</button></header>
+<main id="app"><div class="card muted">Loading…</div></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+'use strict';
+const SB_URL='https://okhikmjugdytahgnddjm.supabase.co', SB_KEY='sb_publishable_2rSs43HfAzKoTbqw5_AQkA_7XzAxMv0';
+const FN=SB_URL+'/functions/v1/meeting-assistant', MAX_MB=50, STALE_MS=10*60000;
+const sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=s=>document.querySelector(s), app=$('#app');
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LANGS={hinglish:'Hinglish',en:'English',hi:'हिन्दी'};
+const STATUS={new:'New',transcribing:'Making transcript',transcribed:'Transcript ready',analysing:'Making summary & plan',done:'Ready',failed:'Failed'};
+const clock=s=>{s=Math.floor(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return(h?h+':':'')+String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const fmtDate=d=>d?new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
+let user=null, pollT=null, rec=null;
+
+// ------------------------------------------------------------ backup of the recording while it runs (IndexedDB)
+const idb={db:null,
+  open(){return this.db||(this.db=new Promise((ok,no)=>{try{const r=indexedDB.open('client-meetings',1);r.onupgradeneeded=()=>r.result.createObjectStore('chunks',{autoIncrement:true});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}}))},
+  async tx(mode,fn){const d=await this.open();return new Promise((ok,no)=>{const t=d.transaction('chunks',mode),s=t.objectStore('chunks');const out=fn(s);t.oncomplete=()=>ok(out&&out.result!==undefined?out.result:undefined);t.onerror=()=>no(t.error)})},
+  add(meeting,blob,mime){return this.tx('readwrite',s=>s.add({meeting,blob,mime,at:Date.now()})).catch(()=>{})},
+  all(){return this.tx('readonly',s=>s.getAll()).catch(()=>[])},
+  clear(){return this.tx('readwrite',s=>s.clear()).catch(()=>{})}};
+
+// ------------------------------------------------------------ server calls
+async function callFn(action,meeting_id,extra={}){
+  const {data:{session}}=await sb.auth.getSession();
+  const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:SB_KEY},body:JSON.stringify({action,meeting_id,...extra})});
+  const j=await r.json().catch(()=>({error:'Server error '+r.status}));
+  if(!r.ok)throw new Error(j.error||('Server error '+r.status));
+  return j;
+}
+const must=(r,what)=>{if(r.error)throw new Error((what?what+': ':'')+r.error.message);return r.data};
+
+// ------------------------------------------------------------ sign in
+function showLogin(msg=''){
+  $('#logout').classList.add('hide');$('#who').textContent='';
+  app.innerHTML=`<div class="card" style="max-width:420px;margin:40px auto">
+    <h2>Sign in</h2><p class="muted small">Use your LV People login. Your e-mail must be added to Client Meetings by the admin.</p>
+    ${msg?`<div class="err">${esc(msg)}</div>`:''}
+    <form id="lf"><label>E-mail</label><input id="le" type="email" autocomplete="username" required>
+    <label>Password</label><input id="lp" type="password" autocomplete="current-password" required>
+    <div class="bar" style="margin-top:14px"><button class="primary" type="submit">Sign in</button></div></form></div>`;
+  $('#lf').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;
+    const r=await sb.auth.signInWithPassword({email:$('#le').value.trim(),password:$('#lp').value});
+    if(r.error){showLogin(r.error.message==='Invalid login credentials'?'Wrong e-mail or password.':r.error.message);return}
+    start();};
+}
+$('#logout').onclick=async()=>{if(rec&&!confirm('A recording is running. Sign out anyway?'))return;await sb.auth.signOut();location.hash='';showLogin()};
+
+async function start(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){showLogin();return}
+  user=session.user;
+  const mem=await sb.rpc('is_meeting_member');
+  if(mem.error||!mem.data){showLogin('This login ('+user.email+') may not use Client Meetings yet. Ask the admin to add your e-mail.');await sb.auth.signOut();return}
+  $('#who').textContent=user.email;$('#logout').classList.remove('hide');
+  route();
+}
+window.addEventListener('hashchange',()=>{if(user)route()});
+window.addEventListener('beforeunload',e=>{if(rec){e.preventDefault();e.returnValue=''}});
+function route(){
+  clearTimeout(pollT);
+  if(rec)return;                       // never leave the recorder screen while recording
+  const h=location.hash.slice(1);
+  if(h==='new')return showNew();
+  if(h.startsWith('m/'))return showMeeting(h.slice(2));
+  showList();
+}
+
+// ------------------------------------------------------------ list
+async function showList(){
+  app.innerHTML=`<div id="recover"></div><div class="card"><div class="bar" style="justify-content:space-between"><h2 style="margin:0">Meetings</h2><a class="btn primary" href="#new" style="background:var(--brand);color:var(--brand-ink);border-color:var(--brand)">＋ New meeting</a></div>
+    <input id="q" placeholder="Search client or title" style="margin-top:12px"><div id="list" class="list" style="margin-top:6px"><p class="muted">Loading…</p></div></div>`;
+  checkRecovery();
+  let rows=[];
+  try{rows=must(await sb.from('meetings').select('id,client_name,title,meeting_date,status,out_lang,source,duration_sec,summary->summary->>headline').order('meeting_date',{ascending:false}).order('created_at',{ascending:false}).limit(500))}
+  catch(e){$('#list').innerHTML=`<div class="err">${esc(e.message)}</div>`;return}
+  const draw=()=>{const q=$('#q').value.trim().toLowerCase();const f=rows.filter(r=>!q||(r.client_name+' '+r.title).toLowerCase().includes(q));
+    $('#list').innerHTML=f.length?f.map(r=>`<div class="item" data-id="${r.id}"><div class="grow"><b>${esc(r.client_name)}${r.title?' · '+esc(r.title):''}</b>
+      <span class="muted small">${fmtDate(r.meeting_date)}${r.duration_sec?' · '+clock(r.duration_sec):''}${r.headline?' · '+esc(r.headline):''}</span></div>${chip(r.status)}</div>`).join('')
+      :`<p class="muted">${rows.length?'No meeting matches.':'No meetings yet. Tap “New meeting” to record your first client discussion.'}</p>`;
+    app.querySelectorAll('.item').forEach(el=>el.onclick=()=>location.hash='m/'+el.dataset.id)};
+  $('#q').oninput=draw;draw();
+}
+const chip=s=>`<span class="chip ${s==='done'?'done':s==='failed'?'failed':['transcribing','analysing'].includes(s)?'run':''}">${esc(STATUS[s]||s)}</span>`;
+
+async function checkRecovery(){
+  const all=await idb.all();if(!all.length)return;
+  const id=all[0].meeting,mime=all[0].mime,chunks=all.filter(c=>c.meeting===id);
+  const blob=new Blob(chunks.map(c=>c.blob),{type:mime}),mins=Math.max(1,Math.round((chunks.at(-1).at-chunks[0].at)/60000));
+  const box=$('#recover');if(!box)return;
+  box.innerHTML=`<div class="note"><b>An unsaved recording was found</b> (about ${mins} min, ${(blob.size/1048576).toFixed(1)} MB). The page was closed before it was uploaded.
+    <div class="bar" style="margin-top:8px"><button class="primary" id="rcUp">Upload it now</button><button id="rcDl">Save to this device</button><button class="danger" id="rcDel">Discard</button></div></div>`;
+  $('#rcDl').onclick=()=>download(blob,'meeting-recording.'+extOf(mime));
+  $('#rcDel').onclick=async()=>{if(!confirm('Discard this recording? It cannot be brought back.'))return;await idb.clear();box.innerHTML=''};
+  $('#rcUp').onclick=async()=>{const m=await sb.from('meetings').select('id').eq('id',id).maybeSingle();
+    if(!m.data){alert('The meeting of this recording was deleted. Save it to this device instead.');return}
+    await uploadAndTranscribe(id,blob,mime,null);await idb.clear()};
+}
+
+// ------------------------------------------------------------ new meeting
+function showNew(){
+  app.innerHTML=`<div class="card"><h2>New meeting</h2>
+   <div class="row"><div><label>Client / company name *</label><input id="nClient" maxlength="200" required></div>
+   <div><label>Meeting title</label><input id="nTitle" maxlength="300" placeholder="e.g. First discussion, Sales review"></div></div>
+   <div class="row"><div><label>Date</label><input id="nDate" type="date"></div>
+   <div><label>Summary & plan language</label><select id="nLang">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div></div>
+   <label>Background about the client (optional: business type, size, what they want; helps the strategy)</label>
+   <textarea id="nCtx" maxlength="5000" placeholder="e.g. Textile retail, 3 stores in Indore, 45 staff. Wants to grow sales and fix staff attendance."></textarea>
+   <h3>How do you want to add the discussion?</h3>
+   <div class="seg" id="mode"><button data-m="rec" class="on">🎙️ Record now</button><button data-m="file">📁 Upload recording</button><button data-m="text">📝 Paste notes</button></div>
+   <div id="pane"></div><div id="nErr"></div></div>`;
+  $('#nDate').value=new Date().toLocaleDateString('en-CA');
+  let mode='rec';
+  const pane=()=>{
+    $('#pane').innerHTML=mode==='rec'?`
+      <div class="note">Please tell the client that the meeting is being recorded, and take their permission first.</div>
+      <div class="row"><div><label>Meeting language</label><select id="nSpLang"><option value="">Auto (Hindi / English / mixed)</option><option value="hi">Mostly Hindi</option><option value="en">Mostly English</option></select></div>
+      <div><label>People speaking (helps tell voices apart)</label><select id="nSpk"><option value="">Not sure</option>${[2,3,4,5,6].map(n=>`<option>${n}</option>`).join('')}</select></div></div>
+      <div class="rec"><span class="dot" id="dot"></span><span class="timer" id="tm">00:00</span><div class="meter"><i id="lvl"></i></div>
+      <div class="bar"><button class="primary" id="bStart">● Start recording</button><button id="bPause" class="hide">Pause</button><button id="bStop" class="hide danger">■ Stop & save</button></div></div>
+      <p class="muted small">Keep this page open while recording. The phone screen stays on. If the page closes by mistake, the recording is kept on this device and offered again.</p>`
+    :mode==='file'?`
+      <div class="row"><div><label>Meeting language</label><select id="nSpLang"><option value="">Auto (Hindi / English / mixed)</option><option value="hi">Mostly Hindi</option><option value="en">Mostly English</option></select></div>
+      <div><label>People speaking</label><select id="nSpk"><option value="">Not sure</option>${[2,3,4,5,6].map(n=>`<option>${n}</option>`).join('')}</select></div></div>
+      <label>Recording file (mp3, m4a, wav, webm, ogg, mp4; up to ${MAX_MB} MB)</label><input id="nFile" type="file" accept="audio/*,video/mp4,video/webm">
+      <div class="bar" style="margin-top:12px"><button class="primary" id="bUp">Upload & make transcript</button></div>`
+    :`<label>Paste the transcript or your meeting notes</label><textarea id="nText" style="min-height:220px" placeholder="Paste here: a call transcript, WhatsApp chat or your own notes."></textarea>
+      <div class="bar" style="margin-top:12px"><button class="primary" id="bText">Make summary & plan</button></div>`;
+    if(mode==='rec')wireRecorder();
+    if(mode==='file')$('#bUp').onclick=doUpload;
+    if(mode==='text')$('#bText').onclick=doText;
+  };
+  $('#mode').onclick=e=>{const b=e.target.closest('button');if(!b||rec)return;mode=b.dataset.m;$('#mode').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));pane()};
+  pane();
+}
+const formErr=m=>{$('#nErr').innerHTML=m?`<div class="err">${esc(m)}</div>`:''};
+function readForm(source){
+  const client=$('#nClient').value.trim();
+  if(!client){formErr('Please write the client name.');$('#nClient').focus();return null}
+  formErr('');
+  return {client_name:client,title:$('#nTitle').value.trim(),meeting_date:$('#nDate').value||new Date().toLocaleDateString('en-CA'),out_lang:$('#nLang').value,context:$('#nCtx').value.trim(),source};
+}
+const sttOpts=()=>({language:$('#nSpLang')?.value||undefined,speakers:Number($('#nSpk')?.value)||undefined});
+async function createMeeting(row){return must(await sb.from('meetings').insert(row).select('id').single(),'Could not save the meeting').id}
+
+async function doText(e){
+  const row=readForm('text');if(!row)return;
+  const text=$('#nText').value.trim();if(text.length<40){formErr('Please paste a longer transcript or notes.');return}
+  e.target.disabled=true;
+  try{const id=await createMeeting(row);must(await sb.from('meetings').update({transcript_text:text}).eq('id',id));await callFn('analyse',id);location.hash='m/'+id}
+  catch(err){formErr(err.message);e.target.disabled=false}
+}
+async function doUpload(e){
+  const row=readForm('audio');if(!row)return;
+  const f=$('#nFile').files[0];if(!f){formErr('Please choose the recording file.');return}
+  if(f.size>MAX_MB*1048576){formErr(`This file is ${(f.size/1048576).toFixed(0)} MB. The limit is ${MAX_MB} MB: export it as mp3 / m4a at a lower quality and try again.`);return}
+  e.target.disabled=true;const o=sttOpts();
+  try{const id=await createMeeting(row);await uploadAndTranscribe(id,f,f.type||'audio/mpeg',null,o,f.name)}
+  catch(err){formErr(err.message);e.target.disabled=false}
+}
+const extOf=(mime,name)=>{const n=(name||'').split('.').pop().toLowerCase();if(name&&/^[a-z0-9]{2,4}$/.test(n))return n;return /mp4|m4a|aac/.test(mime)?'m4a':/ogg/.test(mime)?'ogg':/mpeg|mp3/.test(mime)?'mp3':/wav/.test(mime)?'wav':'webm'};
+
+async function uploadAndTranscribe(id,blob,mime,duration,opts={},name){
+  setProgress('Uploading the recording…');
+  const path=`${user.id}/${id}.${extOf(mime,name)}`;
+  must(await sb.storage.from('meetings').upload(path,blob,{contentType:mime.split(';')[0]||'audio/webm',upsert:true}),'Upload failed');
+  must(await sb.from('meetings').update({audio_path:path,...(duration?{duration_sec:Math.round(duration)}:{})}).eq('id',id));
+  await callFn('transcribe',id,opts);
+  if(location.hash==='#m/'+id)route();else location.hash='m/'+id;
+}
+function setProgress(t){const p=$('#progress');if(p)p.innerHTML=`<span class="spin"></span> ${esc(t)}`;else app.innerHTML=`<div class="card"><p id="progress"><span class="spin"></span> ${esc(t)}</p></div>`}
+
+// ------------------------------------------------------------ recorder
+function wireRecorder(){
+  $('#bStart').onclick=async()=>{
+    const row=readForm('audio');if(!row)return;
+    if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){formErr('This browser cannot record. Use Chrome, Edge or Safari, or upload a recording made on your phone.');return}
+    let stream;
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
+    catch(e){formErr('The microphone could not be opened. Allow microphone access for this site in the browser settings.');return}
+    const left=await idb.all();
+    if(left.length&&!confirm('An earlier recording that was never uploaded is still on this device. A new recording replaces it. Continue?')){stream.getTracks().forEach(t=>t.stop());return}
+    $('#bStart').disabled=true;
+    let id;try{id=await createMeeting(row)}catch(e){stream.getTracks().forEach(t=>t.stop());formErr(e.message);$('#bStart').disabled=false;return}
+    const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+    const mr=new MediaRecorder(stream,{...(mime?{mimeType:mime}:{}),audioBitsPerSecond:32000});
+    const chunks=[],realMime=mr.mimeType||mime||'audio/webm';
+    await idb.clear();
+    rec={mr,stream,id,chunks,mime:realMime,ms:0,since:Date.now(),opts:sttOpts(),wake:null};
+    mr.ondataavailable=ev=>{if(ev.data&&ev.data.size){chunks.push(ev.data);idb.add(id,ev.data,realMime)}};
+    mr.start(10000);
+    try{rec.wake=await navigator.wakeLock?.request('screen')}catch(_){}
+    // level meter
+    try{const ac=new AudioContext(),an=ac.createAnalyser();an.fftSize=512;ac.createMediaStreamSource(stream).connect(an);const buf=new Uint8Array(an.fftSize);rec.ac=ac;
+      const tick=()=>{if(!rec)return;an.getByteTimeDomainData(buf);let p=0;for(const v of buf)p=Math.max(p,Math.abs(v-128));$('#lvl').style.width=Math.min(100,p/1.1)+'%';requestAnimationFrame(tick)};tick()}catch(_){}
+    rec.timer=setInterval(()=>{const ms=rec.ms+(mr.state==='recording'?Date.now()-rec.since:0);$('#tm').textContent=clock(ms/1000)},500);
+    $('#dot').classList.add('on');$('#bStart').classList.add('hide');$('#bPause').classList.remove('hide');$('#bStop').classList.remove('hide');
+    app.querySelectorAll('#nClient,#nTitle,#nDate,#nLang,#nCtx,#nSpLang,#nSpk').forEach(el=>el.disabled=true);
+  };
+  $('#bPause').onclick=()=>{const r=rec;if(!r)return;
+    if(r.mr.state==='recording'){r.mr.pause();r.ms+=Date.now()-r.since;$('#bPause').textContent='Resume';$('#dot').classList.remove('on')}
+    else{r.mr.resume();r.since=Date.now();$('#bPause').textContent='Pause';$('#dot').classList.add('on')}};
+  $('#bStop').onclick=()=>{const r=rec;if(!r)return;$('#bStop').disabled=$('#bPause').disabled=true;
+    if(r.mr.state==='recording')r.ms+=Date.now()-r.since;
+    r.mr.onstop=async()=>{clearInterval(r.timer);r.stream.getTracks().forEach(t=>t.stop());try{r.ac?.close()}catch(_){};try{r.wake?.release()}catch(_){}
+      const blob=new Blob(r.chunks,{type:r.mime});rec=null;
+      if(blob.size>MAX_MB*1048576){alert(`The recording is ${(blob.size/1048576).toFixed(0)} MB, above the ${MAX_MB} MB upload limit. It is kept on this device: save it from the Meetings page.`);location.hash='';route();return}
+      try{await uploadAndTranscribe(r.id,blob,r.mime,r.ms/1000,r.opts);await idb.clear()}
+      catch(e){app.innerHTML=`<div class="card"><div class="err">${esc(e.message)}</div><p>The recording is kept on this device. Go to <a href="#">Meetings</a> to upload it again.</p></div>`}};
+    r.mr.stop()};
+}
+
+// ------------------------------------------------------------ one meeting
+let cur=null, tab='summary', audioUrl=null;
+async function showMeeting(id,keepTab){
+  clearTimeout(pollT);
+  if(!keepTab){tab='summary';audioUrl=null}
+  let m;
+  try{m=must(await sb.from('meetings').select('*').eq('id',id).maybeSingle())}catch(e){app.innerHTML=`<div class="card"><div class="err">${esc(e.message)}</div></div>`;return}
+  if(!m){app.innerHTML='<div class="card">Meeting not found. <a href="#">Back</a></div>';return}
+  if(location.hash!=='#m/'+id)return;          // the user went elsewhere meanwhile
+  cur=m;
+  const running=['transcribing','analysing'].includes(m.status), stale=running&&Date.now()-Date.parse(m.updated_at)>STALE_MS;
+  const s=m.summary;
+  app.innerHTML=`<div class="card">
+    <div class="bar noprint" style="justify-content:space-between"><a href="#">← Meetings</a><span>${chip(m.status)}</span></div>
+    <h2 style="margin-top:10px">${esc(m.client_name)}${m.title?' · '+esc(m.title):''}</h2>
+    <p class="muted small" style="margin:0">${fmtDate(m.meeting_date)}${m.duration_sec?' · '+clock(m.duration_sec):''} · ${LANGS[m.out_lang]||''}${m.lang_detected?' · spoken: '+esc(m.lang_detected):''}</p>
+    ${progressBlock(m,running,stale)}
+    ${m.status==='transcribed'||(m.status!=='new'&&m.transcript&&!running&&!s)?speakerBlock(m):''}
+    ${s?`<div class="tabs noprint" id="tabs">${[['summary','Summary'],['strategy','Strategy'],['plan','Plan'],['follow','Follow-up message'],['transcript','Transcript'],['notes','My notes']].map(([k,v])=>`<button data-t="${k}" class="${k===tab?'on':''}">${v}</button>`).join('')}</div>
+      <div class="tabpane" id="pane"></div>`:m.transcript||m.transcript_text?`<h3>Transcript</h3><div id="pane"></div>`:''}
+    <div class="bar noprint" style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
+      ${s?'<button id="bPrint">🖨️ Print / PDF</button><button id="bCopy">Copy as text</button>':''}
+      ${s&&!running?'<button id="bRedo">↻ Make summary again</button>':''}
+      <button class="danger" id="bDel" ${running&&!stale?'disabled':''}>Delete meeting</button></div></div>`;
+  if(s){$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;$('#tabs').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));drawTab()};drawTab()}
+  else if(m.transcript||m.transcript_text){tab='transcript';drawTab()}
+  wireMeeting(m);
+  if(running&&!stale)pollT=setTimeout(()=>showMeeting(id,true),4000);
+}
+function progressBlock(m,running,stale){
+  const audio=m.source==='audio';
+  const st=k=>{const order=audio?['upload','transcribing','analysing','done']:['analysing','done'];
+    const at={new:audio?'upload':'analysing',transcribing:'transcribing',transcribed:'analysing',analysing:'analysing',done:'done',failed:''}[m.status];
+    const i=order.indexOf(k),j=order.indexOf(at);return m.status==='done'||i<j?'ok':i===j&&running?'on':''};
+  const steps=`<div class="steps">${audio?`<span class="${st('upload')}">1 Recording</span><span class="${st('transcribing')}">2 Transcript</span><span class="${st('analysing')}">3 Summary & plan</span>`:`<span class="${st('analysing')}">Summary & plan</span>`}</div>`;
+  if(m.status==='done')return '';
+  if(m.status==='failed')return steps+`<div class="err">${esc(m.error||'Something went wrong.')}</div><div class="bar noprint">${audio&&!m.transcript?'<button class="primary" id="bRetryT">Try the transcript again</button>':'<button class="primary" id="bRetryA">Try again</button>'}</div>`;
+  if(stale)return steps+`<div class="note">This step has been running for more than 10 minutes and has probably stopped. Start it again.</div><div class="bar noprint"><button class="primary" id="${m.status==='transcribing'?'bRetryT':'bRetryA'}">Start again</button></div>`;
+  if(running)return steps+`<p id="progress"><span class="spin"></span> ${m.status==='transcribing'?'Making the transcript. A 1-hour meeting takes about 1–3 minutes.':'Writing the summary, strategy and plan. This takes 1–4 minutes.'} You can leave this page and come back.</p>`;
+  if(m.status==='new'&&audio)return steps+`<div class="note">The recording was not uploaded yet. If it was recorded on this device, open <a href="#">Meetings</a> to upload it.</div>`;
+  return steps;
+}
+function speakerBlock(m){
+  const ids=Object.keys(m.speakers||{}).sort(), segs=m.transcript||[];
+  if(!ids.length)return `<div class="bar noprint" style="margin:12px 0"><button class="primary" id="bAnalyse">✨ Make summary & plan</button></div>`;
+  return `<div class="fa noprint"><h3>Who is who?</h3><p class="muted small" style="margin-top:0">Name the voices so the summary knows what you said and what the client said. Optional.</p>
+    ${ids.map(sp=>{const first=segs.find(x=>x.speaker===sp);const n=segs.filter(x=>x.speaker===sp).length;
+      return `<div style="margin:10px 0"><div class="small muted">${esc(sp.replace('speaker_','Voice '))} · ${n} turns · “${esc((first?.text||'').slice(0,110))}${(first?.text||'').length>110?'…':''}”</div>
+      <div class="bar" style="margin-top:4px"><input class="spk" data-sp="${esc(sp)}" value="${esc(m.speakers[sp]||'')}" placeholder="Name" style="max-width:240px">
+      <button type="button" class="qn" data-sp="${esc(sp)}" data-v="Me">Me</button><button type="button" class="qn" data-sp="${esc(sp)}" data-v="Client">Client</button></div></div>`}).join('')}
+    <div class="bar" style="margin-top:12px"><button class="primary" id="bAnalyse">✨ Make summary & plan</button></div></div>`;
+}
+function wireMeeting(m){
+  const go=async(btn,action,extra)=>{btn.disabled=true;try{await callFn(action,m.id,extra);showMeeting(m.id,true)}catch(e){alert(e.message);btn.disabled=false}};
+  app.querySelectorAll('.qn').forEach(b=>b.onclick=()=>{app.querySelector(`.spk[data-sp="${b.dataset.sp}"]`).value=b.dataset.v});
+  const saveSpk=async()=>{const sp={...(m.speakers||{})};app.querySelectorAll('.spk').forEach(i=>sp[i.dataset.sp]=i.value.trim().slice(0,60));
+    must(await sb.from('meetings').update({speakers:sp}).eq('id',m.id),'Could not save the names');m.speakers=sp};
+  const a=$('#bAnalyse');if(a)a.onclick=async()=>{try{await saveSpk()}catch(e){alert(e.message);return}go(a,'analyse')};
+  const rt=$('#bRetryT');if(rt)rt.onclick=()=>go(rt,'transcribe');
+  const ra=$('#bRetryA');if(ra)ra.onclick=()=>go(ra,m.transcript||m.transcript_text?'analyse':'transcribe');
+  const rd=$('#bRedo');if(rd)rd.onclick=()=>{if(confirm('Make the summary, strategy and plan again? The current one is replaced.'))go(rd,'analyse')};
+  const p=$('#bPrint');if(p)p.onclick=()=>{const t=tab;app.querySelectorAll('.tabpane').forEach(x=>x.innerHTML=allText(m,true));window.print();tab=t;drawTab()};
+  const c=$('#bCopy');if(c)c.onclick=async()=>{await navigator.clipboard.writeText(plain(m));c.textContent='Copied ✓';setTimeout(()=>c.textContent='Copy as text',1500)};
+  $('#bDel').onclick=async()=>{if(!confirm(`Delete the meeting with ${m.client_name}? The recording, transcript and summary are removed for good.`))return;
+    if(m.audio_path)await sb.storage.from('meetings').remove([m.audio_path]);
+    const r=await sb.from('meetings').delete().eq('id',m.id);if(r.error){alert(r.error.message);return}location.hash=''};
+}
+
+// ------------------------------------------------------------ result tabs
+const li=a=>(a&&a.length)?`<ul class="clean">${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="muted small">None</p>';
+const srcChip=s=>`<span class="chip ${s==='discussed'?'discussed':'suggested'}">${s==='discussed'?'discussed':'suggested'}</span>`;
+function summaryHtml(s){const S=s.summary||{};return `
+  <p><b>${esc(S.headline)}</b></p><p>${esc(S.overview)}</p>
+  <h3>Client's goals</h3>${li(S.client_goals)}
+  <h3>Key points</h3>${(S.key_points||[]).length?`<ul class="clean">${S.key_points.map(k=>`<li><b>${esc(k.topic)}:</b> ${esc(k.detail)}</li>`).join('')}</ul>`:li([])}
+  <h3>Decisions</h3>${li(S.decisions)}
+  <h3>Action items</h3>${(S.action_items||[]).length?`<div class="tbl"><table><tr><th>Task</th><th>Who</th><th>By when</th></tr>${S.action_items.map(a=>`<tr><td>${esc(a.task)}</td><td>${esc(a.owner)}</td><td>${esc(a.due)}</td></tr>`).join('')}</table></div>`:li([])}
+  <div class="row"><div><h3>I promised</h3>${li(S.commitments?.by_me)}</div><div><h3>Client promised</h3>${li(S.commitments?.by_client)}</div></div>
+  <h3>Concerns & risks raised</h3>${li(S.concerns)}
+  <h3>Open questions</h3>${li(S.open_questions)}`}
+function strategyHtml(s){const F=s.focus_areas||[];if(!F.length)return '<p class="muted">No work area was discussed.</p>';
+  return `<p class="muted small"><span class="chip discussed">discussed</span> = said in the meeting · <span class="chip suggested">suggested</span> = expert suggestion to check with the client</p>`+F.map((f,i)=>`<div class="fa">
+  <h3>${i+1}. ${esc(f.name)} <span class="chip ${esc(f.priority)}">${esc(f.priority)} priority</span></h3>
+  <p><b>What was discussed:</b> ${esc(f.what_was_discussed)}</p><p><b>Where they are now:</b> ${esc(f.current_situation)}</p>
+  <p><b>Objective:</b> ${esc(f.objective)}</p><p><b>Strategy:</b> ${esc(f.strategy)}</p>
+  <h3>Step-by-step plan</h3><div class="tbl"><table><tr><th>#</th><th>Step</th><th>Who</th><th>When</th><th></th></tr>${(f.steps||[]).map((st,j)=>`<tr><td>${j+1}</td><td><b>${esc(st.step)}</b><br><span class="muted small">${esc(st.detail)}</span></td><td>${esc(st.owner)}</td><td>${esc(st.timeline)}</td><td>${srcChip(st.source)}</td></tr>`).join('')}</table></div>
+  <h3>How to measure</h3>${(f.kpis||[]).length?`<ul class="clean">${f.kpis.map(k=>`<li>${esc(k.metric)}: <b>${esc(k.target)}</b> ${srcChip(k.source)}</li>`).join('')}</ul>`:li([])}
+  <h3>Risks</h3>${(f.risks||[]).length?`<ul class="clean">${f.risks.map(r=>`<li>${esc(r.risk)} → <i>${esc(r.mitigation)}</i></li>`).join('')}</ul>`:li([])}
+  <h3>Needed</h3>${li(f.resources)}</div>`).join('')}
+function planHtml(s){const P=s.plan||{};return `<h3>Quick wins (first 7 days)</h3>${li(P.quick_wins)}
+  <h3>Roadmap</h3>${(P.phases||[]).map((p,i)=>`<div class="fa"><h3>Phase ${i+1}: ${esc(p.name)} <span class="chip">${esc(p.timeline)}</span></h3><div class="row"><div><b class="small">Goals</b>${li(p.goals)}</div><div><b class="small">Deliverables</b>${li(p.deliverables)}</div></div></div>`).join('')||li([])}
+  <h3>Agenda for the next meeting</h3>${li(P.next_meeting_agenda)}`}
+function followHtml(s,m){return `<pre class="msg" id="fmsg">${esc(s.follow_up_message)}</pre><div class="bar noprint"><button id="bFm">Copy message</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(s.follow_up_message||'')}">Send on WhatsApp</a></div><p class="muted small">Check the message before you send it.</p>`}
+function transcriptHtml(m){
+  const segs=m.transcript||[];
+  if(!segs.length)return `<pre class="msg">${esc(m.transcript_text)}</pre>`;
+  return `${m.audio_path?'<audio id="aud" controls preload="none" style="width:100%;margin-bottom:8px"></audio>':''}`+segs.map(x=>`<div class="turn"><span class="t" data-s="${x.start}">${clock(x.start)}</span><div><div class="who">${esc(m.speakers?.[x.speaker]||x.speaker.replace('speaker_','Voice '))}</div>${esc(x.text)}</div></div>`).join('');
+}
+function notesHtml(m){return `<textarea id="notes" style="min-height:200px" placeholder="Your own notes about this meeting">${esc(m.notes)}</textarea><div class="bar" style="margin-top:8px"><button class="primary" id="bNotes">Save notes</button><span id="nsv" class="muted small"></span></div>`}
+async function drawTab(){
+  const m=cur,s=m.summary,pane=$('#pane');if(!pane)return;
+  pane.innerHTML=tab==='summary'?summaryHtml(s):tab==='strategy'?strategyHtml(s):tab==='plan'?planHtml(s):tab==='follow'?followHtml(s,m):tab==='notes'?notesHtml(m):transcriptHtml(m);
+  if(tab==='follow')$('#bFm').onclick=async e=>{await navigator.clipboard.writeText(s.follow_up_message||'');e.target.textContent='Copied ✓'};
+  if(tab==='notes')$('#bNotes').onclick=async()=>{const v=$('#notes').value;const r=await sb.from('meetings').update({notes:v}).eq('id',m.id);$('#nsv').textContent=r.error?r.error.message:'Saved ✓';if(!r.error)m.notes=v};
+  if(tab==='transcript'&&$('#aud')){
+    const aud=$('#aud');
+    const load=async()=>{if(!audioUrl){const r=await sb.storage.from('meetings').createSignedUrl(m.audio_path,3600);if(r.error){alert('The recording could not be opened: '+r.error.message);return false}audioUrl=r.data.signedUrl}if(!aud.src)aud.src=audioUrl;return true};
+    aud.onplay=()=>{if(!aud.src)load().then(ok=>ok&&aud.play())};
+    if(audioUrl)aud.src=audioUrl;else load();
+    pane.querySelectorAll('.t').forEach(t=>t.onclick=async()=>{if(await load()){aud.currentTime=Number(t.dataset.s);aud.play()}});
+  }
+}
+function allText(m){const s=m.summary;return `<h2>Summary</h2>${summaryHtml(s)}<h2 style="margin-top:24px">Strategy</h2>${strategyHtml(s)}<h2 style="margin-top:24px">Plan</h2>${planHtml(s)}<h2 style="margin-top:24px">Follow-up message</h2><pre class="msg">${esc(s.follow_up_message)}</pre>`}
+function plain(m){const s=m.summary,S=s.summary||{},L=a=>(a||[]).map(x=>'• '+x).join('\n')||'• None',P=s.plan||{};
+  return [`${m.client_name}${m.title?' · '+m.title:''} — ${fmtDate(m.meeting_date)}`,'',S.headline,S.overview,
+  '\nCLIENT GOALS\n'+L(S.client_goals),'\nKEY POINTS\n'+L((S.key_points||[]).map(k=>k.topic+': '+k.detail)),'\nDECISIONS\n'+L(S.decisions),
+  '\nACTION ITEMS\n'+L((S.action_items||[]).map(a=>`${a.task} (${a.owner}, ${a.due})`)),'\nOPEN QUESTIONS\n'+L(S.open_questions),
+  ...(s.focus_areas||[]).map((f,i)=>`\nFOCUS AREA ${i+1}: ${f.name} [${f.priority}]\nObjective: ${f.objective}\nStrategy: ${f.strategy}\n`+(f.steps||[]).map((x,j)=>`${j+1}. ${x.step} (${x.owner}, ${x.timeline}${x.source==='suggested'?', suggested':''}): ${x.detail}`).join('\n')+'\nMeasure: '+(f.kpis||[]).map(k=>k.metric+' → '+k.target).join('; ')),
+  '\nQUICK WINS\n'+L(P.quick_wins),'\nROADMAP\n'+(P.phases||[]).map((p,i)=>`Phase ${i+1}: ${p.name} (${p.timeline})\n${L(p.goals)}`).join('\n'),
+  '\nNEXT MEETING\n'+L(P.next_meeting_agenda),'\nFOLLOW-UP MESSAGE\n'+(s.follow_up_message||'')].join('\n')}
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+
+sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'){user=null}});
+start();
+</script>
+</body>
+</html>
