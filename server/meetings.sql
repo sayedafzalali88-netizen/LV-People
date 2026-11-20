@@ -14,7 +14,7 @@ create or replace function public.is_meeting_member() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.meeting_members m where m.email = lower(coalesce(auth.jwt() ->> 'email', '')));
 $$;
-revoke all on function public.is_meeting_member() from public;
+revoke all on function public.is_meeting_member() from public, anon;
 grant execute on function public.is_meeting_member() to authenticated;
 
 create table if not exists public.meetings (
@@ -64,7 +64,7 @@ grant select, insert, delete on public.meetings to authenticated;
 grant update (client_name, title, meeting_date, out_lang, context, speakers, notes, audio_path, duration_sec, transcript_text, source)
   on public.meetings to authenticated;
 
-create or replace function public.meetings_touch() returns trigger language plpgsql as $$
+create or replace function public.meetings_touch() returns trigger language plpgsql set search_path = public as $$
 begin new.updated_at := now(); return new; end $$;
 drop trigger if exists meetings_touch on public.meetings;
 create trigger meetings_touch before update on public.meetings for each row execute function public.meetings_touch();
