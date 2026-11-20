@@ -5,7 +5,7 @@
 // Every request checks the Supabase login, the meeting_members list and that the meeting belongs to the caller.
 // Deploy: supabase functions deploy meeting-assistant
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
-import { analyse, CFG, StepError, transcribe, transcriptForAi, type Segment } from "./analyse.ts";
+import { analyse, CFG, numberedTranscript, StepError, transcribe, transcriptForAi, type Segment } from "./analyse.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -37,7 +37,7 @@ async function whoAmI(req: Request): Promise<{ id: string; email: string }> {
 }
 
 type Meeting = {
-  id: string; owner: string; client_name: string; title: string; meeting_date: string; out_lang: string; context: string;
+  id: string; owner: string; client_name: string; title: string; meeting_date: string; out_lang: string; context: string; agenda: string;
   source: string; audio_path: string | null; status: string; updated_at: string; transcript: Segment[] | null;
   transcript_text: string | null; speakers: Record<string, string>;
 };
@@ -78,10 +78,10 @@ async function runTranscribe(m: Meeting, opts: { language?: string; speakers?: n
 async function runAnalyse(m: Meeting) {
   try {
     // for an audio meeting the speaker turns are used (with the names you gave); for a text meeting the pasted text
-    const transcript = transcriptForAi(m.source === "audio" ? m.transcript : null, m.transcript_text, m.speakers || {});
+    const t = numberedTranscript(m.source === "audio" ? m.transcript : null, m.transcript_text, m.speakers || {});
     const out = await analyse({
-      client: m.client_name, title: m.title, date: m.meeting_date, context: m.context || "",
-      transcript, outLang: m.out_lang, speakers: m.speakers || {},
+      client: m.client_name, title: m.title, date: m.meeting_date, context: m.context || "", agenda: m.agenda || "",
+      outLang: m.out_lang, speakers: m.speakers || {}, transcript: t.text, weights: t.weights, basis: t.basis,
     });
     await setRow(m.id, { status: "done", error: null, summary: out.result, model: out.model, input_tokens: out.input_tokens, output_tokens: out.output_tokens });
   } catch (e) {

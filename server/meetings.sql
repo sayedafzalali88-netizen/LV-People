@@ -25,6 +25,7 @@ create table if not exists public.meetings (
   meeting_date    date not null default current_date,
   out_lang        text not null default 'hinglish' check (out_lang in ('en', 'hinglish', 'hi')),
   context         text not null default '' check (length(context) <= 5000),     -- background about the client, typed by you
+  agenda          text not null default '' check (length(agenda) <= 3000),      -- agenda points, one per line (optional)
   source          text not null default 'audio' check (source in ('audio', 'text')),
   audio_path      text,                                                          -- meetings bucket: <owner>/<id>.<ext>
   duration_sec    integer,
@@ -44,6 +45,7 @@ create table if not exists public.meetings (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+alter table public.meetings add column if not exists agenda text not null default '' check (length(agenda) <= 3000);  -- for databases made before the agenda field
 create index if not exists meetings_owner_date on public.meetings (owner, meeting_date desc, created_at desc);
 
 alter table public.meetings enable row level security;
@@ -61,7 +63,7 @@ create policy meetings_delete on public.meetings for delete to authenticated usi
 -- the browser may change only these columns; status, transcript and results are written by the server function
 revoke update on public.meetings from authenticated;
 grant select, insert, delete on public.meetings to authenticated;
-grant update (client_name, title, meeting_date, out_lang, context, speakers, notes, audio_path, duration_sec, transcript_text, source)
+grant update (client_name, title, meeting_date, out_lang, context, agenda, speakers, notes, audio_path, duration_sec, transcript_text, source)
   on public.meetings to authenticated;
 
 create or replace function public.meetings_touch() returns trigger language plpgsql set search_path = public as $$

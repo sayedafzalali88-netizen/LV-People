@@ -28,7 +28,7 @@ button:disabled{opacity:.5;cursor:default}
 .muted{color:var(--muted)}.small{font-size:13px}
 .err{background:var(--bad-soft);color:var(--bad);padding:10px 12px;border-radius:8px;margin:10px 0}
 .note{background:var(--warn-soft);color:var(--warn);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:14px}
-.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--brand)}
+.chip{display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--brand)}
 .chip.done{background:var(--ok-soft);color:var(--ok)}.chip.failed{background:var(--bad-soft);color:var(--bad)}.chip.run{background:var(--warn-soft);color:var(--warn)}
 .chip.high{background:var(--bad-soft);color:var(--bad)}.chip.medium{background:var(--warn-soft);color:var(--warn)}.chip.low{background:var(--soft);color:var(--brand)}
 .chip.suggested{background:var(--soft);color:var(--muted)}.chip.discussed{background:var(--ok-soft);color:var(--ok)}
@@ -48,6 +48,13 @@ button:disabled{opacity:.5;cursor:default}
 ul.clean{margin:4px 0;padding-left:20px}ul.clean li{margin:3px 0}
 .fa{border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
 .fa h3{margin-top:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:8px 0 4px}
+.stat{border:1px solid var(--line);border-radius:10px;padding:14px}.stat .big{font-size:26px;font-weight:700;line-height:1.1}
+.sbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line);margin:10px 0 8px}.sbar i{display:block;height:100%}
+.lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}.lg b{color:var(--ink)}.lg span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;background:var(--c);vertical-align:-1px}
+.mini{height:6px;border-radius:3px;background:var(--brand);min-width:2px}
+.chip.on{background:var(--soft);color:var(--brand)}.chip.off{background:var(--warn-soft);color:var(--warn)}.chip.covered{background:var(--ok-soft);color:var(--ok)}.chip.partly{background:var(--warn-soft);color:var(--warn)}.chip.not_covered{background:var(--bad-soft);color:var(--bad)}
+details.ag{margin:12px 0;border:1px solid var(--line);border-radius:10px;padding:10px 14px}details.ag summary{cursor:pointer;font-weight:600}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600;font-size:12px}
 .tbl{overflow-x:auto}
 .turn{display:grid;grid-template-columns:64px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
@@ -174,6 +181,11 @@ function showNew(){
    <div><label>Summary & plan language</label><select id="nLang">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div></div>
    <label>Background about the client (optional: business type, size, what they want; helps the strategy)</label>
    <textarea id="nCtx" maxlength="5000" placeholder="e.g. Textile retail, 3 stores in Indore, 45 staff. Wants to grow sales and fix staff attendance."></textarea>
+   <label>Agenda (optional: one point per line; used to measure how much of the talk stayed on the agenda)</label>
+   <textarea id="nAgenda" maxlength="3000" placeholder="e.g.
+Last month sales review
+Staff attendance problem
+Diwali offer plan"></textarea>
    <h3>How do you want to add the discussion?</h3>
    <div class="seg" id="mode"><button data-m="rec" class="on">🎙️ Record now</button><button data-m="file">📁 Upload recording</button><button data-m="text">📝 Paste notes</button></div>
    <div id="pane"></div><div id="nErr"></div></div>`;
@@ -206,7 +218,7 @@ function readForm(source){
   const client=$('#nClient').value.trim();
   if(!client){formErr('Please write the client name.');$('#nClient').focus();return null}
   formErr('');
-  return {client_name:client,title:$('#nTitle').value.trim(),meeting_date:$('#nDate').value||new Date().toLocaleDateString('en-CA'),out_lang:$('#nLang').value,context:$('#nCtx').value.trim(),source};
+  return {client_name:client,title:$('#nTitle').value.trim(),meeting_date:$('#nDate').value||new Date().toLocaleDateString('en-CA'),out_lang:$('#nLang').value,context:$('#nCtx').value.trim(),agenda:$('#nAgenda').value.trim(),source};
 }
 const sttOpts=()=>({language:$('#nSpLang')?.value||undefined,speakers:Number($('#nSpk')?.value)||undefined});
 async function createMeeting(row){return must(await sb.from('meetings').insert(row).select('id').single(),'Could not save the meeting').id}
@@ -263,7 +275,7 @@ function wireRecorder(){
       const tick=()=>{if(!rec)return;an.getByteTimeDomainData(buf);let p=0;for(const v of buf)p=Math.max(p,Math.abs(v-128));$('#lvl').style.width=Math.min(100,p/1.1)+'%';requestAnimationFrame(tick)};tick()}catch(_){}
     rec.timer=setInterval(()=>{const ms=rec.ms+(mr.state==='recording'?Date.now()-rec.since:0);$('#tm').textContent=clock(ms/1000)},500);
     $('#dot').classList.add('on');$('#bStart').classList.add('hide');$('#bPause').classList.remove('hide');$('#bStop').classList.remove('hide');
-    app.querySelectorAll('#nClient,#nTitle,#nDate,#nLang,#nCtx,#nSpLang,#nSpk').forEach(el=>el.disabled=true);
+    app.querySelectorAll('#nClient,#nTitle,#nDate,#nLang,#nCtx,#nAgenda,#nSpLang,#nSpk').forEach(el=>el.disabled=true);
   };
   $('#bPause').onclick=()=>{const r=rec;if(!r)return;
     if(r.mr.state==='recording'){r.mr.pause();r.ms+=Date.now()-r.since;$('#bPause').textContent='Resume';$('#dot').classList.remove('on')}
@@ -296,8 +308,11 @@ async function showMeeting(id,keepTab){
     <p class="muted small" style="margin:0">${fmtDate(m.meeting_date)}${m.duration_sec?' · '+clock(m.duration_sec):''} · ${LANGS[m.out_lang]||''}${m.lang_detected?' · spoken: '+esc(m.lang_detected):''}</p>
     ${progressBlock(m,running,stale)}
     ${m.status==='transcribed'||(m.status!=='new'&&m.transcript&&!running&&!s)?speakerBlock(m):''}
-    ${s?`<div class="tabs noprint" id="tabs">${[['summary','Summary'],['strategy','Strategy'],['plan','Plan'],['follow','Follow-up message'],['transcript','Transcript'],['notes','My notes']].map(([k,v])=>`<button data-t="${k}" class="${k===tab?'on':''}">${v}</button>`).join('')}</div>
+    ${s?`<div class="tabs noprint" id="tabs">${[['summary','Summary'],['analysis','Analysis'],['strategy','Strategy'],['plan','Plan'],['follow','Follow-up message'],['transcript','Transcript'],['notes','My notes']].map(([k,v])=>`<button data-t="${k}" class="${k===tab?'on':''}">${v}</button>`).join('')}</div>
       <div class="tabpane" id="pane"></div>`:m.transcript||m.transcript_text?`<h3>Transcript</h3><div id="pane"></div>`:''}
+    ${!running||stale?`<details class="ag noprint"><summary>Agenda${m.agenda?' · '+m.agenda.split('\n').filter(Boolean).length+' points':' · not given'}</summary>
+      <p class="muted small" style="margin:6px 0">One point per line. After a change, tap “Make summary again” to measure the talk against it.</p>
+      <textarea id="agTxt" maxlength="3000">${esc(m.agenda)}</textarea><div class="bar" style="margin-top:8px"><button id="agSave">Save agenda</button><span id="agMsg" class="muted small"></span></div></details>`:''}
     <div class="bar noprint" style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
       ${s?'<button id="bPrint">🖨️ Print / PDF</button><button id="bCopy">Copy as text</button>':''}
       ${s&&!running?'<button id="bRedo">↻ Make summary again</button>':''}
@@ -338,6 +353,7 @@ function wireMeeting(m){
   const a=$('#bAnalyse');if(a)a.onclick=async()=>{try{await saveSpk()}catch(e){alert(e.message);return}go(a,'analyse')};
   const rt=$('#bRetryT');if(rt)rt.onclick=()=>go(rt,'transcribe');
   const ra=$('#bRetryA');if(ra)ra.onclick=()=>go(ra,m.transcript||m.transcript_text?'analyse':'transcribe');
+  const ag=$('#agSave');if(ag)ag.onclick=async()=>{const v=$('#agTxt').value.trim();const r=await sb.from('meetings').update({agenda:v}).eq('id',m.id);$('#agMsg').textContent=r.error?r.error.message:'Saved ✓'+(m.summary?' · tap “Make summary again” to use it':'');if(!r.error)m.agenda=v};
   const rd=$('#bRedo');if(rd)rd.onclick=()=>{if(confirm('Make the summary, strategy and plan again? The current one is replaced.'))go(rd,'analyse')};
   const p=$('#bPrint');if(p)p.onclick=()=>{const t=tab;app.querySelectorAll('.tabpane').forEach(x=>x.innerHTML=allText(m,true));window.print();tab=t;drawTab()};
   const c=$('#bCopy');if(c)c.onclick=async()=>{await navigator.clipboard.writeText(plain(m));c.textContent='Copied ✓';setTimeout(()=>c.textContent='Copy as text',1500)};
@@ -367,6 +383,22 @@ function strategyHtml(s){const F=s.focus_areas||[];if(!F.length)return '<p class
   <h3>How to measure</h3>${(f.kpis||[]).length?`<ul class="clean">${f.kpis.map(k=>`<li>${esc(k.metric)}: <b>${esc(k.target)}</b> ${srcChip(k.source)}</li>`).join('')}</ul>`:li([])}
   <h3>Risks</h3>${(f.risks||[]).length?`<ul class="clean">${f.risks.map(r=>`<li>${esc(r.risk)} → <i>${esc(r.mitigation)}</i></li>`).join('')}</ul>`:li([])}
   <h3>Needed</h3>${li(f.resources)}</div>`).join('')}
+function analysisHtml(s,m){
+  const st=s.stats,A=s.analysis||{};
+  if(!st)return '<div class="note">This summary was made before the analysis existed. Tap “Make summary again” to get the agenda and tone analysis.</div>';
+  const bar=parts=>`<div class="sbar">${parts.filter(p=>p[1]>0).map(p=>`<i style="width:${p[1]}%;background:${p[2]}" title="${esc(p[0])} ${p[1]}%"></i>`).join('')}</div><div class="lg">${parts.map(p=>`<span style="--c:${p[2]}">${esc(p[0])} <b>${p[1]}%</b></span>`).join('')}</div>`;
+  const agendaGiven=(m.agenda||'').trim()!=='';
+  const items=A.agenda_items||[], stLabel={covered:'covered',partly:'partly',not_covered:'not covered'};
+  return `<p class="muted small" style="margin-top:0">Worked out from ${st.basis==='time'?'speaking time'+(st.minutes?' ('+st.minutes+' min)':''):'the length of the text'}.${agendaGiven?'':' No agenda was given: the talk was judged against the meeting title and the purpose said at the start.'}${st.covered_pct<90?' Only '+st.covered_pct+'% of the meeting could be tagged.':''}</p>
+  <div class="stats">
+    <div class="stat"><div class="muted small">On the agenda</div><div class="big">${st.on_agenda_pct}%</div>${bar([['On agenda',st.on_agenda_pct,'var(--brand)'],['Off agenda',st.off_agenda_pct,'var(--warn)']])}</div>
+    <div class="stat"><div class="muted small">Tone of the talk</div><div class="big" style="color:var(--ok)">${st.positive_pct}% <span class="small muted" style="font-weight:500">positive</span></div>${bar([['Positive',st.positive_pct,'var(--ok)'],['Neutral',st.neutral_pct,'var(--muted)'],['Negative',st.negative_pct,'var(--bad)']])}</div>
+  </div>
+  ${A.tone_note?`<p>${esc(A.tone_note)}</p>`:''}
+  ${agendaGiven?`<h3>Agenda points</h3>${items.length?`<div class="tbl"><table><tr><th>Point</th><th>Status</th><th>What was said</th></tr>${items.map(i=>`<tr><td>${esc(i.item)}</td><td><span class="chip ${esc(i.status)}">${esc(stLabel[i.status]||i.status)}</span></td><td>${esc(i.note)}</td></tr>`).join('')}</table></div>`:li([])}`:''}
+  <h3>Time spent by topic</h3>${(st.topics||[]).length?`<div class="tbl"><table><tr><th>Topic</th><th style="width:40%">Share</th><th></th></tr>${st.topics.map(t=>`<tr><td>${esc(t.topic)}</td><td><div class="bar" style="gap:8px;flex-wrap:nowrap"><div class="mini" style="width:${t.pct}%"></div><b class="small">${t.pct}%</b></div></td><td><span class="chip ${t.on_agenda?'on':'off'}">${t.on_agenda?'on agenda':'off agenda'}</span></td></tr>`).join('')}</table></div>`:li([])}
+  <div class="row"><div><h3>👍 Positive moments</h3>${li(A.positive_moments)}</div><div><h3>👎 Negative moments</h3>${li(A.negative_moments)}</div></div>`;
+}
 function planHtml(s){const P=s.plan||{};return `<h3>Quick wins (first 7 days)</h3>${li(P.quick_wins)}
   <h3>Roadmap</h3>${(P.phases||[]).map((p,i)=>`<div class="fa"><h3>Phase ${i+1}: ${esc(p.name)} <span class="chip">${esc(p.timeline)}</span></h3><div class="row"><div><b class="small">Goals</b>${li(p.goals)}</div><div><b class="small">Deliverables</b>${li(p.deliverables)}</div></div></div>`).join('')||li([])}
   <h3>Agenda for the next meeting</h3>${li(P.next_meeting_agenda)}`}
@@ -379,7 +411,7 @@ function transcriptHtml(m){
 function notesHtml(m){return `<textarea id="notes" style="min-height:200px" placeholder="Your own notes about this meeting">${esc(m.notes)}</textarea><div class="bar" style="margin-top:8px"><button class="primary" id="bNotes">Save notes</button><span id="nsv" class="muted small"></span></div>`}
 async function drawTab(){
   const m=cur,s=m.summary,pane=$('#pane');if(!pane)return;
-  pane.innerHTML=tab==='summary'?summaryHtml(s):tab==='strategy'?strategyHtml(s):tab==='plan'?planHtml(s):tab==='follow'?followHtml(s,m):tab==='notes'?notesHtml(m):transcriptHtml(m);
+  pane.innerHTML=tab==='summary'?summaryHtml(s):tab==='analysis'?analysisHtml(s,m):tab==='strategy'?strategyHtml(s):tab==='plan'?planHtml(s):tab==='follow'?followHtml(s,m):tab==='notes'?notesHtml(m):transcriptHtml(m);
   if(tab==='follow')$('#bFm').onclick=async e=>{await navigator.clipboard.writeText(s.follow_up_message||'');e.target.textContent='Copied ✓'};
   if(tab==='notes')$('#bNotes').onclick=async()=>{const v=$('#notes').value;const r=await sb.from('meetings').update({notes:v}).eq('id',m.id);$('#nsv').textContent=r.error?r.error.message:'Saved ✓';if(!r.error)m.notes=v};
   if(tab==='transcript'&&$('#aud')){
@@ -390,12 +422,13 @@ async function drawTab(){
     pane.querySelectorAll('.t').forEach(t=>t.onclick=async()=>{if(await load()){aud.currentTime=Number(t.dataset.s);aud.play()}});
   }
 }
-function allText(m){const s=m.summary;return `<h2>Summary</h2>${summaryHtml(s)}<h2 style="margin-top:24px">Strategy</h2>${strategyHtml(s)}<h2 style="margin-top:24px">Plan</h2>${planHtml(s)}<h2 style="margin-top:24px">Follow-up message</h2><pre class="msg">${esc(s.follow_up_message)}</pre>`}
+function allText(m){const s=m.summary;return `<h2>Summary</h2>${summaryHtml(s)}<h2 style="margin-top:24px">Analysis</h2>${analysisHtml(s,m)}<h2 style="margin-top:24px">Strategy</h2>${strategyHtml(s)}<h2 style="margin-top:24px">Plan</h2>${planHtml(s)}<h2 style="margin-top:24px">Follow-up message</h2><pre class="msg">${esc(s.follow_up_message)}</pre>`}
 function plain(m){const s=m.summary,S=s.summary||{},L=a=>(a||[]).map(x=>'• '+x).join('\n')||'• None',P=s.plan||{};
   return [`${m.client_name}${m.title?' · '+m.title:''} — ${fmtDate(m.meeting_date)}`,'',S.headline,S.overview,
   '\nCLIENT GOALS\n'+L(S.client_goals),'\nKEY POINTS\n'+L((S.key_points||[]).map(k=>k.topic+': '+k.detail)),'\nDECISIONS\n'+L(S.decisions),
   '\nACTION ITEMS\n'+L((S.action_items||[]).map(a=>`${a.task} (${a.owner}, ${a.due})`)),'\nOPEN QUESTIONS\n'+L(S.open_questions),
   ...(s.focus_areas||[]).map((f,i)=>`\nFOCUS AREA ${i+1}: ${f.name} [${f.priority}]\nObjective: ${f.objective}\nStrategy: ${f.strategy}\n`+(f.steps||[]).map((x,j)=>`${j+1}. ${x.step} (${x.owner}, ${x.timeline}${x.source==='suggested'?', suggested':''}): ${x.detail}`).join('\n')+'\nMeasure: '+(f.kpis||[]).map(k=>k.metric+' → '+k.target).join('; ')),
+  ...(s.stats?[`\nANALYSIS\nOn agenda ${s.stats.on_agenda_pct}% · off agenda ${s.stats.off_agenda_pct}%\nPositive ${s.stats.positive_pct}% · neutral ${s.stats.neutral_pct}% · negative ${s.stats.negative_pct}%\n`+(s.analysis?.tone_note||'')+'\nTopics: '+(s.stats.topics||[]).map(t=>`${t.topic} ${t.pct}%`).join(', ')]:[]),
   '\nQUICK WINS\n'+L(P.quick_wins),'\nROADMAP\n'+(P.phases||[]).map((p,i)=>`Phase ${i+1}: ${p.name} (${p.timeline})\n${L(p.goals)}`).join('\n'),
   '\nNEXT MEETING\n'+L(P.next_meeting_agenda),'\nFOLLOW-UP MESSAGE\n'+(s.follow_up_message||'')].join('\n')}
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}

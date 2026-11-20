@@ -13,6 +13,8 @@ Address after deploy: **https://lv-people.pages.dev/meetings/** (sign in with an
    - Strategy: one card per focus area, with priority, objective, strategy, step-by-step plan (who, when), how to measure it, risks. Each step is marked **discussed** (said in the meeting) or **suggested** (expert suggestion to check with the client)
    - Plan: quick wins for the first 7 days, a phased roadmap, the agenda for the next meeting
    - A follow-up message for the client (copy, or send on WhatsApp)
+   - Analysis: how much of the talk was on the agenda and how much off it, how much was positive, neutral and negative, time spent per topic, which agenda points were covered, and the main positive and negative moments.
+     Claude only tags which lines are about which topic, on or off the agenda, and their tone; the percentages are worked out by the server from speaking time (recordings) or text length (pasted notes), so they add up to 100 and come out the same way every time. Without an agenda, the talk is judged against the meeting title and the purpose said at the start.
    The output language is your choice for each meeting: Hinglish, English or Hindi.
 4. Print / save as PDF, copy as text, your own notes, play the recording from any line of the transcript, make the summary again (for example after naming the voices).
 

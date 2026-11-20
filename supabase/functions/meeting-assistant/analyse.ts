@@ -67,8 +67,72 @@ export function transcriptForAi(segments: Segment[] | null, text: string | null,
   return (text || "").trim();
 }
 
+/** The transcript with a number on every line (#1, #2 …), and how much each line weighs: its speaking time
+    in seconds for a recording, its length in characters for pasted text. The AI tags line ranges; the
+    percentages are worked out here from the weights, not guessed by the AI. */
+export function numberedTranscript(segments: Segment[] | null, text: string | null, names: Record<string, string>) {
+  let lines: { text: string; weight: number }[];
+  let basis: "time" | "text";
+  if (segments?.length) {
+    const timed = segments.every((s) => s.end > s.start);
+    basis = timed ? "time" : "text";
+    lines = segments.map((s) => ({ text: `[${clock(s.start)}] ${names[s.speaker] || s.speaker}: ${s.text}`, weight: timed ? s.end - s.start : s.text.length }));
+  } else {
+    basis = "text";
+    // long pasted paragraphs are cut at sentence ends so that one line is not half the meeting
+    const parts = (text || "").split(/\n+/).map((l) => l.trim()).filter(Boolean)
+      .flatMap((l) => l.length <= 400 ? [l] : (l.match(/[^.!?।]+[.!?।]*\s*/g) || [l]).reduce((acc: string[], s) => {
+        if (acc.length && (acc[acc.length - 1] + s).length <= 400) acc[acc.length - 1] += s; else acc.push(s);
+        return acc;
+      }, []).map((x) => x.trim()).filter(Boolean));
+    lines = parts.map((l) => ({ text: l, weight: l.length }));
+  }
+  return { text: lines.map((l, i) => `#${i + 1} ${l.text}`).join("\n"), weights: lines.map((l) => l.weight), basis };
+}
+
+/** Whole-number percentages that add up to exactly 100 (largest remainder). */
+export function percents(values: number[]): number[] {
+  const total = values.reduce((a, b) => a + b, 0);
+  if (total <= 0) return values.map(() => 0);
+  const raw = values.map((v) => (v * 100) / total), out = raw.map(Math.floor);
+  let left = 100 - out.reduce((a, b) => a + b, 0);
+  raw.map((r, i) => [r - Math.floor(r), i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left-- > 0) out[i]++; });
+  return out;
+}
+
+type Block = { from: number; to: number; topic: string; on_agenda: string; tone: string };
+
+/** On / off agenda, positive / neutral / negative and the share of each topic, from the AI's line blocks. */
+export function computeStats(blocks: Block[], weights: number[], basis: "time" | "text") {
+  const n = weights.length, owner: (Block | null)[] = Array(n).fill(null);
+  for (const b of blocks) {
+    const from = Math.max(1, Math.min(b.from, b.to)), to = Math.min(n, Math.max(b.from, b.to));
+    for (let i = from; i <= to; i++) if (!owner[i - 1]) owner[i - 1] = b;    // the first block that claims a line keeps it
+  }
+  const sum = (f: (b: Block) => boolean) => owner.reduce((a, b, i) => a + (b && f(b) ? weights[i] : 0), 0);
+  const total = weights.reduce((a, b) => a + b, 0), tagged = sum(() => true);
+  const [onPct, offPct] = percents([sum((b) => b.on_agenda === "yes"), sum((b) => b.on_agenda !== "yes")]);
+  const [pos, neu, neg] = percents([sum((b) => b.tone === "positive"), sum((b) => b.tone === "neutral"), sum((b) => b.tone === "negative")]);
+  const topics = new Map<string, { topic: string; weight: number; on: number }>();
+  owner.forEach((b, i) => {
+    if (!b) return;
+    const key = b.topic.trim().toLowerCase() || "-", t = topics.get(key) ?? { topic: b.topic.trim() || "-", weight: 0, on: 0 };
+    t.weight += weights[i]; if (b.on_agenda === "yes") t.on += weights[i]; topics.set(key, t);
+  });
+  const list = [...topics.values()].sort((a, b) => b.weight - a.weight), tp = percents(list.map((t) => t.weight));
+  return {
+    basis,
+    covered_pct: total > 0 ? Math.round((tagged * 100) / total) : 0,     // how much of the meeting the AI tagged
+    on_agenda_pct: onPct, off_agenda_pct: offPct,
+    positive_pct: pos, neutral_pct: neu, negative_pct: neg,
+    topics: list.map((t, i) => ({ topic: t.topic, pct: tp[i], on_agenda: t.on * 2 >= t.weight })),
+    minutes: basis === "time" ? Math.round(total / 60) : null,
+  };
+}
+
 // ---------------------------------------------------------------- summary + strategy
 const str = { type: "string" };
+const int = { type: "integer" };
 const strs = { type: "array", items: str };
 const obj = (props: Record<string, unknown>) => ({ type: "object", properties: props, required: Object.keys(props), additionalProperties: false });
 // the first value of an enum is the safe default used when a reply has a value outside the list
@@ -108,6 +172,16 @@ export const RESULT_SCHEMA = obj({
     next_meeting_agenda: strs,
   }),
   follow_up_message: str,
+  analysis: obj({
+    agenda_items: { type: "array", items: obj({ item: str, status: { type: "string", enum: ["partly", "covered", "not_covered"] }, note: str }) },
+    blocks: {
+      type: "array",
+      items: obj({ from: int, to: int, topic: str, on_agenda: { type: "string", enum: ["yes", "no"] }, tone: { type: "string", enum: ["neutral", "positive", "negative"] } }),
+    },
+    positive_moments: strs,
+    negative_moments: strs,
+    tone_note: str,
+  }),
 });
 // RESULT_SCHEMA describes the reply. It is NOT sent as a strict output format: the API refuses it
 // ("compiled grammar is too large"). Claude gets it as an example shape in the prompt, and normalise()
@@ -119,6 +193,7 @@ type Schema = { type: string; properties?: Record<string, Schema>; items?: Schem
 export function shapeExample(s: Schema): unknown {
   if (s.type === "object") return Object.fromEntries(Object.entries(s.properties!).map(([k, v]) => [k, shapeExample(v)]));
   if (s.type === "array") return [shapeExample(s.items!)];
+  if (s.type === "integer") return 1;
   return s.enum ? s.enum.join(" | ") : "...";
 }
 
@@ -132,6 +207,7 @@ export function normalise(v: unknown, s: Schema): unknown {
     const a = Array.isArray(v) ? v : v == null || v === "" ? [] : [v];
     return a.map((x) => normalise(x, s.items!)).filter((x) => x !== "");
   }
+  if (s.type === "integer") { const n = parseInt(String(v ?? "").replace(/^#/, ""), 10); return Number.isFinite(n) ? n : 0; }
   const t = v == null ? "" : typeof v === "object" ? "" : String(v).trim();
   if (s.enum) { const l = t.toLowerCase(); return s.enum.includes(l) ? l : s.enum[0]; }
   return t;
@@ -162,6 +238,13 @@ Produce:
    - Never invent facts about the client's business (numbers, sales, staff count, prices). When a target needs a number that was not said, write it as "baseline first: measure current X" or give a relative target.
 3. plan: one combined roadmap in phases across all focus areas, quick wins for the first 7 days, and the agenda for the next meeting (including the open questions).
 4. follow_up_message: a short, polite WhatsApp/e-mail message from the user to the client: thank them, recap the agreed points and next steps. No promises that were not made in the meeting.
+5. analysis: how the meeting went. Every transcript line starts with a number (#1, #2, …).
+   - blocks: split the WHOLE meeting, in order, into parts by topic, using line numbers: {"from": first line, "to": last line}. The parts follow each other with no gaps and no overlaps, from #1 to the last line. Start a new part when the topic or the mood changes. Greetings and small talk are their own part.
+     "on_agenda": "yes" when the part is about a point of the AGENDA given below; "no" when it is outside the agenda (small talk, unrelated topics, side stories). When no agenda is given, judge against the purpose of the meeting: its title and what was said at the start about why they are meeting.
+     "tone": "positive" for agreement, interest, appreciation, good news, progress, commitment; "negative" for complaints, disagreement, worry, frustration, blame, conflict, bad news; "neutral" for plain exchange of information and questions.
+   - agenda_items: one entry per agenda point given (empty list when no agenda is given): "covered", "partly" or "not_covered", with a one-line note of what was said.
+   - positive_moments and negative_moments: the main ones, each starting with its time ([mm:ss]) when the line has one, otherwise its line number.
+   - tone_note: one or two lines on the overall mood and the client's interest and openness.
 
 ${LANG[outLang] || LANG.hinglish}
 If the meeting has no real business discussion, keep the lists empty and say so in the overview.
@@ -176,7 +259,10 @@ export type AnalyseOut = { result: unknown; model: string; input_tokens: number;
 let _claude: Anthropic | null = null;
 const claude = () => (_claude ??= new Anthropic());          // reads ANTHROPIC_API_KEY from the function secrets
 
-export async function analyse(input: { client: string; title: string; date: string; context: string; transcript: string; outLang: string; speakers: Record<string, string> }): Promise<AnalyseOut> {
+export async function analyse(input: {
+  client: string; title: string; date: string; context: string; agenda: string; outLang: string; speakers: Record<string, string>;
+  transcript: string; weights: number[]; basis: "time" | "text";
+}): Promise<AnalyseOut> {
   if (input.transcript.length < 40) throw new StepError("The transcript is too short to summarise.");
   const who = Object.entries(input.speakers).filter(([, v]) => v).map(([k, v]) => `${k} = ${v}`).join(", ");
   const user = `MEETING
@@ -187,6 +273,9 @@ Speakers: ${who || "not named (speaker_0, speaker_1, ...); work out from the tal
 
 BACKGROUND ABOUT THE CLIENT (written by the user, may be empty):
 ${input.context || "-"}
+
+AGENDA (written by the user, one point per line; may be empty):
+${input.agenda.trim() || "- (no agenda given)"}
 
 TRANSCRIPT:
 ${input.transcript}`;
@@ -212,7 +301,9 @@ ${input.transcript}`;
       if (res.stop_reason === "max_tokens") throw new StepError("The answer was too long and was cut off. Try again, or split the meeting.");
       const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
       try {
-        return { result: normalise(extractJson(text), RESULT_SCHEMA as Schema), ...usage };
+        const result = normalise(extractJson(text), RESULT_SCHEMA as Schema) as { analysis: { blocks: Block[] }; stats?: unknown };
+        result.stats = computeStats(result.analysis.blocks, input.weights, input.basis);
+        return { result, ...usage };
       } catch {
         if (attempt >= 2) throw new StepError("Claude returned an unreadable answer twice. Try again.");
       }
