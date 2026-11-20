@@ -71,3 +71,57 @@ Deno.test("the prompt shows every key of the shape", () => {
   assertEquals(p.includes(JSON.stringify(shapeExample(RESULT_SCHEMA as S))), true);
   assertEquals(p.includes('"priority":"medium | high | low"'), true);
 });
+
+import { computeStats, numberedTranscript, percents } from "./analyse.ts";
+
+Deno.test("percentages always add up to 100", () => {
+  assertEquals(percents([1, 1, 1]), [34, 33, 33]);
+  assertEquals(percents([0, 0]), [0, 0]);
+  assertEquals(percents([3, 1]), [75, 25]);
+});
+
+Deno.test("recording: lines are numbered and weighed by speaking time", () => {
+  const t = numberedTranscript([
+    { speaker: "speaker_0", start: 0, end: 30, text: "Namaste" },
+    { speaker: "speaker_1", start: 31, end: 91, text: "Sales" },
+  ], null, { speaker_0: "Me" });
+  assertEquals(t.text, "#1 [00:00] Me: Namaste\n#2 [00:31] speaker_1: Sales");
+  assertEquals(t.weights, [30, 60]);
+  assertEquals(t.basis, "time");
+});
+
+Deno.test("pasted text: long paragraphs are cut at sentence ends", () => {
+  const long = "Ye pehla vakya hai. ".repeat(40);
+  const t = numberedTranscript(null, "Short line\n" + long + "\n...", {});
+  assertEquals(t.basis, "text");
+  assertEquals(t.weights.length > 3, true);
+  assertEquals(t.weights.every((w) => w <= 400), true);
+});
+
+Deno.test("stats: agenda share, tone share and topics come from the weights", () => {
+  const s = computeStats([
+    { from: 1, to: 1, topic: "Greeting", on_agenda: "no", tone: "positive" },
+    { from: 2, to: 3, topic: "Sales", on_agenda: "yes", tone: "negative" },
+    { from: 4, to: 4, topic: "sales", on_agenda: "yes", tone: "neutral" },
+  ], [10, 30, 30, 30], "time");
+  assertEquals([s.on_agenda_pct, s.off_agenda_pct], [90, 10]);
+  assertEquals([s.positive_pct, s.neutral_pct, s.negative_pct], [10, 30, 60]);
+  assertEquals(s.topics, [{ topic: "Sales", pct: 90, on_agenda: true }, { topic: "Greeting", pct: 10, on_agenda: false }]);
+  assertEquals(s.covered_pct, 100);
+  assertEquals(s.minutes, 2);
+});
+
+Deno.test("stats: overlapping, reversed and out-of-range blocks do not break the numbers", () => {
+  const s = computeStats([
+    { from: 3, to: 1, topic: "A", on_agenda: "yes", tone: "neutral" },
+    { from: 2, to: 99, topic: "B", on_agenda: "no", tone: "neutral" },
+  ], [1, 1, 1, 1], "text");
+  assertEquals([s.on_agenda_pct, s.off_agenda_pct], [75, 25]);
+  assertEquals(s.covered_pct, 100);
+  assertEquals(s.minutes, null);
+});
+
+Deno.test("stats: nothing tagged gives zeros, not an error", () => {
+  const s = computeStats([], [5, 5], "time");
+  assertEquals([s.on_agenda_pct, s.positive_pct, s.covered_pct], [0, 0, 0]);
+});
