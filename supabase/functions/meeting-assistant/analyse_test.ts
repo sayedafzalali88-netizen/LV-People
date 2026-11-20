@@ -34,3 +34,40 @@ Deno.test("schema: every object lists all its fields as required and allows no o
   };
   walk(RESULT_SCHEMA as Record<string, unknown>);
 });
+
+import { extractJson, normalise, shapeExample, systemPrompt } from "./analyse.ts";
+type S = Parameters<typeof normalise>[1];
+
+Deno.test("reply in ``` fences with text around it is read", () => {
+  assertEquals(extractJson('Here it is:\n```json\n{"a": {"b": 1}}\n```\nDone.'), { a: { b: 1 } });
+});
+
+Deno.test("a messy reply is made to fit the shape", () => {
+  const r = normalise({
+    summary: { headline: "H", client_goals: "one goal", key_points: [{ topic: "T", detail: 5, extra: "x" }], action_items: null },
+    focus_areas: [{ name: "Sales", priority: "HIGH", steps: [{ step: "S1", source: "maybe" }] }],
+    junk: true,
+  }, RESULT_SCHEMA as S) as any;
+  assertEquals(r.summary.headline, "H");
+  assertEquals(r.summary.overview, "");
+  assertEquals(r.summary.client_goals, ["one goal"]);
+  assertEquals(r.summary.key_points, [{ topic: "T", detail: "5" }]);
+  assertEquals(r.summary.action_items, []);
+  assertEquals(r.summary.commitments, { by_me: [], by_client: [] });
+  assertEquals(r.focus_areas[0].priority, "high");
+  assertEquals(r.focus_areas[0].steps[0], { step: "S1", detail: "", owner: "", timeline: "", source: "suggested" });
+  assertEquals(r.plan, { phases: [], quick_wins: [], next_meeting_agenda: [] });
+  assertEquals("junk" in r, false);
+});
+
+Deno.test("an empty reply still gives the full shape", () => {
+  const r = normalise(null, RESULT_SCHEMA as S) as any;
+  assertEquals(r.follow_up_message, "");
+  assertEquals(r.focus_areas, []);
+});
+
+Deno.test("the prompt shows every key of the shape", () => {
+  const p = systemPrompt("hinglish");
+  assertEquals(p.includes(JSON.stringify(shapeExample(RESULT_SCHEMA as S))), true);
+  assertEquals(p.includes('"priority":"medium | high | low"'), true);
+});
