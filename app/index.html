@@ -12281,8 +12281,8 @@ function pslState(mk){pslRoles();const st=PAYRUN[mk]||'draft', locked=st!=='draf
  add('reimb',L('Release reimbursement','रीइम्बर्समेंट रिलीज़'),true,[[L('Claims waiting for payment','भुगतान के इंतज़ार में क्लेम'),cl.length,cl.length?'bad':''],[L('Paid this month','इस महीने चुकाए'),cp.length,'ok']],!cl.length,cl.length?{label:L('Open the Accounts desk','Accounts डेस्क खोलें'),act:'xacc'}:null);
  add('pubr',L('Publish reimbursement','रीइम्बर्समेंट पब्लिश'),true,[[L('Paid claims told to employees','कर्मचारियों को बताए चुकाए क्लेम'),cp.length,'ok']],!cl.length,null,{note:L('The employee is told by a notification when a claim is paid, and sees it in Expense › Reports and claims.','क्लेम चुकने पर कर्मचारी को नोटिफ़िकेशन मिलता है, और वह Expense › Reports and claims में दिखता है।')});
  S.ap=ap;S.ip=ip;S.pl=pl;S.pays=pays;S.cl=cl;S.cp=cp;S.pq=pq;return S}
-function pslCard(s,i){const ok=s.done&&!s.btn;
- return `<div class="card" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><div style="min-width:62px"><span class="pill ${ok?'p-ok':'p-teal'}" style="font-size:13px">${L('Step','स्टेप')} ${i+1}</span></div>
+function pslCard(s,i){const ok=s.done&&!s.btn, bad=!ok&&s.counts.some(c=>c[2]==='bad'&&c[1]>0), tone=ok?'ok':bad?'bad':'wait';
+ return `<div class="card pc-${tone}" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><div style="min-width:62px"><span class="pill ${ok?'p-ok':'p-teal'}" style="font-size:13px">${L('Step','स्टेप')} ${i+1}</span></div>
   <div style="flex:1;min-width:230px"><b>${s.title}</b> <i style="color:var(--muted);font-size:12px">(${s.mand?L('Mandatory','ज़रूरी'):L('Non-mandatory','ज़रूरी नहीं')})</i>
   <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:var(--muted)">${s.counts.map(([l,n,c])=>`<span>● ${l} <b style="color:${c==='bad'?'var(--bad)':c==='ok'?'var(--ok)':'inherit'}">${n}</b></span>`).join('')}</div>
   ${s.btn&&s.btn.dis?`<div style="font-size:12px;color:var(--warn);margin-top:4px">${esc(s.btn.why||'')}</div>`:''}${s.note?`<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.note}</div>`:''}${(s.open||[]).length?`<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${s.open.map(([k,l])=>`<button class="btn btn-o btn-s" data-pslopen="${k}">${l}</button>`).join('')}</div>`:''}</div>
@@ -13796,7 +13796,7 @@ function attDash(){const f=state.ad, emps=adBase().filter(e=>AD_F.every(([k])=>!
  let dates=[];if(f.month==='last14'){for(let i=13;i>=0;i--)dates.push(addD(TODAY_S,-i))}else{const n=monthDays(f.month);for(let d=1;d<=n;d++)dates.push(f.month+'-'+String(d).padStart(2,'0'))}
  const sel=dates.includes(f.day)?f.day:(dates.includes(TODAY_S)?TODAY_S:dates.filter(d=>d<=TODAY_S).pop()||dates[0]);
  const stats=dates.map(d=>adStat(emps,d)), cur=stats[dates.indexOf(sel)], isToday=sel===TODAY_S, tot=cur.t;
- const box=(c,l,n,sub)=>`<div class="adc" style="border-top-color:var(--${c})"><small>${l}</small><b>${n}</b><span>${sub||'&nbsp;'}</span></div>`;
+ const box=(c,l,n,sub)=>`<div class="adc" style="--cc:var(--${c});border-top-color:var(--${c})"><small>${l}</small><b>${n}</b><span>${sub||'&nbsp;'}</span></div>`;
  const dn=new Date(sel+'T12:00:00').toLocaleDateString(loc(),{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
  const many=dates.length>20;
  const nAct=AD_F.filter(([k])=>f[k]).length;
@@ -14854,6 +14854,14 @@ body{background:color-mix(in srgb,var(--teal) 9%,var(--bg))}
 .grid>.card.kpi:nth-child(4n+3){--kb:#EEEDFE;--kl:#CECBF6;--ks:#534AB7;--kt:#3C3489}
 .grid>.card.kpi:nth-child(4n){--kb:#E6F1FB;--kl:#B5D4F4;--ks:#185FA5;--kt:#0C447C}
 .card.kpi,.grid>.card.kpi:nth-child(n){border-top-color:var(--ks)!important}
+.adg>.adc{background:color-mix(in srgb,var(--cc,var(--teal)) 11%,var(--card));border-color:color-mix(in srgb,var(--cc,var(--teal)) 35%,var(--card))}
+.adg>.adc small,.adg>.adc span{color:color-mix(in srgb,var(--cc,var(--teal)) 70%,#000)}
+.adg>.adc b{color:color-mix(in srgb,var(--cc,var(--teal)) 80%,#000)}
+.card.pc-ok{background:#E1F5EE;border:1px solid #9FE1CB;border-left:5px solid #1D9E75}
+.card.pc-bad{background:#FCEBEB;border:1px solid #F7C1C1;border-left:5px solid #E24B4A}
+.card.pc-wait{background:#FAEEDA;border:1px solid #FAC775;border-left:5px solid #EF9F27}
+.card.pc-ok .pill.p-ok,.card.pc-ok .pill.p-teal{background:#0F6E56;color:#fff}
+.card.pc-bad .pill{background:#A32D2D;color:#fff}.card.pc-wait .pill{background:#854F0B;color:#fff}
 .card.kpi .ico{background:var(--ks)!important;color:#fff!important}
 .card.kpi .l{color:var(--kt);opacity:.85}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .card.kpi{--kb:rgba(255,255,255,.06);--kt:var(--text,#eee)}}
