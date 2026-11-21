@@ -2015,7 +2015,8 @@ function ring(pct){return `<div style="width:110px;height:110px;border-radius:50
 function pmMine(){
   const id=me(), ms=monthState(id,CUR_P), cur=KFS[id+'|'+CUR_P];
   const pct=cur?cur.pct:ms.ready?ms.pct:null;
-  return `<div class="card" style="margin-bottom:16px"><div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">${pct!=null?ring(pct):`<div class="pill p-warn">${t('mc_waiting')}</div>`}
+  const bc=pct==null?'p-warn':band(pct)[1], tone=/bad/.test(bc)?'bad':/warn/.test(bc)?'wait':'ok';
+  return `<div class="card pc-${tone}" style="margin-bottom:16px"><div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">${pct!=null?ring(pct):`<div class="pill p-warn">${t('mc_waiting')}</div>`}
    <div><h3 style="margin:0">${t('my_score')} · ${CUR_P}</h3><p style="color:var(--muted)">${t('my_inprog')} · ${ms.done} / ${ms.rows.length} ${t('mc_done').toLowerCase()}</p>${pct!=null?`<span class="pill ${band(pct)[1]}">${t(band(pct)[0])}</span>`:''}</div>
    <div style="flex:1;min-width:220px"><div class="bars" style="height:90px">${PERIODS.map(p=>{const s=KFS[id+'|'+p];return `<div><span>${s?s.pct:''}</span><i style="height:${s?s.pct:2}%;${s?'':'opacity:.2'}"></i><span>${p.slice(0,3)}</span></div>`}).join('')}</div></div></div></div>${kpiTable(ms.rows)}`;
 }
