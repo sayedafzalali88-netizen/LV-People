@@ -14838,6 +14838,71 @@ rp('pr_shold','payroll','Salary hold register','सैलरी होल्ड 
   const rows=SHOLD.filter(r=>ids.has(r.emp)).sort((a,b)=>a.id-b.id).map(r=>{const e=empById(r.emp);return[r.no,e.code,e.name,mkP(r.mk),r.amount,shReasonL(r.reason),r.remark,r.heldOn,r.heldBy,r.status,r.req?r.req.at:'',r.rel?r.rel.on:'',r.rel?r.rel.by:'',r.rel?r.rel.utr||'':'',shDays(r)]});
   return{cols:H,rows,foot:['',L('Total','कुल'),'','',rows.reduce((q,x)=>q+(+x[4]||0),0)],note:`${rows.filter(x=>x[9]!=='Released').length} ${L('still on hold','अभी रुकी')}`,dl:[{label:'Excel (.xlsx)',run:()=>{audit('Report','Salary hold register','','');chlnXlsx('Salary-hold-register-'+TODAY_S+'.xlsx','xlsx',[H,...rows],[10,10,22,12,12,24,28,12,18,16,14,14,16,18,10])}}]}});
 
+/* ================= A friendlier look: a sidebar in groups with a search box and coloured icons, a tinted page and a greeting on the Dashboard ================= */
+{const st=document.createElement('style');st.id='sbcss';st.textContent=`
+body{background:color-mix(in srgb,var(--teal) 9%,var(--bg))}
+#sbSearch{margin:0 2px 8px;position:relative}
+#sbSearch input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:9px;padding:8px 10px 8px 30px;font-size:13px;outline:none}
+#sbSearch input::placeholder{color:var(--sb-t);opacity:.75}
+#sbSearch input:focus{border-color:var(--gold,#E8B931);background:rgba(255,255,255,.14)}
+#sbSearch svg{position:absolute;left:9px;top:9px;width:15px;height:15px;color:var(--sb-t);opacity:.8}
+#navRes{display:none;flex-direction:column;gap:1px}
+#navRes .none{padding:10px 12px;font-size:12.5px;color:var(--sb-t);opacity:.8}
+#navRes button .m{margin-left:auto;font-size:11px;opacity:.65;padding-left:8px;white-space:nowrap}
+nav .nav-grp{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--sb-t);padding:14px 10px 4px;cursor:pointer;user-select:none}
+nav .nav-grp i{width:7px;height:7px;border-radius:50%;margin-right:7px;flex:none}
+nav .nav-grp span:first-child{display:flex;align-items:center;opacity:.8}
+nav .nav-grp .car{font-size:10px;opacity:.6}
+nav .nav-h.sbm{text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:500;opacity:1;color:var(--sb-t);padding:7px 10px;border-radius:9px;margin:1px 0;gap:9px}
+nav .nav-h.sbm:hover,nav .nav-h.sbm.hov{background:var(--sb-h,var(--teal-l));color:#fff}
+nav .nav-h.sbm.own{background:var(--sb-h,var(--teal-l));color:#fff}
+nav .nav-h.sbm .lbl{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
+nav .nav-h.sbm .chip{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+nav .nav-h.sbm .chip svg{width:13px;height:13px;color:#fff}
+.hero-sb{display:flex;align-items:center;gap:14px;background:var(--teal-d,#0b3b3a);color:#fff;border-radius:14px;padding:16px 18px;margin:0 0 16px}
+.hero-sb .h{font-size:19px;font-weight:700}
+.hero-sb .s{font-size:13px;opacity:.82;margin-top:3px}
+.hero-sb .g{flex:1;min-width:0}
+.hero-sb button{background:var(--gold,#E8B931);color:#0a3d3a;border:0;border-radius:9px;padding:9px 14px;font-weight:700;cursor:pointer;white-space:nowrap}
+@media (max-width:760px){.hero-sb{flex-direction:column;align-items:flex-start}}`;document.head.appendChild(st)}
+const SB_G={quick:{n:['Quick links','जल्दी के लिंक'],c:'#7FD1C4'},people:{n:['People','लोग'],c:'#35B6A3'},work:{n:['Work','काम'],c:'#9B7BE0'},money:{n:['Money','पैसा'],c:'#F0A14A'},admin:{n:['Administration','प्रशासन'],c:'#6FA3D9'}};
+const SB_OF={recruit:'people',Workforce:'people','Time Office':'people',training:'people',Engagement:'people',Rewards:'people',decision:'work',PMS:'work',crm:'work',marketing:'work','Stock Management':'work',library:'work',bizdata:'work',payroll:'money',expense:'money',Administration:'admin'};
+const sbOpenMap=()=>{try{return JSON.parse(localStorage.getItem('hrs_navgrp')||'{}')}catch(e){return{}}};
+function sbEnhance(){const nav=$('#nav'), asd=document.querySelector('aside');if(!nav||!asd)return;
+  /* the search box (made once, outside the menu, so it is not lost when the menu is drawn again) */
+  if(!$('#sbSearch')){const d=document.createElement('div');d.id='sbSearch';d.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg><input type="search" autocomplete="off" aria-label="${L('Search a page','पेज खोजें')}">`;const r=document.createElement('div');r.id='navRes';nav.parentNode.insertBefore(d,nav);nav.parentNode.insertBefore(r,nav);
+    d.querySelector('input').oninput=e=>sbSearch(e.target.value)}
+  const inp=$('#sbSearch input');inp.placeholder=L('Search a page','पेज खोजें');
+  /* groups and coloured icons */
+  nav.querySelectorAll('.nav-grp').forEach(x=>x.remove());
+  const open=sbOpenMap(), ORDER=['quick','people','work','money','admin'];let cur='';
+  /* every module heading with the rows under it is one block; the blocks are put in the order of the groups */
+  const blocks=[];[...nav.children].forEach(el=>{const top=el.matches('.nav-h')||(el.tagName==='BUTTON'&&!el.classList.contains('sub'));
+    if(top){const g=el.matches('.nav-h')?(SB_OF[el.dataset.ng]||cur||'work'):(cur||'quick');cur=g;blocks.push({g,els:[el]})}else if(blocks.length)blocks[blocks.length-1].els.push(el)});
+  blocks.forEach((x,i)=>x.i=i);blocks.sort((p,q)=>ORDER.indexOf(p.g)-ORDER.indexOf(q.g)||p.i-q.i);
+  const keep={};blocks.forEach(x=>{if(x.els.some(el=>el.classList.contains('own')||el.classList.contains('on')||el.classList.contains('hov')))keep[x.g]=1});
+  let last='';blocks.forEach(x=>{const shut=open[x.g]===0&&!keep[x.g];
+    if(x.g!==last){last=x.g;const lab=document.createElement('div');lab.className='nav-grp';lab.dataset.g=x.g;lab.innerHTML=`<span><i style="background:${SB_G[x.g].c}"></i>${L(SB_G[x.g].n[0],SB_G[x.g].n[1])}</span><span class="car">${shut?'▸':'▾'}</span>`;
+      lab.onclick=()=>{const m=sbOpenMap();m[x.g]=shut?1:0;try{localStorage.setItem('hrs_navgrp',JSON.stringify(m))}catch(e){}render()};nav.appendChild(lab)}
+    x.els.forEach(el=>{nav.appendChild(el);if(shut)el.style.display='none';
+      if(el.matches('.nav-h')&&!el.classList.contains('sbm')){el.classList.add('sbm');const pg=(el.dataset.first||'').split('|')[0], n=NAV.find(y=>y.id===pg), l=el.querySelector('span');
+        if(l){const lbl=document.createElement('span');lbl.className='lbl';lbl.innerHTML=`<span class="chip" style="background:${SB_G[x.g].c}">${n?svg(n.ic):''}</span><span>${l.innerHTML}</span>`;l.replaceWith(lbl)}}})});
+  /* the greeting on the Dashboard */
+  const m=$('#main');if(state.page==='dashboard'&&m&&!m.querySelector('.hero-sb')){
+    const h=new Date().getHours(), gr=h<12?L('Good morning','सुप्रभात'):h<17?L('Good afternoon','नमस्कार'):L('Good evening','शुभ संध्या'), nm=((USERS[state.role]||{}).name||'').split(' ')[0];
+    const tg=document.querySelector('#nav [data-p=inbox] .tag'), cnt=tg?parseInt(tg.textContent,10)||0:0;
+    const d=document.createElement('div');d.className='hero-sb';d.innerHTML=`<div class="g"><div class="h">${gr}${nm?', '+esc(nm):''}</div><div class="s">${cnt?L(`You have ${cnt} items in your Inbox.`,`आपके Inbox में ${cnt} आइटम हैं।`):L('Your Inbox is clear.','आपका Inbox खाली है।')}</div></div><button type="button">${L('Open Inbox','Inbox खोलें')}</button>`;
+    d.querySelector('button').onclick=()=>{state.page='inbox';resetViews();render()};m.insertBefore(d,m.firstChild)}}
+function sbSearch(q){const nav=$('#nav'), res=$('#navRes');q=(q||'').trim().toLowerCase();if(!q){res.style.display='none';nav.style.display='';return}
+  const rows=[], seen=new Set(), add=(p,tk,tv,label,mod)=>{const k=p+'|'+tk+'|'+tv;if(seen.has(k))return;seen.add(k);if((label+' '+(mod||'')).toLowerCase().includes(q))rows.push({p,tk,tv,label,mod})};
+  nav.querySelectorAll(':scope > button').forEach(b=>add(b.dataset.p,'','',b.textContent.replace(/\s*\d+\s*$/,'').trim(),''));
+  Object.keys(window.NAVFLY||{}).forEach(k=>{const d=document.createElement('div');d.innerHTML=NAVFLY[k];const h=nav.querySelector(`[data-fly="${CSS.escape(k)}"]`), mod=h?h.textContent.replace(/[›▸▾]/g,'').trim():k;d.querySelectorAll('button').forEach(b=>add(b.dataset.p,b.dataset.tk||'',b.dataset.tv||'',b.textContent.trim(),mod))});
+  nav.querySelectorAll(':scope > .nav-h').forEach(h=>{const t=h.textContent.replace(/[›▸▾]/g,'').trim();if(t.toLowerCase().includes(q)){const [p,tk,tv]=(h.dataset.first||'').split('|');if(p)add(p,tk||'',tv||'',t,'')}});
+  nav.style.display='none';res.style.display='flex';
+  res.innerHTML=rows.length?rows.slice(0,14).map((r,i)=>`<button data-i="${i}"><span>${esc(r.label)}</span>${r.mod?`<span class="m">${esc(r.mod)}</span>`:''}</button>`).join(''):`<div class="none">${L('No page found','कोई पेज नहीं मिला')}</div>`;
+  res.querySelectorAll('button').forEach(b=>b.onclick=()=>{const r=rows[+b.dataset.i];state.page=r.p;resetViews();if(r.tk)state[r.tk]=r.tv;$('#sbSearch input').value='';res.style.display='none';nav.style.display='';closeSb();render()})}
+{const _rsb=render;render=function(){const r=_rsb.apply(this,arguments);try{sbEnhance()}catch(e){console.warn('sidebar look',e)}return r}}
+
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
  const fix=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){if(!/[A-Za-z]/.test(n.nodeValue))continue;if(n.parentElement&&n.parentElement.closest('.tag,.av,input,textarea,select'))continue;const v=tc(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}};
