@@ -14943,10 +14943,8 @@ function sbSearch(q){const nav=$('#nav'), res=$('#navRes');q=(q||'').trim().toLo
 :root[data-theme=dark] .card.tl{--kb:rgba(255,255,255,.06);--kt:var(--text,#eee)}`;document.head.appendChild(st)}
 function tileTint(){const m=document.querySelector('#main');if(!m||state.page==='cockpit')return;
   const seen=new Set();m.querySelectorAll('.card').forEach(c=>{const p=c.parentElement;if(!p||seen.has(p)||p.closest('.ibx'))return;seen.add(p);
-    const kids=[...p.children].filter(x=>x.classList.contains('card'));if(kids.length<2||kids.length!==p.children.length)return;
-    const small=kids.every(x=>x.textContent.length<110&&x.getBoundingClientRect().height<150&&!x.classList.contains('kpi')&&!x.classList.contains('pc-ok')&&!x.querySelector('table,input,select,textarea,button,canvas'));
-    const num=kids.every(x=>/\d/.test(x.textContent));
-    if(small&&num)kids.forEach((x,i)=>x.classList.add('tl','t'+(i%4)))})}
+    const kids=[...p.children].filter(x=>x.classList.contains('card')&&x.textContent.length<130&&x.getBoundingClientRect().height<150&&/\d/.test(x.textContent)&&!/(^| )(kpi|empty|tl)( |$)|pc-/.test(x.className)&&!x.querySelector('table,input,select,textarea,button,canvas'));
+    if(kids.length>=2&&kids.length>=p.children.length/2){const all=[...p.children].filter(x=>x.classList.contains('card')&&x.textContent.length<130&&x.getBoundingClientRect().height<150&&!/(^| )(kpi|empty)( |$)|pc-/.test(x.className)&&!x.querySelector('table,input,select,textarea,button,canvas'));all.forEach((x,i)=>x.classList.add('tl','t'+(i%4)))}})}
 {const _rsb=render;render=function(){const r=_rsb.apply(this,arguments);try{sbEnhance()}catch(e){console.warn('sidebar look',e)}try{tileTint()}catch(e){}return r}}
 
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
