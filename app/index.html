@@ -14847,6 +14847,9 @@ body{background:color-mix(in srgb,var(--teal) 9%,var(--bg))}
 #sbSearch input:focus{border-color:var(--gold,#E8B931);background:rgba(255,255,255,.14)}
 #sbSearch svg{position:absolute;left:9px;top:9px;width:15px;height:15px;color:var(--sb-t);opacity:.8}
 #navRes{display:none;flex-direction:column;gap:1px}
+#navRes button{width:100%;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;color:var(--sb-t,var(--muted));font-weight:500;font-size:13.5px;text-align:left;background:transparent;border:0;cursor:pointer}
+#navRes button:hover,#navRes button.sel{background:var(--sb-h,var(--teal-l));color:#fff}
+#navRes mark{background:var(--gold,#E8B931);color:#0a3d3a;border-radius:3px;padding:0 2px}
 #navRes .none{padding:10px 12px;font-size:12.5px;color:var(--sb-t);opacity:.8}
 #navRes button .m{margin-left:auto;font-size:11px;opacity:.65;padding-left:8px;white-space:nowrap}
 nav .nav-grp{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--sb-t);padding:14px 10px 4px;cursor:pointer;user-select:none}
@@ -14871,7 +14874,7 @@ const sbOpenMap=()=>{try{return JSON.parse(localStorage.getItem('hrs_navgrp')||'
 function sbEnhance(){const nav=$('#nav'), asd=document.querySelector('aside');if(!nav||!asd)return;
   /* the search box (made once, outside the menu, so it is not lost when the menu is drawn again) */
   if(!$('#sbSearch')){const d=document.createElement('div');d.id='sbSearch';d.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg><input type="search" autocomplete="off" aria-label="${L('Search a page','पेज खोजें')}">`;const r=document.createElement('div');r.id='navRes';nav.parentNode.insertBefore(d,nav);nav.parentNode.insertBefore(r,nav);
-    d.querySelector('input').oninput=e=>sbSearch(e.target.value)}
+    d.querySelector('input').oninput=e=>sbSearch(e.target.value);d.querySelector('input').onkeydown=e=>{if(e.key==='Enter'){const b=document.querySelector('#navRes button');if(b)b.click()}else if(e.key==='Escape'){e.target.value='';sbSearch('')}}}
   const inp=$('#sbSearch input');inp.placeholder=L('Search a page','पेज खोजें');
   /* groups and coloured icons */
   nav.querySelectorAll('.nav-grp').forEach(x=>x.remove());
@@ -14899,7 +14902,8 @@ function sbSearch(q){const nav=$('#nav'), res=$('#navRes');q=(q||'').trim().toLo
   Object.keys(window.NAVFLY||{}).forEach(k=>{const d=document.createElement('div');d.innerHTML=NAVFLY[k];const h=nav.querySelector(`[data-fly="${CSS.escape(k)}"]`), mod=h?h.textContent.replace(/[›▸▾]/g,'').trim():k;d.querySelectorAll('button').forEach(b=>add(b.dataset.p,b.dataset.tk||'',b.dataset.tv||'',b.textContent.trim(),mod))});
   nav.querySelectorAll(':scope > .nav-h').forEach(h=>{const t=h.textContent.replace(/[›▸▾]/g,'').trim();if(t.toLowerCase().includes(q)){const [p,tk,tv]=(h.dataset.first||'').split('|');if(p)add(p,tk||'',tv||'',t,'')}});
   nav.style.display='none';res.style.display='flex';
-  res.innerHTML=rows.length?rows.slice(0,14).map((r,i)=>`<button data-i="${i}"><span>${esc(r.label)}</span>${r.mod?`<span class="m">${esc(r.mod)}</span>`:''}</button>`).join(''):`<div class="none">${L('No page found','कोई पेज नहीं मिला')}</div>`;
+  const hl=t=>{const i=t.toLowerCase().indexOf(q);return i<0?esc(t):esc(t.slice(0,i))+'<mark>'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length))};
+  res.innerHTML=rows.length?rows.slice(0,14).map((r,i)=>`<button data-i="${i}" class="${i?'':'sel'}"><span>${hl(r.label)}</span>${r.mod?`<span class="m">${hl(r.mod)}</span>`:''}</button>`).join(''):`<div class="none">${L('No page found','कोई पेज नहीं मिला')}</div>`;
   res.querySelectorAll('button').forEach(b=>b.onclick=()=>{const r=rows[+b.dataset.i];state.page=r.p;resetViews();if(r.tk)state[r.tk]=r.tv;$('#sbSearch input').value='';res.style.display='none';nav.style.display='';closeSb();render()})}
 {const _rsb=render;render=function(){const r=_rsb.apply(this,arguments);try{sbEnhance()}catch(e){console.warn('sidebar look',e)}return r}}
 
