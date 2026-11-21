@@ -14930,7 +14930,23 @@ function sbSearch(q){const nav=$('#nav'), res=$('#navRes');q=(q||'').trim().toLo
   const hl=t=>{const i=t.toLowerCase().indexOf(q);return i<0?esc(t):esc(t.slice(0,i))+'<mark>'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length))};
   res.innerHTML=rows.length?rows.slice(0,14).map((r,i)=>`<button data-i="${i}" class="${i?'':'sel'}"><span>${hl(r.label)}</span>${r.mod?`<span class="m">${hl(r.mod)}</span>`:''}</button>`).join(''):`<div class="none">${L('No page found','कोई पेज नहीं मिला')}</div>`;
   res.querySelectorAll('button').forEach(b=>b.onclick=()=>{const r=rows[+b.dataset.i];state.page=r.p;resetViews();if(r.tk)state[r.tk]=r.tv;$('#sbSearch input').value='';res.style.display='none';nav.style.display='';closeSb();render()})}
-{const _rsb=render;render=function(){const r=_rsb.apply(this,arguments);try{sbEnhance()}catch(e){console.warn('sidebar look',e)}return r}}
+/* number tiles on every page: a small card that sits in a row with other small cards gets a soft colour (4 colours in turn) */
+{const st=document.createElement('style');st.id='tilecss';st.textContent=`
+.card.tl{border-top:4px solid var(--ks);background:var(--kb);border-color:var(--kl);border-top-color:var(--ks);color:var(--kt)}
+.card.tl .muted,.card.tl small,.card.tl .l{color:var(--kt);opacity:.85}
+.card.tl.t0{--kb:#E1F5EE;--kl:#9FE1CB;--ks:#0F6E56;--kt:#085041}
+.card.tl.t1{--kb:#FAEEDA;--kl:#FAC775;--ks:#BA7517;--kt:#633806}
+.card.tl.t2{--kb:#EEEDFE;--kl:#CECBF6;--ks:#534AB7;--kt:#3C3489}
+.card.tl.t3{--kb:#E6F1FB;--kl:#B5D4F4;--ks:#185FA5;--kt:#0C447C}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .card.tl{--kb:rgba(255,255,255,.06);--kt:var(--text,#eee)}}
+:root[data-theme=dark] .card.tl{--kb:rgba(255,255,255,.06);--kt:var(--text,#eee)}`;document.head.appendChild(st)}
+function tileTint(){const m=document.querySelector('#main');if(!m||state.page==='cockpit')return;
+  const seen=new Set();m.querySelectorAll('.card').forEach(c=>{const p=c.parentElement;if(!p||seen.has(p)||p.closest('.ibx'))return;seen.add(p);
+    const kids=[...p.children].filter(x=>x.classList.contains('card'));if(kids.length<2||kids.length!==p.children.length)return;
+    const small=kids.every(x=>x.textContent.length<110&&x.getBoundingClientRect().height<150&&!x.classList.contains('kpi')&&!x.classList.contains('pc-ok')&&!x.querySelector('table,input,select,textarea,button,canvas'));
+    const num=kids.every(x=>/\d/.test(x.textContent));
+    if(small&&num)kids.forEach((x,i)=>x.classList.add('tl','t'+(i%4)))})}
+{const _rsb=render;render=function(){const r=_rsb.apply(this,arguments);try{sbEnhance()}catch(e){console.warn('sidebar look',e)}try{tileTint()}catch(e){}return r}}
 
 {const SMALL=new Set(['and','or','of','to','for','in','on','at','by','the','a','an','with','vs','per']);
  const tc=s=>s.replace(/[A-Za-z][A-Za-z'’]*/g,(w,i)=>{if(w.length>1&&(w===w.toUpperCase()||/[A-Z]/.test(w.slice(1))))return w;const lw=w.toLowerCase();if(i>0&&SMALL.has(lw))return lw;return w[0].toUpperCase()+w.slice(1)});
