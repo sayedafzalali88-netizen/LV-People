@@ -7,4 +7,6 @@ HR and performance ERP (SaaS) by Welcome Enterprises.
 - `docs/` notes and the KPI library
 - `server/` SQL to run in Supabase; `supabase/functions/` server functions (HR Assistant: see `docs/POLICY-ASSISTANT.md`)
 
+- `app/meetings/` Client Meetings: a separate app that records a client discussion and writes the summary, strategy and plan (see `docs/CLIENT-MEETINGS.md`)
+
 Do not put passwords or keys in this repository.
