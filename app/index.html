@@ -14849,6 +14849,15 @@ rp('pr_shold','payroll','Salary hold register','सैलरी होल्ड 
 /* ================= A friendlier look: a sidebar in groups with a search box and coloured icons, a tinted page and a greeting on the Dashboard ================= */
 {const st=document.createElement('style');st.id='sbcss';st.textContent=`
 body{background:color-mix(in srgb,var(--teal) 9%,var(--bg))}
+.card.kpi{--kb:#E1F5EE;--kl:#9FE1CB;--ks:#0F6E56;--kt:#085041;background:var(--kb);border:1px solid var(--kl);border-top:4px solid var(--ks);color:var(--kt)}
+.grid>.card.kpi:nth-child(4n+2){--kb:#FAEEDA;--kl:#FAC775;--ks:#BA7517;--kt:#633806}
+.grid>.card.kpi:nth-child(4n+3){--kb:#EEEDFE;--kl:#CECBF6;--ks:#534AB7;--kt:#3C3489}
+.grid>.card.kpi:nth-child(4n){--kb:#E6F1FB;--kl:#B5D4F4;--ks:#185FA5;--kt:#0C447C}
+.card.kpi,.grid>.card.kpi:nth-child(n){border-top-color:var(--ks)!important}
+.card.kpi .ico{background:var(--ks)!important;color:#fff!important}
+.card.kpi .l{color:var(--kt);opacity:.85}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .card.kpi{--kb:rgba(255,255,255,.06);--kt:var(--text,#eee)}}
+:root[data-theme=dark] .card.kpi{--kb:rgba(255,255,255,.06);--kt:var(--text,#eee)}
 #sbSearch{margin:0 2px 8px;position:relative}
 #sbSearch input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:9px;padding:8px 10px 8px 30px;font-size:13px;outline:none}
 #sbSearch input::placeholder{color:var(--sb-t);opacity:.75}
