@@ -10208,8 +10208,16 @@ function ibList(){
   if(r.virtual)return `<button class="btn ${r.cls.g==='decide'?'btn-p':'btn-o'}" data-ibgo="${r.page}:${r.tab||''}">${L(...r.cls.b)}</button>`;
   return `${r.page?`<button class="btn btn-o" data-ibgo="${r.page}:${r.tab||''}" data-ibread1="${r.id}">${L('Open','खोलें')}</button>`:''}<button class="btn btn-p" data-ibdone="${r.id}">${r.cls.g==='info'?L('Read','पढ़ लिया'):L('Done','हो गया')}</button>`};
  const srcL=r=>({Auto:L('Auto','ऑटो'),Workflow:L('Workflow','वर्कफ़्लो'),Notice:L('Notice','सूचना')})[r.kind==='wf'?'Workflow':r.kind==='notice'?'Notice':'Auto'];
- if(!document.getElementById('ibxcss')){const st=document.createElement('style');st.id='ibxcss';st.textContent=`.ibx{display:grid;grid-template-columns:190px 320px minmax(0,1fr);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card);min-height:520px}
-.ibx-c1{background:var(--bg);border-right:1px solid var(--line);padding:10px 8px}.ibx-c2{border-right:1px solid var(--line);overflow:auto;max-height:660px}.ibx-c3{padding:16px 18px;background:var(--bg)}
+ if(!document.getElementById('ibxcss')){const st=document.createElement('style');st.id='ibxcss';st.textContent=`.ibx{display:grid;grid-template-columns:175px 290px minmax(0,1fr);gap:12px;min-height:520px;align-items:start}
+.ibx>div{background:var(--card);border:1px solid #B9CCC9;border-radius:12px;overflow:hidden}
+.ibx>div::before{display:block;padding:8px 14px;background:var(--teal,#0F6E56);color:#fff;font-weight:600;font-size:12.5px;letter-spacing:.02em}
+.ibx-c1::before{content:"Categories"}.ibx-c2::before{content:"Tasks"}.ibx-c3::before{content:"Details"}
+.ibx-c1{padding:0 8px 10px}.ibx-c1::before{margin:0 -8px 8px}.ibx-c2{overflow:auto;max-height:660px}.ibx-c3{padding:0 0 16px}.ibx-c3>*{margin-left:18px;margin-right:18px}.ibx-c3>*:first-child{margin-top:14px}.ibx-c3::before{margin:0 !important}
+.ibx-row{border-left:4px solid var(--teal,#0F6E56)}.ibx-row.ig-p-bad{border-left-color:#E24B4A}.ibx-row.ig-p-warn{border-left-color:#EF9F27}
+.ibx-g.ig-p-bad{background:#FCEBEB;color:#791F1F}.ibx-g.ig-p-warn{background:#FAEEDA;color:#633806}
+.ibx-cat.on{border-left:3px solid var(--teal-d,#0F6E56)}
+.ibx-cat b{background:#EEEDFE;color:#3C3489;border-radius:10px;padding:0 8px;font-size:11px;font-weight:600}
+.ibx-row,.ibx-g{border-bottom-color:#D5E2DF}
 .ibx-cat{display:flex;justify-content:space-between;width:100%;text-align:left;padding:7px 10px;border-radius:8px;color:var(--muted);font-size:13px}.ibx-cat:hover{background:var(--card)}.ibx-cat.on{background:var(--teal-l);color:var(--teal-d);font-weight:600}
 .ibx-g{padding:6px 12px;background:var(--teal-l);font-size:12px;font-weight:600;border-bottom:1px solid var(--line)}
 .ibx-row{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:8px}.ibx-row.on{background:var(--teal-l)}.ibx-row.un .ibx-t{font-weight:700}.ibx-t{font-weight:500;font-size:13px}
@@ -10220,8 +10228,8 @@ function ibList(){
 @media(max-width:900px){.ibx{grid-template-columns:1fr}.ibx-c1{display:flex;flex-wrap:wrap;gap:4px}.ibx-cat{width:auto}.ibx-c2{max-height:none;border-right:0}}`;document.head.appendChild(st)}
  const cb=(k,l,n,on)=>`<button class="ibx-cat${on?' on':''}" data-ibc="${k}"><span>${l}</span><b>${n||''}</b></button>`;
  let last='', list='';
- rows.forEach(r=>{const g=r.cls.g;if(g!==last){last=g;list+=`<div class="ibx-g">${L(IBGRP[g].en,IBGRP[g].hi)}</div>`}
-  list+=`<div class="ibx-row${sel&&sel.key===r.key?' on':''}${r.unread?' un':''}" data-ibrow="${esc(r.key)}">${r.kind==='wf'&&r.status==='Pending'?`<input type="checkbox" data-ibsel="${r.id}" style="margin-top:3px">`:''}<div style="flex:1;min-width:0"><div class="ibx-t">${esc(r.title)}</div><div class="ibx-sub">${r.subject?nmE(r.subject)+' · ':''}${r.due?fmtS(r.due):r.when?fmtS(r.when):''}</div><div style="display:flex;justify-content:space-between;margin-top:4px;gap:6px"><span><span class="ibx-chip">${srcL(r)}</span> <span class="ibx-sub">${L(...(KINDL[r.kind]||[r.kind,r.kind]))}</span></span>${r.status==='Pending'&&r.due&&r.due<TODAY_S?`<span class="pill p-bad">${L('late','देर')}</span>`:''}</div></div></div>`});
+ rows.forEach(r=>{const g=r.cls.g;if(g!==last){last=g;list+=`<div class="ibx-g ig-${IBGRP[g].pill}">${L(IBGRP[g].en,IBGRP[g].hi)}</div>`}
+  list+=`<div class="ibx-row ig-${IBGRP[g].pill}${sel&&sel.key===r.key?' on':''}${r.unread?' un':''}" data-ibrow="${esc(r.key)}">${r.kind==='wf'&&r.status==='Pending'?`<input type="checkbox" data-ibsel="${r.id}" style="margin-top:3px">`:''}<div style="flex:1;min-width:0"><div class="ibx-t">${esc(r.title)}</div><div class="ibx-sub">${r.subject?nmE(r.subject)+' · ':''}${r.due?fmtS(r.due):r.when?fmtS(r.when):''}</div><div style="display:flex;justify-content:space-between;margin-top:4px;gap:6px"><span><span class="ibx-chip">${srcL(r)}</span> <span class="ibx-sub">${L(...(KINDL[r.kind]||[r.kind,r.kind]))}</span></span>${r.status==='Pending'&&r.due&&r.due<TODAY_S?`<span class="pill p-bad">${L('late','देर')}</span>`:''}</div></div></div>`});
  let det=`<div class="ibx-empty">${L('You are all caught up. Nothing is waiting for you here.','सब काम निपट गए। यहाँ आपके लिए कुछ बाकी नहीं।')}</div>`;
  if(sel){const r=sel, inst=r.kind==='wf'?WFI.find(x=>x.id===r.tk.inst):null, g=r.cls.g, sub=[r.tk?`${L('from','से')} ${esc(r.tk.by)} · ${ibAge(r.tk.at)}`:'',ibWhy(r)].filter(Boolean).join(' · ');
   det=`<div><span class="pill ${IBGRP[g].pill}">${L(...r.cls.v)}</span> <span class="ibx-chip">${srcL(r)}</span> <span class="ibx-chip">${L(...(KINDL[r.kind]||[r.kind,r.kind]))}</span></div>
